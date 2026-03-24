@@ -1,0 +1,63 @@
+﻿using System;
+using System.Globalization;
+using System.Windows.Data;
+using System.Windows.Media;
+
+namespace RestaurantPosWpf
+{
+    // Background colour for the status pill
+    public sealed class StatusToBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var s = (value ?? "").ToString().Trim().ToLowerInvariant();
+            return s switch
+            {
+                //"active" => new SolidColorBrush(Color.FromRgb(0, 122, 204)),  // solid blue
+                //"active" => new SolidColorBrush(Color.FromRgb(46, 204, 113)),  // grass green
+                //"active" => new SolidColorBrush(Color.FromRgb(34, 139, 34)),  // darker grass green
+                //"active" => new SolidColorBrush(Color.FromRgb(40, 172, 74)),  // mid grass green
+                "active" => new SolidColorBrush(Color.FromRgb(43, 188, 94)),  // balanced grass green
+                "suspended" => new SolidColorBrush(Color.FromRgb(204, 0, 0)),    // solid red
+                "outofstock" => new SolidColorBrush(Color.FromRgb(204, 0, 0)),    // solid red
+                //"inactive" => new SolidColorBrush(Color.FromRgb(96, 96, 96)),   // solid grey
+                "inactive" => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9CA3AF")),
+                _ => Brushes.Transparent
+            };
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => null;
+    }
+
+    // Border colour for the status pill
+    public sealed class StatusToBorderConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var s = (value ?? "").ToString().Trim().ToLowerInvariant();
+            return s switch
+            {
+                "active" => new SolidColorBrush(Color.FromRgb(0, 122, 204)),  // solid blue
+                "suspended" => new SolidColorBrush(Color.FromRgb(204, 0, 0)),    // solid red
+                "outofstock" => new SolidColorBrush(Color.FromRgb(204, 0, 0)),    // solid red
+                "inactive" => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9CA3AF")),
+
+                //"active" => new SolidColorBrush(Color.FromRgb(0, 102, 170)),  // darker blue
+                //"suspended" => new SolidColorBrush(Color.FromRgb(153, 0, 0)),    // darker red
+                //"inactive" => new SolidColorBrush(Color.FromRgb(64, 64, 64)),   // darker grey
+                _ => Brushes.Transparent
+            };
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => null;
+    }
+
+    // Text colour for the status pill
+    public sealed class StatusToTextBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            // solid bright white for all
+            return new SolidColorBrush(Color.FromRgb(255, 255, 255));
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => null;
+    }
+}

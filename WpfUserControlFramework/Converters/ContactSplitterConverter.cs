@@ -1,0 +1,31 @@
+using System;
+using System.Globalization;
+using System.Windows.Data;
+
+namespace RestaurantPosWpf
+{
+    public sealed class ContactSplitterConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var s = (value as string) ?? string.Empty;
+            s = s.Replace("\r\n", "\n").Replace('\r', '\n');
+
+            var parts = s.Split(new[] { '\n' }, 2, StringSplitOptions.None);
+
+            int index = 0;
+            if (parameter != null && int.TryParse(parameter.ToString(), out int p))
+                index = p;
+
+            if (index < 0) index = 0;
+            if (index > 1) index = 1;
+
+            return parts.Length > index ? parts[index] : string.Empty;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
+}

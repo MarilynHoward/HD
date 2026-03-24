@@ -1,0 +1,73 @@
+﻿using System;
+using System.Globalization;
+using System.Windows;
+
+namespace RestaurantPosWpf
+{
+    internal static class UiScaleRead
+    {
+        internal static double ReadScaleOrDefault(object value)
+        {
+            // 1) Prefer the bound value (usually UiScaleState.FontScale)
+            double scale;
+            if (TryReadDouble(value, out scale) && scale > 0.05 && scale < 20.0)
+                return scale;
+
+            // 2) Prefer UiScaleState resource (single source of truth)
+            try
+            {
+                if (Application.Current != null &&
+                    Application.Current.Resources["UiScaleState"] is UiScaleState state &&
+                    state.FontScale > 0.05 && state.FontScale < 20.0)
+                {
+                    return state.FontScale;
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // 3) Fallback to UiScaleService.FontScale (should match UiScaleState if ApplyScale succeeded)
+            if (UiScaleService.FontScale > 0.05 && UiScaleService.FontScale < 20.0)
+                return UiScaleService.FontScale;
+
+            // 4) Last-chance fallback to legacy resource UiFontScale
+            try
+            {
+                if (Application.Current != null)
+                {
+                    object res = Application.Current.TryFindResource("UiFontScale");
+                    if (TryReadDouble(res, out scale) && scale > 0.05 && scale < 20.0)
+                        return scale;
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            return 1.0;
+        }
+
+        internal static bool TryReadDouble(object raw, out double value)
+        {
+            value = 0.0;
+
+            if (raw == null)
+                return false;
+
+            if (raw is double d)
+            {
+                value = d;
+                return true;
+            }
+
+            return double.TryParse(
+                raw.ToString(),
+                NumberStyles.Any,
+                CultureInfo.InvariantCulture,
+                out value);
+        }
+    }
+}

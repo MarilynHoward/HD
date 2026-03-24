@@ -1,0 +1,53 @@
+﻿using System;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Data;
+
+namespace RestaurantPosWpf
+{
+    public sealed class CornerRadiusFromHeightConverter : IValueConverter
+    {
+        // value     = ActualHeight (double)
+        // parameter = desired base radius (e.g. "8") authored at scaleFactor = 1.0
+        //
+        // Rule #200 compliance:
+        // - This converter MUST NOT apply UiScaleState.FontScale itself.
+        // - ActualHeight is already the *final scaled* height.
+        // - We only clamp to geometry limits to avoid capsules or sharp corners.
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            double height = 0.0;
+            if (value is double h && h > 0.0)
+                height = h;
+
+            // Authored (baseline) desired radius
+            double desired = 8.0;
+            if (parameter != null &&
+                double.TryParse(parameter.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double parsed))
+            {
+                desired = parsed;
+            }
+
+            if (height <= 0.0)
+                return new CornerRadius(desired);
+
+            // Geometry safety:
+            // - never exceed half height (minus a pixel to avoid capsule artefacts)
+            double max = Math.Max(0.0, (height / 2.0) - 1.0);
+
+            // - never collapse to razor-sharp corners on tiny controls
+            const double min = 3.0;
+
+            double r = desired;
+            r = Math.Min(r, max);
+            r = Math.Max(r, min);
+
+            return new CornerRadius(r);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return Binding.DoNothing;
+        }
+    }
+}

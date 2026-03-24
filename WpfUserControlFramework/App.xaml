@@ -1,0 +1,38 @@
+<Application x:Class="RestaurantPosWpf.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:RestaurantPosWpf"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             StartupUri="DashboardWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="PeoplePosTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <sys:Double x:Key="UiFontScale">1.0</sys:Double>
+
+            <!-- Global font family -->
+            <Style TargetType="{x:Type TextBlock}">
+                <Setter Property="FontFamily" Value="Segoe UI" />
+            </Style>
+            <Style TargetType="{x:Type Control}">
+                <Setter Property="FontFamily" Value="Segoe UI" />
+            </Style>
+
+            <!-- Base layout constants -->
+            <sys:Double x:Key="BaseNavWidth">250</sys:Double>
+            <sys:Double x:Key="BaseNavHandleWidth">10</sys:Double>
+            <sys:Double x:Key="BaseButtonHeight">42</sys:Double>
+            <sys:Double x:Key="BaseButtonCornerRadius">8</sys:Double>
+            <sys:Double x:Key="BaseControlGap">12</sys:Double>
+            <sys:Double x:Key="BasePaddingSmall">4</sys:Double>
+            <sys:Double x:Key="BasePaddingMedium">8</sys:Double>
+            <sys:Double x:Key="BasePaddingLarge">12</sys:Double>
+            <sys:Double x:Key="BaseTextBoxHeight">34</sys:Double>
+            <sys:Double x:Key="BaseHeaderHeight">85</sys:Double>
+            <sys:Double x:Key="BaseHeaderLeftWidth">260</sys:Double>
+            <sys:Double x:Key="BaseHeaderHeightPlusOne">86</sys:Double>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

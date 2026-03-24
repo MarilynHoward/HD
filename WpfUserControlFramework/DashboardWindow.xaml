@@ -1,0 +1,264 @@
+<Window x:Class="RestaurantPosWpf.DashboardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:RestaurantPosWpf"
+        Title="Document Repository"
+        Width="1200" Height="800"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <!-- NavButtonStyle: sidebar navigation button with selected/hover/focus states -->
+        <Style x:Key="NavButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#374151" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="FontSize"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                   Path=FontScale,
+                                   Converter={StaticResource FontScaleConverter},
+                                   ConverterParameter=14}" />
+            <Setter Property="Padding"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                   Path=FontScale,
+                                   Converter={StaticResource ThicknessScaleConverter},
+                                   ConverterParameter='10,8,10,8'}" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="BackgroundBorder"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center" />
+                            </Border>
+                            <!-- Focus outer ring -->
+                            <Border x:Name="FocusOuterRing"
+                                    BorderBrush="#C1DEFE"
+                                    BorderThickness="3"
+                                    CornerRadius="9"
+                                    Margin="-2"
+                                    Visibility="Collapsed" />
+                            <!-- Focus inner ring -->
+                            <Border x:Name="FocusInnerRing"
+                                    BorderBrush="#93C5FD"
+                                    BorderThickness="2"
+                                    CornerRadius="8"
+                                    Visibility="Collapsed" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <!-- Hover state -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BackgroundBorder" Property="Background" Value="#F3F4F6" />
+                            </Trigger>
+                            <!-- Keyboard focus state -->
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="FocusOuterRing" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="FocusInnerRing" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <!-- Selected state via Tag -->
+                            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="Selected">
+                                <Setter TargetName="BackgroundBorder" Property="Background" Value="#EFF6FF" />
+                                <Setter Property="Foreground" Value="#1D4ED8" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- PresetButtonStyle: compact scale preset button with focus ring -->
+        <Style x:Key="PresetButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#374151" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="FontSize"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                   Path=FontScale,
+                                   Converter={StaticResource FontScaleConverter},
+                                   ConverterParameter=11}" />
+            <Setter Property="Padding"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                   Path=FontScale,
+                                   Converter={StaticResource ThicknessScaleConverter},
+                                   ConverterParameter='6,3,6,3'}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#D1D5DB" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="BackgroundBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center" />
+                            </Border>
+                            <!-- Focus outer ring -->
+                            <Border x:Name="FocusOuterRing"
+                                    BorderBrush="#C1DEFE"
+                                    BorderThickness="3"
+                                    CornerRadius="7"
+                                    Margin="-2"
+                                    Visibility="Collapsed" />
+                            <!-- Focus inner ring -->
+                            <Border x:Name="FocusInnerRing"
+                                    BorderBrush="#93C5FD"
+                                    BorderThickness="2"
+                                    CornerRadius="6"
+                                    Visibility="Collapsed" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BackgroundBorder" Property="Background" Value="#F3F4F6" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="FocusOuterRing" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="FocusInnerRing" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar -->
+        <Border Grid.Column="0"
+                Background="#F9FAFB"
+                BorderBrush="#E5E7EB"
+                BorderThickness="0,0,1,0"
+                Width="{Binding Source={StaticResource UiScaleState},
+                                Path=FontScale,
+                                Converter={StaticResource LayoutScaleConverter},
+                                ConverterParameter=220}"
+                Padding="{Binding Source={StaticResource UiScaleState},
+                                  Path=FontScale,
+                                  Converter={StaticResource ThicknessScaleConverter},
+                                  ConverterParameter='12,16,12,16'}">
+            <DockPanel LastChildFill="True">
+
+                <!-- Scale Adjuster — docked to bottom -->
+                <StackPanel x:Name="ScaleAdjusterPanel"
+                            DockPanel.Dock="Bottom"
+                            Margin="{Binding Source={StaticResource UiScaleState},
+                                             Path=FontScale,
+                                             Converter={StaticResource ThicknessScaleConverter},
+                                             ConverterParameter='0,12,0,0'}">
+
+                    <!-- Separator line -->
+                    <Border BorderBrush="#E5E7EB" BorderThickness="0,1,0,0"
+                            Margin="{Binding Source={StaticResource UiScaleState},
+                                             Path=FontScale,
+                                             Converter={StaticResource ThicknessScaleConverter},
+                                             ConverterParameter='0,0,0,8'}" />
+
+                    <!-- "UI Scale" label -->
+                    <TextBlock Text="UI Scale"
+                               Foreground="#6B7280"
+                               FontFamily="Segoe UI"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=11}"
+                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,0,0,4'}" />
+
+                    <!-- Current percentage and slider row -->
+                    <DockPanel>
+                        <TextBlock x:Name="ScalePercentageLabel"
+                                   Text="100%"
+                                   Foreground="#374151"
+                                   FontFamily="Segoe UI"
+                                   FontWeight="SemiBold"
+                                   FontSize="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource FontScaleConverter},
+                                                      ConverterParameter=13}"
+                                   VerticalAlignment="Center"
+                                   DockPanel.Dock="Left"
+                                   Margin="{Binding Source={StaticResource UiScaleState},
+                                                    Path=FontScale,
+                                                    Converter={StaticResource ThicknessScaleConverter},
+                                                    ConverterParameter='0,0,8,0'}" />
+                        <Slider x:Name="ScaleSlider"
+                                Minimum="0.6"
+                                Maximum="1.8"
+                                TickFrequency="0.05"
+                                IsSnapToTickEnabled="True"
+                                Value="1.0"
+                                ValueChanged="ScaleSlider_ValueChanged"
+                                VerticalAlignment="Center"
+                                Width="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource LayoutScaleConverter},
+                                                ConverterParameter=120}" />
+                    </DockPanel>
+
+                    <!-- Preset buttons row -->
+                    <StackPanel Orientation="Horizontal"
+                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                 Path=FontScale,
+                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                 ConverterParameter='0,6,0,0'}">
+                        <Button Content="75%" Style="{StaticResource PresetButtonStyle}"
+                                Tag="0.75" Click="PresetButton_Click"
+                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                 Path=FontScale,
+                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                 ConverterParameter='0,0,4,0'}" />
+                        <Button Content="100%" Style="{StaticResource PresetButtonStyle}"
+                                Tag="1.0" Click="PresetButton_Click"
+                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                 Path=FontScale,
+                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                 ConverterParameter='0,0,4,0'}" />
+                        <Button Content="125%" Style="{StaticResource PresetButtonStyle}"
+                                Tag="1.25" Click="PresetButton_Click"
+                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                 Path=FontScale,
+                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                 ConverterParameter='0,0,4,0'}" />
+                        <Button Content="150%" Style="{StaticResource PresetButtonStyle}"
+                                Tag="1.5" Click="PresetButton_Click" />
+                    </StackPanel>
+
+                </StackPanel>
+
+                <!-- Navigation buttons — fills remaining space -->
+                <StackPanel x:Name="NavButtonPanel" />
+
+            </DockPanel>
+        </Border>
+
+        <!-- Content Area -->
+        <ContentControl x:Name="ContentArea" Grid.Column="1" />
+
+        <!-- Scrim Overlay: semi-transparent dark overlay for modal dialogs -->
+        <Border x:Name="ScrimOverlay"
+                Grid.ColumnSpan="2"
+                Background="#80000000"
+                Visibility="Collapsed"
+                Panel.ZIndex="10" />
+    </Grid>
+</Window>

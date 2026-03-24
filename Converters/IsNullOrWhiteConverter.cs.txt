@@ -1,0 +1,33 @@
+﻿using System;
+using System.Globalization;
+using System.Windows.Data;
+
+namespace RestaurantPosWpf
+{
+    /// <summary>
+    /// Returns TRUE when the input is null, empty, or whitespace.
+    /// Safe for strings, nulls, and unexpected value types.
+    /// </summary>
+    public sealed class IsNullOrWhiteConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            // Fast path for null
+            if (value == null)
+                return true;
+
+            // String handling (expected case)
+            string s = value as string;
+            if (s != null)
+                return string.IsNullOrWhiteSpace(s);
+
+            // Fallback: ToString() but still treat whitespace as empty
+            return string.IsNullOrWhiteSpace(value.ToString());
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
+}

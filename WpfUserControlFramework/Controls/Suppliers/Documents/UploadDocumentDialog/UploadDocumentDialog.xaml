@@ -1,0 +1,369 @@
+<UserControl x:Class="RestaurantPosWpf.UploadDocumentDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:RestaurantPosWpf"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="520"
+             d:DesignWidth="640">
+
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="DropZoneBorderBrush" Color="#D1D5DB" />
+        <SolidColorBrush x:Key="DropZoneBackgroundBrush" Color="#F9FAFB" />
+        <SolidColorBrush x:Key="DropZoneIconBrush" Color="#9CA3AF" />
+    </UserControl.Resources>
+
+    <Border Background="White"
+            BorderBrush="#E5E7EB"
+            BorderThickness="1"
+            Padding="{Binding Source={StaticResource UiScaleState},
+                             Path=FontScale,
+                             Converter={StaticResource ThicknessScaleConverter},
+                             ConverterParameter='24,16,24,20'}">
+        <Border.CornerRadius>
+            <Binding RelativeSource="{RelativeSource Self}"
+                     Path="ActualHeight"
+                     Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                     ConverterParameter="14"/>
+        </Border.CornerRadius>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Row 0: Header -->
+            <Grid Grid.Row="0"
+                  Margin="{Binding Source={StaticResource UiScaleState},
+                                   Path=FontScale,
+                                   Converter={StaticResource ThicknessScaleConverter},
+                                   ConverterParameter='0,0,0,6'}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Upload Document"
+                               Foreground="#0F172A"
+                               FontWeight="SemiBold"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=16}"/>
+                    <TextBlock x:Name="txtUploadSubtitle"
+                               Foreground="#6B7280"
+                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,4,0,0'}"
+                               Text="Add a new document to the repository"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=14}"/>
+                </StackPanel>
+
+                <Button x:Name="btnUploadPopupClose"
+                        Grid.Column="1"
+                        Click="CancelButton_Click"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Foreground="#64748B"
+                        Padding="6"
+                        Content="✕"
+                        VerticalAlignment="Top"
+                        HorizontalAlignment="Right"/>
+            </Grid>
+
+            <!-- Row 1: Divider -->
+            <Rectangle Grid.Row="1"
+                       Height="1"
+                       Fill="#FFE5E7EB"
+                       Margin="{Binding Source={StaticResource UiScaleState},
+                                        Path=FontScale,
+                                        Converter={StaticResource ThicknessScaleConverter},
+                                        ConverterParameter='0,0,0,10'}"/>
+
+            <!-- Row 2: Form fields (stacked layout matching screenshot) -->
+            <StackPanel Grid.Row="2"
+                        Margin="{Binding Source={StaticResource UiScaleState},
+                                         Path=FontScale,
+                                         Converter={StaticResource ThicknessScaleConverter},
+                                         ConverterParameter='0,0,0,20'}">
+
+                <!-- Document Name -->
+                <StackPanel Margin="{Binding Source={StaticResource UiScaleState},
+                                             Path=FontScale,
+                                             Converter={StaticResource ThicknessScaleConverter},
+                                             ConverterParameter='0,0,0,14'}">
+                    <TextBlock Text="Document Name *"
+                               Foreground="#374151"
+                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,0,0,6'}"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=12}"/>
+                    <Grid>
+                        <TextBox x:Name="DocumentNameTextBox"
+                                 Style="{StaticResource IcEnabledTextBoxStyle}"
+                                 Padding="10,8,10,8"/>
+                        <TextBlock Text="e.g., Annual Compliance Report"
+                                   IsHitTestVisible="False"
+                                   Foreground="#9CA3AF"
+                                   Margin="12,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontSize="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource FontScaleConverter},
+                                                      ConverterParameter=13}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding ElementName=DocumentNameTextBox, Path=Text}" Value=""/>
+                                                <Condition Binding="{Binding ElementName=DocumentNameTextBox, Path=IsKeyboardFocused}" Value="False"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                    <TextBlock x:Name="ValidationMessage"
+                               Visibility="Collapsed"
+                               Foreground="#DC2626"
+                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,6,0,0'}"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=11}"/>
+                </StackPanel>
+
+                <!-- Category -->
+                <StackPanel Margin="{Binding Source={StaticResource UiScaleState},
+                                             Path=FontScale,
+                                             Converter={StaticResource ThicknessScaleConverter},
+                                             ConverterParameter='0,0,0,14'}">
+                    <TextBlock Text="Category *"
+                               Foreground="#374151"
+                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,0,0,6'}"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=12}"/>
+                    <ComboBox x:Name="CategoryComboBox"
+                              Style="{StaticResource IcEnabledComboBoxStyle}"/>
+                </StackPanel>
+
+                <!-- Select File -->
+                <StackPanel Margin="{Binding Source={StaticResource UiScaleState},
+                                             Path=FontScale,
+                                             Converter={StaticResource ThicknessScaleConverter},
+                                             ConverterParameter='0,0,0,14'}">
+                    <TextBlock Text="Select File *"
+                               Foreground="#374151"
+                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,0,0,6'}"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=12}"/>
+                    <Border BorderBrush="{StaticResource DropZoneBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Background="White"
+                            Padding="{Binding Source={StaticResource UiScaleState},
+                                              Path=FontScale,
+                                              Converter={StaticResource ThicknessScaleConverter},
+                                              ConverterParameter='0'}">
+                        <StackPanel>
+                            <!-- Browse button row -->
+                            <Button x:Name="BrowseButton"
+                                    Click="BrowseButton_Click"
+                                    HorizontalAlignment="Stretch"
+                                    Cursor="Hand"
+                                    FocusVisualStyle="{x:Null}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Grid>
+                                            <Border x:Name="BrowseBorder"
+                                                    Background="#EFF6FF"
+                                                    CornerRadius="4"
+                                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                                     ConverterParameter='6,6,6,0'}"
+                                                    Padding="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                                      ConverterParameter='12,8,12,8'}">
+                                                <TextBlock x:Name="BrowseText"
+                                                           Foreground="#2563EB"
+                                                           FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                              Path=FontScale,
+                                                                              Converter={StaticResource FontScaleConverter},
+                                                                              ConverterParameter=13}">
+                                                    <Run Text="Browse..."/>
+                                                    <Run x:Name="FileStatusText" Text="No file selected." Foreground="#6B7280"/>
+                                                </TextBlock>
+                                            </Border>
+                                            <!-- Focus ring -->
+                                            <Border x:Name="FocusOuterRing"
+                                                    BorderBrush="{StaticResource FocusOuter}"
+                                                    BorderThickness="3"
+                                                    CornerRadius="7"
+                                                    Margin="4,4,4,-2"
+                                                    Visibility="Collapsed"/>
+                                            <Border x:Name="FocusInnerRing"
+                                                    BorderBrush="{StaticResource FocusInner}"
+                                                    BorderThickness="2"
+                                                    CornerRadius="6"
+                                                    Margin="5,5,5,-1"
+                                                    Visibility="Collapsed"/>
+                                        </Grid>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BrowseBorder" Property="Background" Value="#DBEAFE"/>
+                                            </Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="FocusOuterRing" Property="Visibility" Value="Visible"/>
+                                                <Setter TargetName="FocusInnerRing" Property="Visibility" Value="Visible"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <!-- Supported formats hint -->
+                            <TextBlock x:Name="SupportedFormatsText"
+                                       Text="Supported formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (Max 10MB)"
+                                       Foreground="#9CA3AF"
+                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                        Path=FontScale,
+                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                        ConverterParameter='10,6,10,8'}"
+                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource FontScaleConverter},
+                                                          ConverterParameter=11}"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock x:Name="FileValidationMessage"
+                               Visibility="Collapsed"
+                               Foreground="#DC2626"
+                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,6,0,0'}"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=11}"/>
+                </StackPanel>
+
+                <!-- Notes -->
+                <StackPanel>
+                    <TextBlock Text="Notes"
+                               Foreground="#374151"
+                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,0,0,6'}"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=12}"/>
+                    <Grid>
+                        <TextBox x:Name="NotesTextBox"
+                                 Style="{StaticResource IcEnabledTextBoxStyle}"
+                                 Height="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource LayoutScaleConverter},
+                                                  ConverterParameter=80}"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalContentAlignment="Top"
+                                 Padding="10,8,10,8"/>
+                        <TextBlock Text="Add any additional notes or comments about this document..."
+                                   IsHitTestVisible="False"
+                                   Foreground="#9CA3AF"
+                                   Margin="12,8,0,0"
+                                   VerticalAlignment="Top"
+                                   FontSize="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource FontScaleConverter},
+                                                      ConverterParameter=13}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding ElementName=NotesTextBox, Path=Text}" Value=""/>
+                                                <Condition Binding="{Binding ElementName=NotesTextBox, Path=IsKeyboardFocused}" Value="False"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </StackPanel>
+
+            </StackPanel>
+
+            <!-- Row 3: Divider -->
+            <Rectangle Grid.Row="3"
+                       Height="1"
+                       Fill="#FFE5E7EB"
+                       Margin="{Binding Source={StaticResource UiScaleState},
+                                        Path=FontScale,
+                                        Converter={StaticResource ThicknessScaleConverter},
+                                        ConverterParameter='0,0,0,10'}"/>
+
+            <!-- Row 4: Footer -->
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="btnUploadCancel"
+                        Grid.Column="1"
+                        FocusVisualStyle="{x:Null}"
+                        Click="CancelButton_Click"
+                        Style="{StaticResource VcSecondaryButtonStyle}"
+                        Content="Cancel"/>
+
+                <Button x:Name="btnUploadConfirm"
+                        Grid.Column="3"
+                        FocusVisualStyle="{x:Null}"
+                        Click="UploadButton_Click"
+                        Style="{StaticResource VcPrimaryButtonStyle}"
+                        Content="Upload Document"/>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>
