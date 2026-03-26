@@ -1,0 +1,48 @@
+﻿using System;
+using System.Globalization;
+using System.Windows.Data;
+using System.Windows.Media;
+
+namespace RestaurantPosWpf
+{
+    /// <summary>
+    /// Converts a colour string (e.g. "#22C55E", "Red") to a Brush.
+    /// Returns a safe default brush if input is null, empty, or invalid.
+    /// </summary>
+    public sealed class StringToBrushConverter : IValueConverter
+    {
+        private static readonly BrushConverter BrushConverter = new BrushConverter();
+
+        // Centralised default so behaviour is explicit and stable
+        private static readonly Brush DefaultBrush =
+            (Brush)BrushConverter.ConvertFromString("#22C55E");
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            // Expected case: string colour definition
+            string colourText = value as string;
+
+            if (!string.IsNullOrWhiteSpace(colourText))
+            {
+                try
+                {
+                    object result = BrushConverter.ConvertFromString(colourText);
+                    if (result is Brush brush)
+                        return brush;
+                }
+                catch
+                {
+                    // Intentionally swallow and fall back to default
+                }
+            }
+
+            // Fallback: stable, known-safe brush
+            return DefaultBrush;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return Binding.DoNothing;
+        }
+    }
+}

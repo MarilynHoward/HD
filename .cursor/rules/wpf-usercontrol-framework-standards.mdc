@@ -1,0 +1,19 @@
+---
+description: WPF framework coding and UI design conventions from Kiro steering docs
+alwaysApply: true
+---
+
+# WPF UserControl Framework Standards
+
+Follow these standards when editing this project:
+
+- Keep shared resources and converters in `WpfUserControlFramework/PeoplePosTheme.xaml`; do not duplicate shared keys in control-local resources.
+- Place each converter in its own `.cs` file under `WpfUserControlFramework/Converters/`, register it in `PeoplePosTheme.xaml`, and reuse existing converters before adding new ones.
+- Use converter-based scaling only (`FontScaleConverter`, `LayoutScaleConverter`, `ThicknessScaleConverter`, etc.); do not write inline scaling math.
+- Bind scaling to `UiScaleState.FontScale`; root `ScaleTransform` bindings must use `FontScale` (not `ScaleFactor`).
+- Keep one root `Border` as the direct child of each `UserControl`; for main pages use the content-root pattern, and for dialogs use scalable padding/corner radius converters.
+- Apply focus ring behavior to keyboard-focusable interactive controls and keep focus colors consistent with shared `FocusOuter`/`FocusInner` brushes.
+- Keep parent-child data flow explicit: constructor injection in, `Action` callbacks out, and null-guard required constructor parameters with `ArgumentNullException`.
+- For popup/dialog controls, preserve the standard five-row layout (header, divider, form, divider, footer) with scalable dimensions.
+- Keep control-specific resources in `<UserControl.Resources>` only when they are local to one control; promote reused styles to shared theme resources.
+- Keep control implementation self-contained in the control code-behind (`.xaml.cs`) for models/constants/demo data unless a broader refactor is explicitly requested.

@@ -1,0 +1,50 @@
+﻿using System;
+using System.Globalization;
+using System.Windows.Data;
+
+namespace RestaurantPosWpf
+{
+    // Preflight: clamps DataGrid host height so footer stays fixed and grid scrolls internally
+    // Inputs: [0]=rightPanelHeight, [1]=leftFooterHeight, [2]=fontScale
+    // Parameter: baseOverhead (double) that will be multiplied by fontScale
+    public sealed class VersionGridMaxHeightConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            double rightHeight = ReadDouble(values, 0);
+            double footerHeight = ReadDouble(values, 1);
+            double fontScale = ReadDouble(values, 2);
+            if (fontScale <= 0) fontScale = 1;
+
+            double baseOverhead = 0;
+            if (parameter != null)
+                double.TryParse(parameter.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out baseOverhead);
+
+            // Compute max height so footer remains visible
+            double max = rightHeight - footerHeight - baseOverhead * fontScale;
+
+            // Scaled safety floor so minimum usable grid stays proportional
+            double min = 120 * fontScale;
+            if (max < min) max = min;
+
+            return max;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+
+        private static double ReadDouble(object[] values, int index)
+        {
+            if (values == null || index < 0 || index >= values.Length || values[index] == null)
+                return 0;
+
+            if (values[index] is double d)
+                return d;
+
+            double.TryParse(values[index].ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double parsed);
+            return parsed;
+        }
+    }
+}

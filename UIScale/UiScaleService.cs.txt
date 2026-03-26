@@ -1,0 +1,601 @@
+﻿// Pre-flight: WPF · UiScaleService
+using System;
+using System.Configuration;
+using System.Drawing;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Threading;
+using System.Windows.Forms;
+
+namespace RestaurantPosWpf
+{
+    public static class UiScaleService
+    {
+        // Baseline = 150% (144 DPI) and your 150% logical width ≈ 1280 DIPs
+        private const double BaselineDpi_150 = 144.0;
+        private const double BaselineWidth_150 = 1280.0;
+
+        private const double BaselineDpi_125 = 120.0;
+        private const double BaselineWidth_125 = 1536.0;
+
+        // Optional future
+        private const double BaselineDpi_100 = 96.0;
+        private const double BaselineWidth_100 = 1920.0;
+
+        // Safety limits so things never explode
+        private const double MinScale = 0.6;
+        private const double MaxScale = 1.80;
+
+        private static bool _dpiHooked;
+
+        public static double FontScale { get; private set; } = 1.0;
+
+        public static event Action<double> ScaleChanged;
+
+        private static double _lastFontScale = 1.0;
+
+        // Flip to false once you’re done testing.
+        private static bool _scaleSnapshotEnabled = true;
+
+        // Set true if you want MessageBox; otherwise Debug.Print only.
+        private static bool _scaleSnapshotUseMessageBox = true;
+
+        private static void ScaleSnapshot(string reason, Visual visual)
+        {
+            if (!_scaleSnapshotEnabled)
+                return;
+
+            try
+            {
+                if (System.Windows.Application.Current == null)
+                    return;
+
+                Action emit = () =>
+                {
+                    string profile = GetRenderProfilePercent().ToString(CultureInfo.InvariantCulture);
+
+                    double svcScale = FontScale;
+
+                    double dpiX = 0.0;
+                    double baselineDpi = ActiveBaselineDpi;
+                    double dpiDerivedScale = 0.0;
+
+                    try
+                    {
+                        if (visual != null)
+                        {
+                            var dpi = VisualTreeHelper.GetDpi(visual);
+                            dpiX = dpi.PixelsPerInchX;
+                            if (dpiX > 0.0)
+                                dpiDerivedScale = Clamp(baselineDpi / dpiX, MinScale, MaxScale);
+                        }
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    double width = 0.0;
+                    double baselineWidth = ActiveBaselineWidth;
+                    double widthDerivedScale = 0.0;
+
+                    try
+                    {
+                        width = SystemParameters.PrimaryScreenWidth;
+                        if (width > 0.0)
+                            widthDerivedScale = Clamp(width / baselineWidth, MinScale, MaxScale);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    double uiFontScaleRes = 0.0;
+                    try
+                    {
+                        object res = System.Windows.Application.Current.TryFindResource("UiFontScale");
+                        if (res is double d)
+                            uiFontScaleRes = d;
+                        else if (res != null)
+                            double.TryParse(res.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out uiFontScaleRes);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    double uiScaleState = 0.0;
+                    try
+                    {
+                        object stateObj = System.Windows.Application.Current.Resources["UiScaleState"];
+                        UiScaleState state = stateObj as UiScaleState;
+                        if (state != null)
+                            uiScaleState = state.FontScale;
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    string msg =
+                        "Scale Snapshot\n" +
+                        "Reason: " + (reason ?? "") + "\n\n" +
+                        "UiRenderProfilePercent: " + profile + "\n\n" +
+                        "ActiveBaselineDpi: " + baselineDpi.ToString("0.###", CultureInfo.InvariantCulture) + "\n" +
+                        "DpiX: " + dpiX.ToString("0.###", CultureInfo.InvariantCulture) + "\n" +
+                        "Scale (baselineDpi/dpiX): " + dpiDerivedScale.ToString("0.###", CultureInfo.InvariantCulture) + "\n\n" +
+                        "ActiveBaselineWidth: " + baselineWidth.ToString("0.###", CultureInfo.InvariantCulture) + "\n" +
+                        "PrimaryScreenWidth (DIPs): " + width.ToString("0.###", CultureInfo.InvariantCulture) + "\n" +
+                        "Scale (width/baselineWidth): " + widthDerivedScale.ToString("0.###", CultureInfo.InvariantCulture) + "\n\n" +
+                        "UiScaleService.FontScale: " + svcScale.ToString("0.###", CultureInfo.InvariantCulture) + "\n" +
+                        "Resource UiScaleState.FontScale: " + uiScaleState.ToString("0.###", CultureInfo.InvariantCulture) + "\n" +
+                        "Resource UiFontScale: " + uiFontScaleRes.ToString("0.###", CultureInfo.InvariantCulture);
+
+                    System.Diagnostics.Debug.Print(msg.Replace("\n", " | "));
+
+                    //if (_scaleSnapshotUseMessageBox)
+                    //    System.Windows.MessageBox.Show(msg, "UiScaleService", MessageBoxButton.OK, MessageBoxImage.Information);
+                };
+
+                if (System.Windows.Application.Current.Dispatcher.CheckAccess())
+                    emit();
+                else
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(emit, DispatcherPriority.Background);
+            }
+            catch
+            {
+                // last-resort: never throw from diagnostics
+            }
+        }
+
+        private static int GetRenderProfilePercent()
+        {
+            try
+            {
+                string value = ConfigurationManager.AppSettings["UiRenderProfilePercent"];
+                int percent;
+
+                if (Int32.TryParse(value, out percent))
+                {
+                    if (percent == 100 || percent == 125 || percent == 150)
+                        return percent;
+                }
+            }
+            catch
+            {
+                // fall through
+            }
+
+            // Hard default = current behaviour
+            return 150;
+        }
+
+
+        private static void NotifyScaleChanged(double newScale)
+        {
+            if (Math.Abs(newScale - _lastFontScale) < 0.001) return;
+
+            _lastFontScale = newScale;
+
+            var handler = ScaleChanged;
+            if (handler != null)
+                handler(newScale);
+        }
+
+        //public static void InitializeFromWindow(Window window)
+        //{
+        //    if (window == null) return;
+
+        //    // 1) Initial value based on logical screen width (works in constructor)
+        //    double widthScale = GetScaleFromWidths();
+        //    ApplyScale(widthScale);
+
+        //    ScaleSnapshot("InitializeFromWindow (width initial)", window);
+
+        //    // 2) Once the HWND exists, hook proper DPI notifications
+        //    window.SourceInitialized += Window_SourceInitialized;
+        //}
+
+        public static void InitializeFromWindow(Window window)
+        {
+            if (window == null) return;
+
+            // 1) Initial value based on logical screen width (works early)
+            //double widthScale = GetScaleFromWidths();
+            double widthScale = GetScaleFromWidths(window);
+            ApplyScale(widthScale);
+
+            // 2) Once the HWND exists, hook proper DPI notifications
+            if (!_sourceInitializedAttached)
+            {
+                window.SourceInitialized += Window_SourceInitialized;
+                _sourceInitializedAttached = true;
+            }
+        }
+
+
+        private static void Window_SourceInitialized(object sender, EventArgs e)
+        {
+            var window = sender as Window;
+            if (window == null) return;
+
+            HookDpiTracking(window);
+        }
+
+        private static void HookDpiTracking(Window window)
+        {
+            if (_dpiHooked) return;
+
+            var helper = new WindowInteropHelper(window);
+            if (helper.Handle == IntPtr.Zero) return;
+
+            var source = HwndSource.FromHwnd(helper.Handle);
+            if (source == null) return;
+
+            _dpiHooked = true;
+
+            // Refresh once with real DPI
+            UpdateScaleFromDpiOrWidth(window);
+
+            // Listen for DPI changes (moving between monitors / OS scale changes)
+            source.AddHook(WndProc);
+        }
+
+        public static event Action DpiChanged;
+
+        private static bool _sourceInitializedAttached;
+
+        private static IntPtr WndProc(
+            IntPtr hwnd,
+            int msg,
+            IntPtr wParam,
+            IntPtr lParam,
+            ref bool handled)
+        {
+            const int WM_DPICHANGED = 0x02E0;
+
+            if (msg == WM_DPICHANGED)
+            {
+                // Keep the message unhandled so WPF can continue its own DPI processing.
+                handled = false;
+
+                // Signal the UI to re-run InitializeFromWindow(window) from the window itself.
+                // We defer so layout/DPI settle first (similar to what SizeChanged used to "accidentally" do).
+                System.Windows.Application.Current?.Dispatcher?.BeginInvoke(
+                    new Action(() =>
+                    {
+                        var h = DpiChanged;
+                        if (h != null)
+                            h();
+                    }),
+                    System.Windows.Threading.DispatcherPriority.Loaded);
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private static double ReadDpiFromWParam_LowWord(IntPtr wParam)
+        {
+            try
+            {
+                // WM_DPICHANGED wParam: LOWORD = dpiX, HIWORD = dpiY
+                int packed = wParam.ToInt32();
+                int dpiX = packed & 0xFFFF;
+
+                // Guard: values below ~50 are nonsense
+                if (dpiX < 50) return 0.0;
+
+                return (double)dpiX;
+            }
+            catch
+            {
+                return 0.0;
+            }
+        }
+
+        private static void UpdateScaleFromDpiOrWidth(Window window, double dpiXOverride)
+        {
+            if (window == null) return;
+
+            // 1) Compute DPI-based scale.
+            // Prefer the wParam DPI for WM_DPICHANGED, since VisualTreeHelper.GetDpi can be stale.
+            double scaleFromDpi = 0.0;
+
+            if (dpiXOverride > 0.0)
+                scaleFromDpi = GetScaleFromDpiX(dpiXOverride);
+            else
+                scaleFromDpi = GetScaleFromDpi(window);
+
+            // 2) Compute width-based scale (always).
+            double scaleFromWidth = GetScaleFromWidths(window);
+
+            // 3) Choose scale using a stale-DPI guard.
+            // If DPI looks valid BUT disagrees with width more than tolerance, trust width for this pass.
+            // (This matches your observation: DPI returns old 144, width reflects 125% immediately.)
+            const double TOL = 0.05;
+
+            double chosen = 0.0;
+
+            bool hasDpi = (scaleFromDpi > 0.0);
+            bool hasWidth = (scaleFromWidth > 0.0);
+
+            if (hasDpi && hasWidth)
+            {
+                double diff = Math.Abs(scaleFromDpi - scaleFromWidth);
+
+                if (diff > TOL)
+                    chosen = scaleFromWidth;
+                else
+                    chosen = scaleFromDpi;
+            }
+            else if (hasDpi)
+            {
+                chosen = scaleFromDpi;
+            }
+            else if (hasWidth)
+            {
+                chosen = scaleFromWidth;
+            }
+
+            if (chosen <= 0.0)
+                chosen = 1.0;
+
+            ApplyScale(chosen);
+
+            // 4) Deferred re-check: after layout settles, VisualTreeHelper.GetDpi should be correct.
+            // This avoids locking in a transient reading.
+            window.Dispatcher.BeginInvoke(
+                new Action(() =>
+                {
+                    double sDpi2 = GetScaleFromDpi(window);
+                    double sW2 = GetScaleFromWidths(window);
+
+                    double chosen2 = sDpi2;
+
+                    if (sDpi2 > 0.0 && sW2 > 0.0 && Math.Abs(sDpi2 - sW2) > TOL)
+                        chosen2 = sW2;
+
+                    if (chosen2 <= 0.0)
+                        chosen2 = chosen;
+
+                    ApplyScale(chosen2);
+                }),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+
+            // If you want:
+            // ScaleSnapshot("UpdateScaleFromDpiOrWidth (dpi/width guarded)", window);
+        }
+
+        private static double GetScaleFromDpiX(double dpiX)
+        {
+            if (dpiX <= 0.0) return 0.0;
+
+            // Rule #200 inversion
+            double scale = ActiveBaselineDpi / dpiX;
+            return Clamp(scale, MinScale, MaxScale);
+        }
+        private static void UpdateScaleFromDpiOrWidth(Window window)
+        {
+            double scale = GetScaleFromDpi(window);
+
+            // Fallback to width-based if DPI is unavailable for any reason
+            if (scale <= 0.0)
+                scale = GetScaleFromWidths(window);
+
+            ApplyScale(scale);
+
+            ScaleSnapshot("UpdateScaleFromDpiOrWidth (dpi/width)", window);
+        }
+
+        private static double ActiveBaselineDpi
+        {
+            get
+            {
+                switch (GetRenderProfilePercent())
+                {
+                    case 125: return BaselineDpi_125;
+                    case 100: return BaselineDpi_100;
+                    case 150:
+                    default: return BaselineDpi_150;
+                }
+            }
+        }
+
+        private static double ActiveBaselineWidth
+        {
+            get
+            {
+                switch (GetRenderProfilePercent())
+                {
+                    case 125: return BaselineWidth_125;
+                    case 100: return BaselineWidth_100;
+                    case 150:
+                    default: return BaselineWidth_150;
+                }
+            }
+        }
+
+        private static double GetScaleFromDpi(Visual visual)
+        {
+            try
+            {
+                var dpi = VisualTreeHelper.GetDpi(visual);
+                double dpiX = dpi.PixelsPerInchX;
+                if (dpiX <= 0.0) return 0.0;
+
+                // Inverted so: 150% (144) => 1.0, 125% (~120) => >1, 100% (96) => 1.5
+                double scale = ActiveBaselineDpi / dpiX;
+                return Clamp(scale, MinScale, MaxScale);
+            }
+            catch
+            {
+                return 0.0;
+            }
+        }
+
+        //private static double GetScaleFromWidths()
+        //{
+        //    try
+        //    {
+        //        // WPF logical screen width (DIPs) – this is what gave you ≈1280 at 150%
+        //        double logicalWidth = SystemParameters.PrimaryScreenWidth;
+        //        if (logicalWidth <= 0.0) return 1.0;
+
+        //        // Your earlier requirement: when OS scale goes DOWN (more space, larger logical width),
+        //        // the UI scale factor must go UP so the dashboard keeps the same visual proportions.
+        //        double scale = logicalWidth / ActiveBaselineWidth;
+        //        return Clamp(scale, MinScale, MaxScale);
+        //    }
+        //    catch
+        //    {
+        //        return 1.0;
+        //    }
+        //}
+
+        private static double GetScaleFromWidths(Window window)
+        {
+            try
+            {
+                double logicalWidthDip = 0.0;
+
+                // Prefer: current monitor containing this window (by HWND)
+                if (window != null)
+                {
+                    var helper = new WindowInteropHelper(window);
+                    if (helper.Handle != IntPtr.Zero)
+                    {
+                        Screen screen = Screen.FromHandle(helper.Handle);
+                        int pixelWidth = screen.Bounds.Width;
+
+                        // Convert pixels -> DIPs using the window’s current composition transform
+                        var source = PresentationSource.FromVisual(window);
+                        if (source != null && source.CompositionTarget != null)
+                        {
+                            Matrix m = source.CompositionTarget.TransformFromDevice;
+                            logicalWidthDip = m.Transform(new System.Windows.Point(pixelWidth, 0)).X;
+                        }
+                    }
+                }
+
+                // Fallback: old behavior (primary screen logical width)
+                if (logicalWidthDip <= 0.0)
+                    logicalWidthDip = SystemParameters.PrimaryScreenWidth;
+
+                if (logicalWidthDip <= 0.0)
+                    return 1.0;
+
+                double scale = logicalWidthDip / ActiveBaselineWidth;
+                return Clamp(scale, MinScale, MaxScale);
+            }
+            catch
+            {
+                return 1.0;
+            }
+        }
+
+
+
+        private static void ApplyScale(double fontScale)
+        {
+            // Normalize
+            if (fontScale <= 0.0)
+                fontScale = 1.0;
+
+            // Always store the latest value
+            FontScale = fontScale;
+
+            if (System.Windows.Application.Current == null)
+            {
+                    System.Windows.MessageBox.Show(
+                    $"UiScaleService.ApplyScale: Application.Current is null.\r\n\r\n" +
+                    $"Scale={fontScale:0.###}",
+                    "UiScaleService.ApplyScale",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                return;
+            }
+
+            Dispatcher dispatcher = System.Windows.Application.Current.Dispatcher;
+            if (dispatcher == null)
+            {
+                System.Windows.MessageBox.Show(
+                    $"UiScaleService.ApplyScale: Application.Current.Dispatcher is null.\r\n\r\n" +
+                    $"Scale={fontScale:0.###}",
+                    "UiScaleService.ApplyScale",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                return;
+            }
+
+            if (dispatcher.CheckAccess())
+            {
+                ApplyScale_Core(fontScale);
+            }
+            else
+            {
+                dispatcher.Invoke(new Action(() =>
+                {
+                    ApplyScale_Core(fontScale);
+                }));
+            }
+        }
+
+        private static void ApplyScale_Core(double fontScale)
+        {
+            try
+            {
+                if (System.Windows.Application.Current == null)
+                    return;
+
+                // Legacy binding path (some places still read UiFontScale directly)
+                System.Windows.Application.Current.Resources["UiFontScale"] = fontScale;
+
+                // Safe lookup (does not throw if the key is missing at this moment)
+                object res = System.Windows.Application.Current.TryFindResource("UiScaleState");
+
+                UiScaleState state = res as UiScaleState;
+                if (state == null)
+                {
+                    string detail =
+                        (res == null)
+                            ? "UiScaleState not found via TryFindResource (key missing at this time)."
+                            : ("UiScaleState found but wrong type: " + res.GetType().FullName);
+
+                    System.Windows.MessageBox.Show(
+                        $"UiScaleService.ApplyScale: UiScaleState unavailable.\r\n\r\n" +
+                        $"{detail}\r\n\r\n" +
+                        $"Scale={fontScale:0.###}\r\n\r\n" +
+                        $"Note: if this happens during very early startup, it may mean ApplyScale is running before merged dictionaries are ready.",
+                        "UiScaleService.ApplyScale",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+                else
+                {
+                    state.FontScale = fontScale;
+                }
+
+                NotifyScaleChanged(fontScale);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"UiScaleService.ApplyScale_Core exception:\r\n\r\n{ex.Message}\r\n\r\nScale={fontScale:0.###}",
+                    "UiScaleService.ApplyScale",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+        private static double Clamp(double value, double min, double max)
+        {
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
+        }
+
+    }
+}
