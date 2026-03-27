@@ -6,16 +6,19 @@ using System.Windows.Controls;
 
 namespace RestaurantPosWpf
 {
-    public partial class DiscrepanciesControl : UserControl
+    public partial class ProcurementDiscrepancies : UserControl
     {
         private readonly Action _onClose;
+        private readonly Action<string> _onOpenPurchaseOrder;
         private readonly List<DiscrepancyRecord> _records;
 
-        public DiscrepanciesControl(
+        public ProcurementDiscrepancies(
             DiscrepanciesNavigationContext navigationContext,
+            Action<string> onOpenPurchaseOrder,
             Action onClose)
         {
             if (navigationContext is null) throw new ArgumentNullException(nameof(navigationContext));
+            _onOpenPurchaseOrder = onOpenPurchaseOrder ?? throw new ArgumentNullException(nameof(onOpenPurchaseOrder));
             _onClose = onClose ?? throw new ArgumentNullException(nameof(onClose));
 
             InitializeComponent();
@@ -51,6 +54,15 @@ namespace RestaurantPosWpf
             TypeFilterComboBox.SelectedItem = "All Types";
 
             RefreshView();
+        }
+
+        public double GetFooterStripHeight()
+        {
+            if (FooterStrip == null)
+                return 0.0;
+
+            FooterStrip.UpdateLayout();
+            return FooterStrip.ActualHeight;
         }
 
         private void RefreshView()
@@ -136,6 +148,14 @@ namespace RestaurantPosWpf
             ProcurementDiscrepancyStore.AddRecord(newRecord);
             _records.Insert(0, newRecord);
             RefreshView();
+        }
+
+        private void PONumber_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button { Tag: string poNumber })
+                return;
+
+            _onOpenPurchaseOrder(poNumber);
         }
     }
 }

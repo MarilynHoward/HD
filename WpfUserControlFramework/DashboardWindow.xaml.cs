@@ -204,19 +204,20 @@ namespace RestaurantPosWpf
                 onViewDiscrepancies: context => NavigateToDiscrepancies(context));
         }
 
-        private DiscrepanciesControl BuildDiscrepanciesControl()
+        private ProcurementDiscrepancies BuildDiscrepanciesControl()
         {
             return BuildDiscrepanciesControl(new DiscrepanciesNavigationContext
             {
-                Records = ProcurementDiscrepancyStore.GetAll(),
+                Records = ProcurementDiscrepancyStore.GetAllAlignedToPurchaseOrders(),
                 InitialStatusFilter = "All Statuses"
             });
         }
 
-        private DiscrepanciesControl BuildDiscrepanciesControl(DiscrepanciesNavigationContext context)
+        private ProcurementDiscrepancies BuildDiscrepanciesControl(DiscrepanciesNavigationContext context)
         {
-            return new DiscrepanciesControl(
+            return new ProcurementDiscrepancies(
                 navigationContext: context,
+                onOpenPurchaseOrder: _ => { },
                 onClose: NavigateToProcurementDashboard);
         }
 
@@ -237,6 +238,22 @@ namespace RestaurantPosWpf
         {
             var navItem = _navItems.First(i => i.Category == "Procurement" && i.Label == "Dashboard");
             NavigateTo(navItem);
+        }
+
+        /// <summary>
+        /// Pushes the procurement discrepancies overlay footer height into <see cref="UiScaleState.FooterAlignHeight"/>
+        /// so split layouts can align with the overlay strip.
+        /// </summary>
+        public void RefreshFooterAlignHeightForChildOverlay()
+        {
+            var scaleState = Application.Current.Resources["UiScaleState"] as UiScaleState;
+            if (scaleState == null)
+                return;
+
+            if (ContentArea?.Content is ProcurementControl pc)
+                scaleState.FooterAlignHeight = pc.GetActiveFooterStripHeight();
+            else
+                scaleState.FooterAlignHeight = 0;
         }
     }
 }

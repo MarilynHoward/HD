@@ -1,0 +1,310 @@
+<UserControl x:Class="RestaurantPosWpf.ProcurementPO"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="True"
+             PreviewKeyDown="ProcurementPO_PreviewKeyDown">
+
+    <Border Background="Transparent">
+        <Grid x:Name="OverlayRoot">
+            <Border x:Name="DialogCard"
+                    Width="{Binding ActualWidth, ElementName=OverlayRoot, Converter={StaticResource WidthMultiplierConverter}, ConverterParameter=0.96}"
+                    MaxWidth="{Binding ActualWidth, ElementName=OverlayRoot, Converter={StaticResource WidthMultiplierConverter}, ConverterParameter=0.98}"
+                    MaxHeight="{Binding ActualHeight, ElementName=OverlayRoot, Converter={StaticResource WidthMultiplierConverter}, ConverterParameter=0.96}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    BorderBrush="#E5E7EB"
+                    BorderThickness="1"
+                    Background="#F8FAFC"
+                    SnapsToDevicePixels="True"
+                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,14,16,16'}"
+                    CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=12}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0"
+                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
+                        <Button Content="←"
+                                DockPanel.Dock="Left"
+                                VerticalAlignment="Top"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Foreground="{StaticResource MainForeground}"
+                                FontWeight="SemiBold"
+                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}"
+                                Padding="0"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,10,0'}"
+                                Click="Close_Click" />
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding PONumber}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource MainForeground}"
+                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=24}" />
+                                <Border Background="#FFEAD5"
+                                        BorderBrush="#F4D0B0"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        VerticalAlignment="Center"
+                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,0,0,0'}"
+                                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,1,8,1'}">
+                                    <TextBlock Text="{Binding StatusLabel}"
+                                               Foreground="#B45309"
+                                               FontWeight="Normal"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=10}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="{Binding CreatedByLine}"
+                                       Foreground="{StaticResource DimmedForeground}"
+                                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,0'}"
+                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Rectangle Grid.Row="1" Height="0" Fill="#E5E7EB"
+                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,14'}" />
+
+                    <Grid Grid.Row="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <UniformGrid Columns="3"
+                                     Grid.Row="0"
+                                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,14'}">
+                            <Border Background="#EFF6FF" BorderBrush="#C9D3F7" BorderThickness="1" CornerRadius="8"
+                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
+                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,12,16,12'}">
+                                <StackPanel>
+                                    <TextBlock Text="Supplier" Foreground="#6B7280"
+                                               FontWeight="Normal"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}" 
+                                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,0,0,15'}" />
+                                    <TextBlock Text="{Binding SupplierName}" FontWeight="SemiBold" Foreground="{StaticResource MainForeground}"
+                                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,10,0,0'}"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}" />
+                                    <TextBlock Text="{Binding SupplierReference, StringFormat=Ref: {0}}" Foreground="{StaticResource DimmedForeground}"
+                                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,0'}"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+                                </StackPanel>
+                                <Border.MinHeight>
+                                    <Binding Source="{StaticResource UiScaleState}" Path="FontScale" Converter="{StaticResource LayoutScaleConverter}" ConverterParameter="132" />
+                                </Border.MinHeight>
+                            </Border>
+                            <Border Background="#F5F3FF" BorderBrush="#C6D4FB" BorderThickness="1" CornerRadius="8"
+                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,8,0'}"
+                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,12,16,12'}">
+                                <StackPanel>
+                                    <TextBlock Text="Delivery Details" Foreground="#6B7280"
+                                               FontWeight="Normal"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
+                                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,0,0,15'}" />
+                                    <TextBlock Text="{Binding DeliveryDateDisplay}" FontWeight="SemiBold" Foreground="{StaticResource MainForeground}"
+                                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,10,0,0'}"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}" />
+                                    <TextBlock Text="{Binding DeliveryLocation}" Foreground="{StaticResource DimmedForeground}"
+                                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,0'}"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+                                </StackPanel>
+                                <Border.MinHeight>
+                                    <Binding Source="{StaticResource UiScaleState}" Path="FontScale" Converter="{StaticResource LayoutScaleConverter}" ConverterParameter="132" />
+                                </Border.MinHeight>
+                            </Border>
+                            <Border Background="#FEFBEA" BorderBrush="#F5E49E" BorderThickness="1" CornerRadius="8"
+                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,0,0'}"
+                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,12,16,12'}">
+                                <StackPanel>
+                                    <TextBlock Text="Order Total" Foreground="#6B7280"
+                                               FontWeight="Normal"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}" 
+                                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,0,0,15'}" />
+                                    <TextBlock Text="{Binding TotalDisplay}" FontWeight="Bold" Foreground="{StaticResource MainForeground}"
+                                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,10,0,0'}"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=22}" />
+                                    <TextBlock Text="{Binding ItemCountDisplay}" Foreground="{StaticResource DimmedForeground}"
+                                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,0'}"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+                                </StackPanel>
+                                <Border.MinHeight>
+                                    <Binding Source="{StaticResource UiScaleState}" Path="FontScale" Converter="{StaticResource LayoutScaleConverter}" ConverterParameter="132" />
+                                </Border.MinHeight>
+                            </Border>
+                        </UniformGrid>
+
+                        <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8"
+                                Grid.Row="1"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,14'}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="Order Items"
+                                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,12,12,10'}"
+                                           Foreground="{StaticResource MainForeground}"
+                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}" />
+
+                                <Border Grid.Row="1" Background="#E5E7EB" CornerRadius="8,8,0,0">
+                                    <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,10,12,10'}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="0.9*" />
+                                            <ColumnDefinition Width="1.8*" />
+                                            <ColumnDefinition Width="1.0*" />
+                                            <ColumnDefinition Width="1.0*" />
+                                            <ColumnDefinition Width="0.9*" />
+                                            <ColumnDefinition Width="1.0*" />
+                                            <ColumnDefinition Width="1.0*" />
+                                            <ColumnDefinition Width="1.0*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Item Code" Foreground="#6B7280" FontWeight="Bold" />
+                                        <TextBlock Grid.Column="1" Text="Ingredient" Foreground="#6B7280" FontWeight="Bold" />
+                                        <TextBlock Grid.Column="2" Text="Category" Foreground="#6B7280" FontWeight="Bold" />
+                                        <TextBlock Grid.Column="3" Text="Pack Size" Foreground="#6B7280" FontWeight="Bold" />
+                                        <TextBlock Grid.Column="4" Text="Qty Ordered" Foreground="#6B7280" FontWeight="Bold" HorizontalAlignment="Center" />
+                                        <TextBlock Grid.Column="5" Text="Qty Received" Foreground="#6B7280" FontWeight="Bold" HorizontalAlignment="Center" />
+                                        <TextBlock Grid.Column="6" Text="Unit Cost" Foreground="#6B7280" FontWeight="Bold" HorizontalAlignment="Center" />
+                                        <TextBlock Grid.Column="7" Text="Line Total" Foreground="#6B7280" FontWeight="Bold" HorizontalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+
+                                <ScrollViewer Grid.Row="2"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              CanContentScroll="True"
+                                              PanningMode="VerticalOnly"
+                                              Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=360}">
+                                    <ItemsControl ItemsSource="{Binding Items}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="#F3F4F6" BorderThickness="0,1,0,0"
+                                                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,10,12,10'}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="0.9*" />
+                                                            <ColumnDefinition Width="1.8*" />
+                                                            <ColumnDefinition Width="1.0*" />
+                                                            <ColumnDefinition Width="1.0*" />
+                                                            <ColumnDefinition Width="0.9*" />
+                                                            <ColumnDefinition Width="1.0*" />
+                                                            <ColumnDefinition Width="1.0*" />
+                                                            <ColumnDefinition Width="1.0*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding ItemCode}" Foreground="{StaticResource MainForeground}" />
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding Ingredient}" Foreground="{StaticResource MainForeground}" />
+                                                            <TextBlock Text="{Binding Note}" Foreground="#6B7280" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+                                                        </StackPanel>
+                                                        <Border Grid.Column="2" Background="#F3F4F6" CornerRadius="10" HorizontalAlignment="Left" Padding="10,4,10,4">
+                                                            <TextBlock Text="{Binding Category}" Foreground="#374151" />
+                                                        </Border>
+                                                        <TextBlock Grid.Column="3" Text="{Binding PackSize}" Foreground="{StaticResource MainForeground}" />
+                                                        <TextBlock Grid.Column="4" Text="{Binding QuantityOrdered}" Foreground="{StaticResource MainForeground}" HorizontalAlignment="Center" />
+                                                        <TextBlock Grid.Column="5" Text="{Binding QuantityReceived}" Foreground="{Binding QuantityReceivedBrush}" HorizontalAlignment="Center" />
+                                                        <TextBlock Grid.Column="6" Text="{Binding UnitCostDisplay}" Foreground="{StaticResource MainForeground}" HorizontalAlignment="Center" />
+                                                        <TextBlock Grid.Column="7" Text="{Binding LineTotalDisplay}" Foreground="{StaticResource MainForeground}" HorizontalAlignment="Center" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+
+                                <Grid Grid.Row="3"
+                                      Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,12,12,12'}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="1" Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=220}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Subtotal" Foreground="#6B7280" />
+                                            <TextBlock Grid.Column="1" Text="{Binding SubtotalDisplay}" Foreground="{StaticResource MainForeground}" />
+                                        </Grid>
+                                        <Grid Margin="0,6,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="VAT (15%)" Foreground="#6B7280" />
+                                            <TextBlock Grid.Column="1" Text="{Binding VatDisplay}" Foreground="{StaticResource MainForeground}" />
+                                        </Grid>
+                                        <Grid Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Total" Foreground="{StaticResource MainForeground}" FontWeight="Bold" />
+                                            <TextBlock Grid.Column="1" Text="{Binding TotalDisplay}" Foreground="{StaticResource MainForeground}" FontWeight="Bold" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8"
+                                Grid.Row="2"
+                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='14,12,14,12'}">
+                            <StackPanel>
+                                <TextBlock Text="Approval History"
+                                           Foreground="{StaticResource MainForeground}"
+                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}" />
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,10,0,0'}">
+                                    <TextBlock Text="✔"
+                                               Foreground="#16A34A"
+                                               FontWeight="Bold"
+                                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}" />
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding ApprovedBy, StringFormat=Approved by {0}}" Foreground="{StaticResource MainForeground}" />
+                                        <TextBlock Text="{Binding ApprovedDateDisplay}" Foreground="{StaticResource DimmedForeground}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Rectangle Grid.Row="3" Height="1" Fill="#E5E7EB"
+                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,14,0,12'}" />
+
+                    <Border Grid.Row="4"
+                            Background="White">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="1"
+                                    Content="Close"
+                                    MinWidth="110"
+                                    Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=35}"
+                                    Style="{StaticResource VcSecondaryButtonStyle}"
+                                    Click="Close_Click" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>
