@@ -4,7 +4,9 @@
         xmlns:local="clr-namespace:RestaurantPosWpf"
         Title="Document Repository"
         Width="1200" Height="800"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        Loaded="DashboardWindow_Loaded">
 
     <Window.Resources>
         <!-- NavButtonStyle: sidebar navigation button with selected/hover/focus states -->

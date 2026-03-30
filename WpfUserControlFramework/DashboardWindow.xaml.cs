@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 
 namespace RestaurantPosWpf
 {
@@ -12,12 +13,13 @@ namespace RestaurantPosWpf
         private readonly List<string> _categories;
         private NavItem? _selectedNavItem;
         private bool _isInitializing = true;
+        private bool _defaultScaleApplied;
 
         public DashboardWindow()
         {
             InitializeComponent();
 
-            // Initialize UI scaling from this window's DPI/screen context
+            // Initialize UI scaling from this window's DPI/screen context (hooks DPI changes)
             UiScaleService.InitializeFromWindow(this);
 
             // Re-apply scale when DPI changes (monitor switch, OS scale change)
@@ -32,7 +34,7 @@ namespace RestaurantPosWpf
                 }
             };
 
-            // Initialize slider to current UiScaleState.FontScale
+            // Slider/label sync until default 100% is applied on Loaded (see DashboardWindow_Loaded)
             var scaleState = Application.Current.Resources["UiScaleState"] as UiScaleState;
             if (scaleState != null)
             {
@@ -64,6 +66,26 @@ namespace RestaurantPosWpf
             {
                 CategoryComboBox.SelectedIndex = 0;
             }
+        }
+
+        private void DashboardWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (_defaultScaleApplied)
+                return;
+
+            // Run after automatic DPI/width scale passes (UiScaleService deferred Loaded callback)
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_defaultScaleApplied)
+                    return;
+                _defaultScaleApplied = true;
+
+                UiScaleService.SetFontScale(1.0);
+                if (ScaleSlider != null)
+                    ScaleSlider.Value = 1.0;
+                if (ScalePercentageLabel != null)
+                    ScalePercentageLabel.Text = "100%";
+            }), DispatcherPriority.ApplicationIdle);
         }
 
         private void CategoryComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -218,6 +240,7 @@ namespace RestaurantPosWpf
             return new ProcurementDiscrepancies(
                 navigationContext: context,
                 onOpenPurchaseOrder: _ => { },
+                onOpenDispute: _ => { },
                 onClose: NavigateToProcurementDashboard);
         }
 

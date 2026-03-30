@@ -757,5 +757,13 @@
               VerticalAlignment="Stretch">
         </Grid>
 
+        <Grid x:Name="DisputeOverlayHost"
+              Visibility="Collapsed"
+              Panel.ZIndex="30"
+              Background="#66000000"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch">
+        </Grid>
+
     </Grid>
 </UserControl>

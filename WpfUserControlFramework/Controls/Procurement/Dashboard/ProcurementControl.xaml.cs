@@ -55,7 +55,14 @@ namespace RestaurantPosWpf
         public string ReportedBy { get; set; } = string.Empty;
         public DateTime ReportedOn { get; set; }
 
+        public string DisputeReason { get; set; } = string.Empty;
+        public string DisputeContactPerson { get; set; } = string.Empty;
+        public string DisputeContactEmail { get; set; } = string.Empty;
+
+        public string DisputeSubtitleLine => $"Provide details to dispute {PONumber}";
+
         public int Variance => Received - Ordered;
+        public string VarianceForegroundHex => Variance < 0 ? "#DC2626" : "#111827";
         public string ReportedDateDisplay => ReportedOn.ToString("yyyy/MM/dd");
         public string StatusDisplay => Status.ToUpperInvariant();
 
@@ -446,7 +453,10 @@ namespace RestaurantPosWpf
                     Received = 25,
                     Status = "Disputed",
                     ReportedBy = "Sarah Chen",
-                    ReportedOn = new DateTime(2026, 3, 2)
+                    ReportedOn = new DateTime(2026, 3, 2),
+                    DisputeReason = "Price was raised by R5 per kg without written notice or an updated quote; we are disputing the variance against the agreed PO pricing.",
+                    DisputeContactPerson = "Sarah Chen",
+                    DisputeContactEmail = "sarah.chen@example.com"
                 },
                 new DiscrepancyRecord
                 {
@@ -529,8 +539,35 @@ namespace RestaurantPosWpf
                 Received = source.Received,
                 Status = source.Status,
                 ReportedBy = source.ReportedBy,
-                ReportedOn = source.ReportedOn
+                ReportedOn = source.ReportedOn,
+                DisputeReason = source.DisputeReason,
+                DisputeContactPerson = source.DisputeContactPerson,
+                DisputeContactEmail = source.DisputeContactEmail
             };
+        }
+
+        public static bool TryApplyDispute(
+            string poNumber,
+            string ingredient,
+            string reason,
+            string contactPerson,
+            string contactEmail)
+        {
+            if (string.IsNullOrWhiteSpace(poNumber) || string.IsNullOrWhiteSpace(ingredient))
+                return false;
+
+            var r = Records.FirstOrDefault(x =>
+                string.Equals(x.PONumber, poNumber, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(x.Ingredient, ingredient, StringComparison.Ordinal));
+
+            if (r == null)
+                return false;
+
+            r.Status = "Disputed";
+            r.DisputeReason = reason;
+            r.DisputeContactPerson = contactPerson;
+            r.DisputeContactEmail = contactEmail;
+            return true;
         }
     }
 
@@ -543,6 +580,7 @@ namespace RestaurantPosWpf
         private readonly Action<DiscrepanciesNavigationContext>? _onViewDiscrepancies;
         private ProcurementDiscrepancies? _activeDiscrepanciesOverlay;
         private ProcurementPO? _activePurchaseOrderOverlay;
+        private ProcurementDispute? _activeDisputeOverlay;
 
         public ProcurementControl(Action<DiscrepanciesNavigationContext>? onViewDiscrepancies = null)
         {
@@ -605,7 +643,7 @@ namespace RestaurantPosWpf
             if (_activeDiscrepanciesOverlay != null)
                 return;
 
-            _activeDiscrepanciesOverlay = new ProcurementDiscrepancies(context, OpenPurchaseOrderOverlay, CloseDiscrepanciesOverlay)
+            _activeDiscrepanciesOverlay = new ProcurementDiscrepancies(context, OpenPurchaseOrderOverlay, OpenDisputeOverlay, CloseDiscrepanciesOverlay)
             {
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
                 VerticalAlignment = System.Windows.VerticalAlignment.Stretch
@@ -629,6 +667,7 @@ namespace RestaurantPosWpf
             if (_activeDiscrepanciesOverlay == null)
                 return;
 
+            CloseDisputeOverlay();
             ClosePurchaseOrderOverlay();
 
             if (DiscrepanciesOverlayHost != null)
@@ -697,6 +736,94 @@ namespace RestaurantPosWpf
             PurchaseOrderOverlayHost.Children.Clear();
             PurchaseOrderOverlayHost.Visibility = Visibility.Collapsed;
             _activePurchaseOrderOverlay = null;
+        }
+
+        private void OpenDisputeOverlay(DiscrepancyRecord record)
+        {
+            if (record is null)
+                return;
+
+            if (_activeDisputeOverlay != null)
+                return;
+
+            try
+            {
+                _activeDisputeOverlay = new ProcurementDispute(record, CloseDisputeOverlay, ConfirmDispute)
+                {
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Stretch
+                };
+
+                if (DisputeOverlayHost != null)
+                {
+                    DisputeOverlayHost.Children.Clear();
+                    DisputeOverlayHost.Children.Add(_activeDisputeOverlay);
+                    DisputeOverlayHost.Visibility = Visibility.Visible;
+                }
+            }
+            catch (Exception ex)
+            {
+                CloseDisputeOverlay();
+                MessageBox.Show(
+                    $"Unable to open dispute form right now.\n\n{ex.Message}",
+                    "Dispute Discrepancy",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+
+        private void CloseDisputeOverlay()
+        {
+            if (_activeDisputeOverlay == null)
+                return;
+
+            if (DisputeOverlayHost != null)
+            {
+                if (DisputeOverlayHost.Children.Contains(_activeDisputeOverlay))
+                    DisputeOverlayHost.Children.Remove(_activeDisputeOverlay);
+
+                DisputeOverlayHost.Children.Clear();
+                DisputeOverlayHost.Visibility = Visibility.Collapsed;
+            }
+
+            _activeDisputeOverlay = null;
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                NotifyDashboardFooterAlignmentChanged();
+            }), System.Windows.Threading.DispatcherPriority.Render);
+        }
+
+        private void ConfirmDispute(DiscrepancyRecord record, string reason, string contactPerson, string contactEmail)
+        {
+            if (!ProcurementDiscrepancyStore.TryApplyDispute(
+                    record.PONumber,
+                    record.Ingredient,
+                    reason,
+                    contactPerson,
+                    contactEmail))
+            {
+                MessageBox.Show(
+                    "Could not save this dispute. The discrepancy may have been removed.",
+                    "Dispute Discrepancy",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            record.Status = "Disputed";
+            record.DisputeReason = reason;
+            record.DisputeContactPerson = contactPerson;
+            record.DisputeContactEmail = contactEmail;
+
+            _activeDiscrepanciesOverlay?.RefreshView();
+            CloseDisputeOverlay();
+            BindAttentionRequired();
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                NotifyDashboardFooterAlignmentChanged();
+            }), System.Windows.Threading.DispatcherPriority.Render);
         }
 
         private static ProcurementPurchaseOrderDetail? BuildFallbackPurchaseOrder(string poNumber)

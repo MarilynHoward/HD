@@ -553,10 +553,10 @@
         </ScrollViewer>
     </Border>
         <Border Grid.Row="1"
-                 x:Name="FooterStrip"
-            Background="White"
-            BorderBrush="#E5E7EB"
-            BorderThickness="0,1,0,0">
+                x:Name="FooterStrip"
+                Background="White"
+                BorderBrush="#E5E7EB"
+                BorderThickness="0,1,0,0">
 
             <Border.Padding>
                 <Binding Source="{StaticResource UiScaleState}"

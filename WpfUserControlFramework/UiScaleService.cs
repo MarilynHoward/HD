@@ -147,6 +147,14 @@ namespace RestaurantPosWpf
             ScaleChanged?.Invoke(newScale);
         }
 
+        /// <summary>
+        /// Sets the global UI scale (1.0 = 100%). Clamped to the same min/max as automatic scaling.
+        /// </summary>
+        public static void SetFontScale(double fontScale)
+        {
+            ApplyScale(Clamp(fontScale, MinScale, MaxScale));
+        }
+
         public static void InitializeFromWindow(Window window)
         {
             if (window == null) return;
