@@ -11,7 +11,6 @@
         </Style>
 
         <Style x:Key="GridResolveButtonStyle" TargetType="Button" BasedOn="{StaticResource VcPrimaryButtonStyle}">
-            <Setter Property="Background" Value="#03051A" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
