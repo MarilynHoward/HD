@@ -11,17 +11,20 @@ namespace RestaurantPosWpf
         private readonly Action _onClose;
         private readonly Action<string> _onOpenPurchaseOrder;
         private readonly Action<DiscrepancyRecord> _onOpenDispute;
+        private readonly Action<DiscrepancyRecord> _onOpenResolve;
         private readonly List<DiscrepancyRecord> _records;
 
         public ProcurementDiscrepancies(
             DiscrepanciesNavigationContext navigationContext,
             Action<string> onOpenPurchaseOrder,
             Action<DiscrepancyRecord> onOpenDispute,
+            Action<DiscrepancyRecord> onOpenResolve,
             Action onClose)
         {
             if (navigationContext is null) throw new ArgumentNullException(nameof(navigationContext));
             _onOpenPurchaseOrder = onOpenPurchaseOrder ?? throw new ArgumentNullException(nameof(onOpenPurchaseOrder));
             _onOpenDispute = onOpenDispute ?? throw new ArgumentNullException(nameof(onOpenDispute));
+            _onOpenResolve = onOpenResolve ?? throw new ArgumentNullException(nameof(onOpenResolve));
             _onClose = onClose ?? throw new ArgumentNullException(nameof(onClose));
 
             InitializeComponent();
@@ -129,8 +132,7 @@ namespace RestaurantPosWpf
         private void Resolve_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not Button { Tag: DiscrepancyRecord record }) return;
-            record.Status = "Resolved";
-            RefreshView();
+            _onOpenResolve(record);
         }
 
         private void AddDemoRecord_Click(object sender, RoutedEventArgs e)

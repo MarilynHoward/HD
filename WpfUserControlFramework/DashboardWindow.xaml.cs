@@ -241,6 +241,7 @@ namespace RestaurantPosWpf
                 navigationContext: context,
                 onOpenPurchaseOrder: _ => { },
                 onOpenDispute: _ => { },
+                onOpenResolve: _ => { },
                 onClose: NavigateToProcurementDashboard);
         }
 

@@ -58,8 +58,11 @@ namespace RestaurantPosWpf
         public string DisputeReason { get; set; } = string.Empty;
         public string DisputeContactPerson { get; set; } = string.Empty;
         public string DisputeContactEmail { get; set; } = string.Empty;
+        public string ResolveCreditNoteNumber { get; set; } = string.Empty;
+        public string ResolveDetails { get; set; } = string.Empty;
 
         public string DisputeSubtitleLine => $"Provide details to dispute {PONumber}";
+        public string ResolveSubtitleLine => $"Provide resolution details for {PONumber}";
 
         public int Variance => Received - Ordered;
         public string VarianceForegroundHex => Variance < 0 ? "#DC2626" : "#111827";
@@ -542,7 +545,9 @@ namespace RestaurantPosWpf
                 ReportedOn = source.ReportedOn,
                 DisputeReason = source.DisputeReason,
                 DisputeContactPerson = source.DisputeContactPerson,
-                DisputeContactEmail = source.DisputeContactEmail
+                DisputeContactEmail = source.DisputeContactEmail,
+                ResolveCreditNoteNumber = source.ResolveCreditNoteNumber,
+                ResolveDetails = source.ResolveDetails
             };
         }
 
@@ -569,6 +574,28 @@ namespace RestaurantPosWpf
             r.DisputeContactEmail = contactEmail;
             return true;
         }
+
+        public static bool TryApplyResolve(
+            string poNumber,
+            string ingredient,
+            string creditNoteNumber,
+            string resolutionDetails)
+        {
+            if (string.IsNullOrWhiteSpace(poNumber) || string.IsNullOrWhiteSpace(ingredient))
+                return false;
+
+            var r = Records.FirstOrDefault(x =>
+                string.Equals(x.PONumber, poNumber, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(x.Ingredient, ingredient, StringComparison.Ordinal));
+
+            if (r == null)
+                return false;
+
+            r.Status = "Resolved";
+            r.ResolveCreditNoteNumber = creditNoteNumber;
+            r.ResolveDetails = resolutionDetails;
+            return true;
+        }
     }
 
     // ===== Control =====
@@ -581,6 +608,7 @@ namespace RestaurantPosWpf
         private ProcurementDiscrepancies? _activeDiscrepanciesOverlay;
         private ProcurementPO? _activePurchaseOrderOverlay;
         private ProcurementDispute? _activeDisputeOverlay;
+        private ProcurementResolve? _activeResolveOverlay;
 
         public ProcurementControl(Action<DiscrepanciesNavigationContext>? onViewDiscrepancies = null)
         {
@@ -643,7 +671,12 @@ namespace RestaurantPosWpf
             if (_activeDiscrepanciesOverlay != null)
                 return;
 
-            _activeDiscrepanciesOverlay = new ProcurementDiscrepancies(context, OpenPurchaseOrderOverlay, OpenDisputeOverlay, CloseDiscrepanciesOverlay)
+            _activeDiscrepanciesOverlay = new ProcurementDiscrepancies(
+                context,
+                OpenPurchaseOrderOverlay,
+                OpenDisputeOverlay,
+                OpenResolveOverlay,
+                CloseDiscrepanciesOverlay)
             {
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
                 VerticalAlignment = System.Windows.VerticalAlignment.Stretch
@@ -668,6 +701,7 @@ namespace RestaurantPosWpf
                 return;
 
             CloseDisputeOverlay();
+            CloseResolveOverlay();
             ClosePurchaseOrderOverlay();
 
             if (DiscrepanciesOverlayHost != null)
@@ -743,7 +777,7 @@ namespace RestaurantPosWpf
             if (record is null)
                 return;
 
-            if (_activeDisputeOverlay != null)
+            if (_activeDisputeOverlay != null || _activeResolveOverlay != null)
                 return;
 
             try
@@ -794,6 +828,62 @@ namespace RestaurantPosWpf
             }), System.Windows.Threading.DispatcherPriority.Render);
         }
 
+        private void OpenResolveOverlay(DiscrepancyRecord record)
+        {
+            if (record is null)
+                return;
+
+            if (_activeResolveOverlay != null || _activeDisputeOverlay != null)
+                return;
+
+            try
+            {
+                _activeResolveOverlay = new ProcurementResolve(record, CloseResolveOverlay, ConfirmResolve)
+                {
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Stretch
+                };
+
+                if (DisputeOverlayHost != null)
+                {
+                    DisputeOverlayHost.Children.Clear();
+                    DisputeOverlayHost.Children.Add(_activeResolveOverlay);
+                    DisputeOverlayHost.Visibility = Visibility.Visible;
+                }
+            }
+            catch (Exception ex)
+            {
+                CloseResolveOverlay();
+                MessageBox.Show(
+                    $"Unable to open resolve form right now.\n\n{ex.Message}",
+                    "Resolve Discrepancy",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+
+        private void CloseResolveOverlay()
+        {
+            if (_activeResolveOverlay == null)
+                return;
+
+            if (DisputeOverlayHost != null)
+            {
+                if (DisputeOverlayHost.Children.Contains(_activeResolveOverlay))
+                    DisputeOverlayHost.Children.Remove(_activeResolveOverlay);
+
+                DisputeOverlayHost.Children.Clear();
+                DisputeOverlayHost.Visibility = Visibility.Collapsed;
+            }
+
+            _activeResolveOverlay = null;
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                NotifyDashboardFooterAlignmentChanged();
+            }), System.Windows.Threading.DispatcherPriority.Render);
+        }
+
         private void ConfirmDispute(DiscrepancyRecord record, string reason, string contactPerson, string contactEmail)
         {
             if (!ProcurementDiscrepancyStore.TryApplyDispute(
@@ -818,6 +908,36 @@ namespace RestaurantPosWpf
 
             _activeDiscrepanciesOverlay?.RefreshView();
             CloseDisputeOverlay();
+            BindAttentionRequired();
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                NotifyDashboardFooterAlignmentChanged();
+            }), System.Windows.Threading.DispatcherPriority.Render);
+        }
+
+        private void ConfirmResolve(DiscrepancyRecord record, string creditNoteNumber, string resolutionDetails)
+        {
+            if (!ProcurementDiscrepancyStore.TryApplyResolve(
+                    record.PONumber,
+                    record.Ingredient,
+                    creditNoteNumber,
+                    resolutionDetails))
+            {
+                MessageBox.Show(
+                    "Could not save this resolution. The discrepancy may have been removed.",
+                    "Resolve Discrepancy",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            record.Status = "Resolved";
+            record.ResolveCreditNoteNumber = creditNoteNumber;
+            record.ResolveDetails = resolutionDetails;
+
+            _activeDiscrepanciesOverlay?.RefreshView();
+            CloseResolveOverlay();
             BindAttentionRequired();
 
             Dispatcher.BeginInvoke(new Action(() =>
