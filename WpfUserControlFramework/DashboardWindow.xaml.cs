@@ -45,7 +45,7 @@ namespace RestaurantPosWpf
             _navItems = new List<NavItem>
             {
                 new NavItem("Procurement", "Dashboard", () => BuildProcurementControl()),
-                new NavItem("Procurement", "Purchase Orders", () => new PurchaseOrdersControl()),
+                new NavItem("Procurement", "Purchase Orders", () => BuildPurchaseOrdersControl()),
                 new NavItem("Procurement", "Receiving", () => new ReceivingControl()),
                 new NavItem("Procurement", "Discrepancies", () => BuildDiscrepanciesControl()),
                 new NavItem("Procurement", "Reports", () => new ReportsControl()),
@@ -226,11 +226,27 @@ namespace RestaurantPosWpf
                 onViewDiscrepancies: context => NavigateToDiscrepancies(context));
         }
 
+        private ProcurementPOrders BuildPurchaseOrdersControl()
+        {
+            return new ProcurementPOrders(
+                onOpenPurchaseOrder: _ => { },
+                onClose: NavigateToProcurementDashboard);
+        }
+
         private ProcurementDiscrepancies BuildDiscrepanciesControl()
         {
+            var aligned = ProcurementDiscrepancyStore.GetAllAlignedToPurchaseOrders();
+            var filteredRecords = aligned
+                .Where(r => ProcurementPurchaseOrderStore.GetByPONumber(r.PONumber)?.HasDiscrepancy == true)
+                .ToList();
+            var purchaseOrders = ProcurementPurchaseOrderStore.GetAll()
+                .Where(p => p.HasDiscrepancy)
+                .ToList();
+
             return BuildDiscrepanciesControl(new DiscrepanciesNavigationContext
             {
-                Records = ProcurementDiscrepancyStore.GetAllAlignedToPurchaseOrders(),
+                Records = filteredRecords,
+                PurchaseOrders = purchaseOrders,
                 InitialStatusFilter = "All Statuses"
             });
         }
@@ -241,7 +257,6 @@ namespace RestaurantPosWpf
                 navigationContext: context,
                 onOpenPurchaseOrder: _ => { },
                 onOpenDispute: _ => { },
-                onOpenResolve: _ => { },
                 onClose: NavigateToProcurementDashboard);
         }
 

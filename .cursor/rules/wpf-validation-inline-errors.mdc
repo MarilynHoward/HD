@@ -1,0 +1,14 @@
+---
+description: Use inline validation errors in WPF forms, never modal popups
+globs: WpfUserControlFramework/Controls/Procurement/**/*.xaml*
+alwaysApply: false
+---
+
+# WPF Validation Error Handling
+
+- Do not use `MessageBox.Show` for form validation failures in procurement controls.
+- Render validation feedback inline next to each offending field using dedicated error text elements (collapsed by default).
+- Validate on submit with a control-level `Validate...` method and return early when invalid.
+- Move keyboard focus to the first invalid field after submit to guide correction.
+- On field `TextChanged`, hide the corresponding error when the value becomes valid.
+- Keep this pattern aligned with `ProcurementResolve` and `ProcurementDispute`.

@@ -1,0 +1,15 @@
+---
+description: Use ProcurementDiscrepancies table format for procurement tables
+globs: WpfUserControlFramework/Controls/Procurement/**/*.xaml
+alwaysApply: false
+---
+
+# Procurement Table Format Standard
+
+- For procurement data tables, use the same structure as `ProcurementDiscrepancies`.
+- Build tables with:
+  - a header `Border` row (`Background="#E5E7EB"`) and bold header labels
+  - an `ItemsControl` row template with `BorderThickness="0,1,0,0"` and `BorderBrush="#F3F4F6"`
+  - aligned `Grid.ColumnDefinitions` shared by header and item rows
+- Keep cell typography consistent with shared theme brushes (`MainForeground`, `DimmedForeground`) and scale via `UiScaleState.FontScale` converters.
+- Render status/type tags as pill badges inside the row grid (left-aligned, scalable padding, rounded corners).
