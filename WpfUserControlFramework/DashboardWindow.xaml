@@ -19,12 +19,12 @@
                     Value="{Binding Source={StaticResource UiScaleState},
                                    Path=FontScale,
                                    Converter={StaticResource FontScaleConverter},
-                                   ConverterParameter=14}" />
+                                   ConverterParameter=12}" />
             <Setter Property="Padding"
                     Value="{Binding Source={StaticResource UiScaleState},
                                    Path=FontScale,
                                    Converter={StaticResource ThicknessScaleConverter},
-                                   ConverterParameter='10,8,10,8'}" />
+                                   ConverterParameter='8,5,8,5'}" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="BorderThickness" Value="0" />
@@ -85,12 +85,12 @@
                     Value="{Binding Source={StaticResource UiScaleState},
                                    Path=FontScale,
                                    Converter={StaticResource FontScaleConverter},
-                                   ConverterParameter=11}" />
+                                   ConverterParameter=10}" />
             <Setter Property="Padding"
                     Value="{Binding Source={StaticResource UiScaleState},
                                    Path=FontScale,
                                    Converter={StaticResource ThicknessScaleConverter},
-                                   ConverterParameter='6,3,6,3'}" />
+                                   ConverterParameter='5,2,5,2'}" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="#D1D5DB" />
@@ -135,27 +135,43 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Narrow sidebar: slightly smaller combo than IcEnabledComboBoxStyle defaults -->
+        <Style x:Key="DashboardNavComboBoxStyle"
+               TargetType="ComboBox"
+               BasedOn="{StaticResource IcEnabledComboBoxStyle}">
+            <Setter Property="FontSize"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                   Path=FontScale,
+                                   Converter={StaticResource FontScaleConverter},
+                                   ConverterParameter=12}" />
+            <Setter Property="Padding"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                   Path=FontScale,
+                                   Converter={StaticResource ThicknessScaleConverter},
+                                   ConverterParameter='10,6,10,6'}" />
+            <Setter Property="MinHeight"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                   Path=FontScale,
+                                   Converter={StaticResource FontScaleConverter},
+                                   ConverterParameter=30}" />
+        </Style>
     </Window.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="15*" />
+            <ColumnDefinition Width="85*" />
         </Grid.ColumnDefinitions>
 
-        <!-- Sidebar -->
+        <!-- Sidebar (15% of client width; content area 85%) -->
         <Border Grid.Column="0"
                 Background="#F9FAFB"
                 BorderBrush="#E5E7EB"
                 BorderThickness="0,0,1,0"
-                Width="{Binding Source={StaticResource UiScaleState},
-                                Path=FontScale,
-                                Converter={StaticResource LayoutScaleConverter},
-                                ConverterParameter=220}"
                 Padding="{Binding Source={StaticResource UiScaleState},
                                   Path=FontScale,
                                   Converter={StaticResource ThicknessScaleConverter},
-                                  ConverterParameter='12,16,12,16'}">
+                                  ConverterParameter='10,12,10,12'}">
             <DockPanel LastChildFill="True">
 
                 <!-- Scale Adjuster — docked to bottom -->
@@ -180,7 +196,7 @@
                                FontSize="{Binding Source={StaticResource UiScaleState},
                                                   Path=FontScale,
                                                   Converter={StaticResource FontScaleConverter},
-                                                  ConverterParameter=11}"
+                                                  ConverterParameter=10}"
                                Margin="{Binding Source={StaticResource UiScaleState},
                                                 Path=FontScale,
                                                 Converter={StaticResource ThicknessScaleConverter},
@@ -189,14 +205,14 @@
                     <!-- Current percentage and slider row -->
                     <DockPanel>
                         <TextBlock x:Name="ScalePercentageLabel"
-                                   Text="100%"
+                                   Text="125%"
                                    Foreground="#374151"
                                    FontFamily="Segoe UI"
                                    FontWeight="SemiBold"
                                    FontSize="{Binding Source={StaticResource UiScaleState},
                                                       Path=FontScale,
                                                       Converter={StaticResource FontScaleConverter},
-                                                      ConverterParameter=13}"
+                                                      ConverterParameter=11}"
                                    VerticalAlignment="Center"
                                    DockPanel.Dock="Left"
                                    Margin="{Binding Source={StaticResource UiScaleState},
@@ -208,13 +224,13 @@
                                 Maximum="1.8"
                                 TickFrequency="0.05"
                                 IsSnapToTickEnabled="True"
-                                Value="1.0"
+                                Value="1.25"
                                 ValueChanged="ScaleSlider_ValueChanged"
                                 VerticalAlignment="Center"
                                 Width="{Binding Source={StaticResource UiScaleState},
                                                 Path=FontScale,
                                                 Converter={StaticResource LayoutScaleConverter},
-                                                ConverterParameter=120}" />
+                                                ConverterParameter=100}" />
                     </DockPanel>
 
                     <!-- Preset buttons row -->
@@ -249,7 +265,7 @@
 
                 <!-- Category dropdown -->
                 <ComboBox x:Name="CategoryComboBox"
-                          Style="{StaticResource IcEnabledComboBoxStyle}"
+                          Style="{StaticResource DashboardNavComboBoxStyle}"
                           SelectionChanged="CategoryComboBox_SelectionChanged"
                           Margin="{Binding Source={StaticResource UiScaleState},
                                            Path=FontScale,

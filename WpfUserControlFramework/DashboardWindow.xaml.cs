@@ -9,6 +9,8 @@ namespace RestaurantPosWpf
 
     public partial class DashboardWindow : Window
     {
+        private const double DefaultDashboardFontScale = 1.25;
+
         private readonly List<NavItem> _navItems;
         private readonly List<string> _categories;
         private NavItem? _selectedNavItem;
@@ -34,7 +36,7 @@ namespace RestaurantPosWpf
                 }
             };
 
-            // Slider/label sync until default 100% is applied on Loaded (see DashboardWindow_Loaded)
+            // Slider/label sync until default scale is applied on Loaded (see DashboardWindow_Loaded)
             var scaleState = Application.Current.Resources["UiScaleState"] as UiScaleState;
             if (scaleState != null)
             {
@@ -53,6 +55,7 @@ namespace RestaurantPosWpf
                 new NavItem("Suppliers", "Documents", () => new DocumentRepositoryControl(
                     onRequestUploadDialog: ShowUploadDialog
                 )),
+                new NavItem("Operations and Services", "Shift Scheduling", () => BuildOpsShiftScheduling()),
             };
 
             // Build distinct category list preserving registration order
@@ -80,11 +83,11 @@ namespace RestaurantPosWpf
                     return;
                 _defaultScaleApplied = true;
 
-                UiScaleService.SetFontScale(1.0);
+                UiScaleService.SetFontScale(DefaultDashboardFontScale);
                 if (ScaleSlider != null)
-                    ScaleSlider.Value = 1.0;
+                    ScaleSlider.Value = DefaultDashboardFontScale;
                 if (ScalePercentageLabel != null)
-                    ScalePercentageLabel.Text = "100%";
+                    ScalePercentageLabel.Text = Math.Round(DefaultDashboardFontScale * 100) + "%";
             }), DispatcherPriority.ApplicationIdle);
         }
 
@@ -277,6 +280,70 @@ namespace RestaurantPosWpf
         {
             var navItem = _navItems.First(i => i.Category == "Procurement" && i.Label == "Dashboard");
             NavigateTo(navItem);
+        }
+
+        private OpsServicesShiftScheduling BuildOpsShiftScheduling()
+        {
+            return new OpsServicesShiftScheduling(
+                navigateToTableManagement: NavigateToOpsTableManagement,
+                openAddShiftDialog: ShowOpsAddShiftDialog);
+        }
+
+        private OpsServicesTableManagement BuildOpsTableManagement()
+        {
+            return new OpsServicesTableManagement(
+                navigateToShiftScheduling: () =>
+                    NavigateTo(_navItems.First(i =>
+                        i.Category == "Operations and Services" && i.Label == "Shift Scheduling")),
+                openAddTableDialog: ShowOpsAddTableDialog);
+        }
+
+        private void NavigateToOpsTableManagement()
+        {
+            var opsNav = _navItems.First(i =>
+                i.Category == "Operations and Services" && i.Label == "Shift Scheduling");
+            ContentArea.Content = BuildOpsTableManagement();
+            _selectedNavItem = opsNav;
+            foreach (var child in NavButtonPanel.Children.OfType<Button>())
+            {
+                var navTag = child.DataContext as NavItem;
+                child.Tag = navTag == _selectedNavItem ? "Selected" : navTag;
+            }
+        }
+
+        private Window CreateOpsModalWindow(UserControl content)
+        {
+            return new Window
+            {
+                Content = content,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = System.Windows.Media.Brushes.Transparent,
+                ResizeMode = ResizeMode.NoResize
+            };
+        }
+
+        private void ShowOpsAddShiftDialog()
+        {
+            Window? w = null;
+            var dlg = new OpsServicesAddShift(() => w?.Close());
+            w = CreateOpsModalWindow(dlg);
+            ScrimOverlay.Visibility = Visibility.Visible;
+            w.ShowDialog();
+            ScrimOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void ShowOpsAddTableDialog()
+        {
+            Window? w = null;
+            var dlg = new OpsServicesAddTable(() => w?.Close());
+            w = CreateOpsModalWindow(dlg);
+            ScrimOverlay.Visibility = Visibility.Visible;
+            w.ShowDialog();
+            ScrimOverlay.Visibility = Visibility.Collapsed;
         }
 
         /// <summary>

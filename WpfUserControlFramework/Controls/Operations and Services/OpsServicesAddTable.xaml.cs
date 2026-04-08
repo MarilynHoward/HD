@@ -1,0 +1,116 @@
+using System.Globalization;
+using System.Windows;
+using System.Windows.Controls.Primitives;
+
+namespace RestaurantPosWpf;
+
+public partial class OpsServicesAddTable : UserControl
+{
+    private sealed class WaiterOption
+    {
+        public Guid? Id { get; init; }
+        public string Label { get; init; } = "";
+    }
+
+    private readonly Action _close;
+
+    public OpsServicesAddTable(Action closeDialog)
+    {
+        _close = closeDialog ?? throw new ArgumentNullException(nameof(closeDialog));
+        InitializeComponent();
+        Loaded += OnLoaded;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;
+        OpsServicesStore.EnsureSeeded();
+
+        CmbShape.ItemsSource = new[] { "Square", "Round" };
+        CmbShape.SelectedIndex = 0;
+
+        var floors = OpsServicesStore.GetTables().Select(t => t.LocationName).Distinct().OrderBy(x => x).ToList();
+        if (!floors.Contains("Main Floor"))
+            floors.Insert(0, "Main Floor");
+        CmbFloor.ItemsSource = floors;
+        CmbFloor.SelectedIndex = 0;
+
+        var waiters = new List<WaiterOption> { new() { Id = null, Label = "Unassigned" } };
+        waiters.AddRange(OpsServicesStore.GetEmployees()
+            .Select(e => new WaiterOption { Id = e.Id, Label = e.Name }));
+        CmbWaiter.ItemsSource = waiters;
+        CmbWaiter.DisplayMemberPath = nameof(WaiterOption.Label);
+        CmbWaiter.SelectedIndex = 0;
+
+        CmbStatus.ItemsSource = new[]
+        {
+            "Available", "Reserved", "Hold", "Cleaning", "Maintenance", "Occupied"
+        };
+        CmbStatus.SelectedIndex = 0;
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e) => _close();
+
+    private void AddTable_Click(object sender, RoutedEventArgs e)
+    {
+        TxtError.Visibility = Visibility.Collapsed;
+        var name = TxtName.Text.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            ShowErr("Table name is required.");
+            return;
+        }
+
+        if (!int.TryParse(TxtSeats.Text.Trim(), NumberStyles.Integer, CultureInfo.CurrentCulture, out var seats) ||
+            seats < 1)
+        {
+            ShowErr("Enter a valid seat count.");
+            return;
+        }
+
+        if (!int.TryParse(TxtZone.Text.Trim(), NumberStyles.Integer, CultureInfo.CurrentCulture, out var zone))
+            zone = 1;
+        if (!int.TryParse(TxtStation.Text.Trim(), NumberStyles.Integer, CultureInfo.CurrentCulture, out var station))
+            station = 1;
+        if (!int.TryParse(TxtTurn.Text.Trim(), NumberStyles.Integer, CultureInfo.CurrentCulture, out var turn))
+            turn = 60;
+
+        var floor = (CmbFloor.Text ?? "").Trim();
+        if (string.IsNullOrEmpty(floor))
+            floor = "Main Floor";
+
+        Guid? waiterId = CmbWaiter.SelectedItem is WaiterOption wo ? wo.Id : null;
+
+        var table = new OpsFloorTable
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            SeatCount = seats,
+            Shape = CmbShape.SelectedItem as string ?? "Square",
+            LocationName = floor,
+            AssignedWaiterId = waiterId,
+            Zone = zone,
+            Station = station,
+            TurnTimeMinutes = turn,
+            Status = CmbStatus.SelectedItem as string ?? "Available",
+            Notes = TxtNotes.Text.Trim(),
+            IsActive = TogActive.IsChecked == true,
+            Accessible = TogAccessible.IsChecked == true,
+            VipPriority = TogVip.IsChecked == true,
+            CanMerge = TogMerge.IsChecked == true,
+            CreatedUtc = DateTime.UtcNow,
+            ModifiedUtc = DateTime.UtcNow,
+            OpsStatus = TogActive.IsChecked == true ? "Available" : "Inactive",
+            OpsServerId = waiterId
+        };
+
+        OpsServicesStore.AddTable(table);
+        _close();
+    }
+
+    private void ShowErr(string msg)
+    {
+        TxtError.Text = msg;
+        TxtError.Visibility = Visibility.Visible;
+    }
+}
