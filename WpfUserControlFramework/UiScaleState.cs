@@ -5,7 +5,7 @@ namespace RestaurantPosWpf
 {
     public sealed class UiScaleState : INotifyPropertyChanged
     {
-        private double _fontScale = 1.0;
+        private double _fontScale = 1.25;
 
         public double FontScale
         {

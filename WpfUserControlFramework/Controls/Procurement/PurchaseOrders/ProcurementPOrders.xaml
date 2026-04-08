@@ -1,5 +1,6 @@
 <UserControl x:Class="RestaurantPosWpf.ProcurementPOrders"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:local="clr-namespace:RestaurantPosWpf"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <UserControl.Resources>
@@ -26,12 +27,16 @@
 
         <Style x:Key="GridPrimaryCellTextStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource MainForeground}" />
-            <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}" />
+            <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
         <Style x:Key="GridStatusBadgeBorderStyle" TargetType="Border">
-            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="CornerRadius"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                    Path=FontScale,
+                                    Converter={StaticResource CornerRadiusFromHeightConverter},
+                                    ConverterParameter='10'}" />
             <Setter Property="Padding" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="HorizontalAlignment" Value="Left" />
@@ -40,6 +45,8 @@
         <Style x:Key="GridStatusBadgeTextStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=11}" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
@@ -51,20 +58,34 @@
             <Setter Property="TextWrapping" Value="NoWrap" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
             <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,14,0'}" />
-            <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+            <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+        </Style>
+
+        <Style x:Key="PoTableHeaderCellWrap150CenterStyle"
+               TargetType="TextBlock"
+               BasedOn="{StaticResource PoTableHeaderCellStyle}">
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="Margin"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                    Path=FontScale,
+                                    Converter={StaticResource ThicknessScaleConverter},
+                                    ConverterParameter='4,0,4,0'}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="TextTrimming" Value="None" />
         </Style>
 
         <Style x:Key="PoTableCellTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridPrimaryCellTextStyle}">
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-            <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,14,0'}" />
+            <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}" />
         </Style>
 
         <Style x:Key="PoTableMutedCellStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#6B7280" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-            <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,14,0'}" />
-            <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+            <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,2,0'}" />
+            <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
         </Style>
     </UserControl.Resources>
 
@@ -82,19 +103,51 @@
                     SnapsToDevicePixels="True"
                     ClipToBounds="True"
                     FocusVisualStyle="{x:Null}"
-                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='28,24,28,24'}"
+                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='28,24,12,24'}"
                     CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=12}"
                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='24,24,24,24'}">
 
-                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                <ScrollViewer VerticalScrollBarVisibility="Auto" x:Name="PageScrollViewer"
                               HorizontalScrollBarVisibility="Disabled"
                               FocusVisualStyle="{x:Null}">
-                    <StackPanel>
 
+                    <ScrollViewer.Style>
+                        <Style TargetType="ScrollViewer">
+                            <Setter Property="Margin" Value="0" />
+                            <Style.Triggers>
+                                <Trigger Property="ComputedVerticalScrollBarVisibility" Value="Visible">
+                                    <Setter Property="Margin"
+                                            Value="{Binding Source={StaticResource UiScaleState},
+                                                            Path=FontScale,
+                                                            Converter={StaticResource ThicknessScaleConverter},
+                                                            ConverterParameter='0,0,-4,0'}" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ScrollViewer.Style>
+                    
+                    <StackPanel x:Name="PageScrollContentRoot">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Margin"
+                                    Value="{Binding Source={StaticResource UiScaleState},
+                                                    Path=FontScale,
+                                                    Converter={StaticResource ThicknessScaleConverter},
+                                                    ConverterParameter='0,0,20,0'}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ElementName=PageScrollViewer, Path=ComputedVerticalScrollBarVisibility}"
+                             Value="Visible">
+                                        <Setter Property="Margin" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        
                         <DockPanel Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,16'}">
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                 <Button Style="{StaticResource VcPrimaryButtonStyle}"
                                         HorizontalAlignment="Right"
+                                        Visibility="Collapsed"
                                         VerticalAlignment="Center"
                                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
                                         Click="CreateNewOrder_Click"
@@ -112,7 +165,10 @@
                                                       Stroke="White" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                             </Canvas>
                                         </Viewbox>
-                                        <TextBlock Text="Create New Order" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Create New Order" 
+                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                                   Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='9,6,10,7'}"
+                                                   VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Content="x"
@@ -140,9 +196,12 @@
                         <Border Background="White"
                                 BorderBrush="#E5E7EB"
                                 BorderThickness="1"
-                                CornerRadius="10"
-                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,12,12,12'}"
-                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,14'}">
+                                CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                       Path=FontScale,
+                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                       ConverterParameter='10'}"
+                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='24,24,24,24'}"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,0'}">
                             <Grid VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -152,39 +211,165 @@
                                 </Grid.ColumnDefinitions>
 
                                 <Grid Grid.Column="0"
-                                      Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}">
-                                    <TextBox x:Name="SearchTextBox"
-                                             Style="{StaticResource IcEnabledTextBoxStyle}"
-                                             Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=42}"
-                                             VerticalAlignment="Center"
-                                             Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,8,12,8'}"
-                                             TextChanged="SearchTextBox_TextChanged" />
-                                    <TextBlock Text="Search by PO# or supplier..."
-                                               IsHitTestVisible="False"
-                                               Foreground="#9CA3AF"
-                                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,0,0'}"
-                                               VerticalAlignment="Center"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Collapsed" />
+                                  Margin="{Binding Source={StaticResource UiScaleState},
+                                                   Path=FontScale,
+                                                   Converter={StaticResource ThicknessScaleConverter},
+                                                   ConverterParameter='0,0,8,0'}">
+
+                                    <Border x:Name="SearchBoxBorder"
+                                            PreviewMouseLeftButtonDown="SearchBoxBorder_PreviewMouseLeftButtonDown"
+                                            Background="White"
+                                            BorderBrush="#CCC"
+                                            SnapsToDevicePixels="True"
+                                            ClipToBounds="False"
+                                            BorderThickness="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource LayoutScaleConverter},
+                                                                      ConverterParameter=1}">
+
+                                        <Border.CornerRadius>
+                                            <Binding RelativeSource="{RelativeSource Self}"
+                                                     Path="ActualHeight"
+                                                     Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                                     ConverterParameter="8" />
+                                        </Border.CornerRadius>
+
+                                        <Grid>
+
+                                            <Border x:Name="SearchFocusOuter"
+                                                    Panel.ZIndex="10"
+                                                    Visibility="Collapsed"
+                                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                         Path=FontScale,
+                                                         Converter={StaticResource ThicknessScaleConverter},
+                                                         ConverterParameter='-3'}"
+                                                    CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                                       Path=FontScale,
+                                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                       ConverterParameter='9'}"
+                                                    BorderThickness="3"
+                                                    BorderBrush="#C1DEFE"
+                                                    Background="Transparent"
+                                                    SnapsToDevicePixels="True"
+                                                    RenderOptions.EdgeMode="Aliased"
+                                                    IsHitTestVisible="False">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=SearchTextBox}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                            </Border>
+
+                                            <Border x:Name="SearchFocusInner"
+                                                    Panel.ZIndex="11"
+                                                    Visibility="Collapsed"
+                                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                                     ConverterParameter='-1'}"
+                                                    CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                                                           Path=FontScale,
+                                                                           Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                           ConverterParameter='8'}"
+                                                    BorderThickness="1"
+                                                    BorderBrush="#93C5FD"
+                                                    Background="Transparent"
+                                                    SnapsToDevicePixels="True"
+                                                    RenderOptions.EdgeMode="Aliased"
+                                                    IsHitTestVisible="False">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=SearchTextBox}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                            </Border>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                         Path=FontScale,
+                                         Converter={StaticResource LayoutScaleConverter},
+                                         ConverterParameter=16}"
+                         Height="{Binding Source={StaticResource UiScaleState},
+                                          Path=FontScale,
+                                          Converter={StaticResource LayoutScaleConverter},
+                                          ConverterParameter=16}"
+                         Margin="{Binding Source={StaticResource UiScaleState},
+                                          Path=FontScale,
+                                          Converter={StaticResource ThicknessScaleConverter},
+                                          ConverterParameter='10,0,6,0'}"
+                         VerticalAlignment="Center">
+                                                    <Canvas Width="16" Height="16" SnapsToDevicePixels="True">
+                                                        <Ellipse Canvas.Left="2"
+                                 Canvas.Top="2"
+                                 Width="10"
+                                 Height="10"
+                                 Stroke="#9CA3AF"
+                                 StrokeThickness="1.6"
+                                 Fill="Transparent" />
+                                                        <Line X1="10.5"
+                              Y1="10.5"
+                              X2="15"
+                              Y2="15"
+                              Stroke="#9CA3AF"
+                              StrokeThickness="1.6"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round" />
+                                                    </Canvas>
+                                                </Viewbox>
+
+                                                <TextBox Grid.Column="1"
+         x:Name="SearchTextBox"
+         Height="{Binding Source={StaticResource UiScaleState},
+                          Path=FontScale,
+                          Converter={StaticResource LayoutScaleConverter},
+                          ConverterParameter=40}"
+         GotKeyboardFocus="SearchTextBox_GotKeyboardFocus"
+         LostKeyboardFocus="SearchTextBox_LostKeyboardFocus"
+         TextChanged="SearchTextBox_TextChanged"
+         BorderThickness="0"
+         Background="Transparent"
+         Padding="0"
+         FontSize="{Binding Source={StaticResource UiScaleState},
+                            Path=FontScale,
+                            Converter={StaticResource FontScaleConverter},
+                            ConverterParameter=14}"
+         VerticalAlignment="Center"
+         Style="{StaticResource SearchWatermarkTextBox}"
+         Tag="Search by PO# or supplier..." />
+                                            </Grid>
+                                        </Grid>
+
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="#CCC" />
                                                 <Style.Triggers>
-                                                    <MultiDataTrigger>
-                                                        <MultiDataTrigger.Conditions>
-                                                            <Condition Binding="{Binding ElementName=SearchTextBox, Path=Text}" Value="" />
-                                                            <Condition Binding="{Binding ElementName=SearchTextBox, Path=IsKeyboardFocused}" Value="False" />
-                                                        </MultiDataTrigger.Conditions>
-                                                        <Setter Property="Visibility" Value="Visible" />
-                                                    </MultiDataTrigger>
+                                                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=SearchTextBox}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="Transparent" />
+                                                    </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                        </Border.Style>
+                                    </Border>
                                 </Grid>
-
                                 <ComboBox x:Name="StatusFilterCombo"
                                           Grid.Column="1"
                                           Style="{StaticResource IcEnabledComboBoxStyle}"
+                                          FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                           Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=42}"
                                           VerticalAlignment="Center"
                                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
@@ -192,6 +377,7 @@
 
                                 <ComboBox x:Name="SupplierFilterCombo"
                                           Grid.Column="2"
+                                          FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                           Style="{StaticResource IcEnabledComboBoxStyle}"
                                           Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=42}"
                                           VerticalAlignment="Center"
@@ -210,6 +396,7 @@
                                                Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=16}"
                                                Source="{StaticResource PeoplePOS.Icon.Download}" />
                                         <TextBlock Text="Export"
+                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,0'}"
                                                    VerticalAlignment="Center" />
                                     </StackPanel>
@@ -217,89 +404,145 @@
                             </Grid>
                         </Border>
 
-                        <UniformGrid Columns="4" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,16'}">
-                            <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8"
+                        <UniformGrid Columns="4" 
+                                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,16,0,0'}">
+                            <Border Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1" 
+                                    CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                           Path=FontScale,
+                                           Converter={StaticResource CornerRadiusFromHeightConverter},
+                                           ConverterParameter='8'}"
                                     Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,14,16,14'}"
                                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}">
                                 <StackPanel>
                                     <TextBlock Text="Total Orders" Foreground="{StaticResource DimmedForeground}"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
                                     <TextBlock x:Name="TotalOrdersText" Text="0" FontWeight="SemiBold" Foreground="{StaticResource MainForeground}"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=22}" />
+                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}" />
                                 </StackPanel>
                             </Border>
-                            <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8"
-                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,14,16,14'}"
-                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,8,0'}">
+
+                            <Border Background="#ECFDF5" BorderBrush="#86EFAC" BorderThickness="1" 
+                                    CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                           Path=FontScale,
+                                           Converter={StaticResource CornerRadiusFromHeightConverter},
+                                           ConverterParameter='8'}"
+            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,14,16,14'}"
+            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,8,0'}">
                                 <StackPanel>
                                     <TextBlock Text="Total Value" Foreground="{StaticResource DimmedForeground}"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
                                     <TextBlock x:Name="TotalValueText" Text="R0,00" FontWeight="SemiBold" Foreground="{StaticResource MainForeground}"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=22}" />
+                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}" />
                                 </StackPanel>
                             </Border>
-                            <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8"
-                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,14,16,14'}"
-                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,8,0'}">
+
+                            <Border Background="#FFFBEB" BorderBrush="#FCD34D" BorderThickness="1" 
+                                    CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                           Path=FontScale,
+                                           Converter={StaticResource CornerRadiusFromHeightConverter},
+                                           ConverterParameter='8'}"
+            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,14,16,14'}"
+            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,8,0'}">
                                 <StackPanel>
                                     <TextBlock Text="Pending Approval" Foreground="{StaticResource DimmedForeground}"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
                                     <TextBlock x:Name="PendingApprovalSummaryText" Text="0" FontWeight="SemiBold" Foreground="{StaticResource MainForeground}"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=22}" />
+                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}" />
                                 </StackPanel>
                             </Border>
-                            <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8"
+
+                            <Border Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1"
+                                    CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                           Path=FontScale,
+                                           Converter={StaticResource CornerRadiusFromHeightConverter},
+                                           ConverterParameter='8'}"
                                     Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,14,16,14'}"
                                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,0,0'}">
                                 <StackPanel>
                                     <TextBlock Text="Overdue" Foreground="{StaticResource DimmedForeground}"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
+                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" />
                                     <TextBlock x:Name="OverdueSummaryText" Text="0" FontWeight="SemiBold" Foreground="#111827"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=22}" />
+                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}" />
                                 </StackPanel>
                             </Border>
                         </UniformGrid>
-
-                        <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8">
+                        
+                        <Border Background="White" 
+                                BorderBrush="#E5E7EB" 
+                         Margin="{Binding Source={StaticResource UiScaleState},
+                                          Path=FontScale,
+                                          Converter={StaticResource ThicknessScaleConverter},
+                                          ConverterParameter='0,16,0,0'}"
+                                BorderThickness="1" 
+                                CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                        Path=FontScale,
+                                        Converter={StaticResource CornerRadiusFromHeightConverter},
+                                        ConverterParameter='8'}"
+                                >
                             <Grid>
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition 
+                                           Height="{Binding Source={StaticResource UiScaleState},
+                                                               Path=FontScale,
+                                                               Converter={StaticResource ScaledDoubleConverter},
+                                                               ConverterParameter=40}" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
-                                    <!-- Reserve scrollbar + inset so header column widths match row viewport (avoids overlap / drift) -->
+                                    
                                     <ColumnDefinition Width="{x:Static SystemParameters.VerticalScrollBarWidth}" />
                                 </Grid.ColumnDefinitions>
 
                                 <Border Grid.Row="0"
                                         Grid.Column="0"
                                         Background="#E5E7EB"
-                                        CornerRadius="8,8,0,0">
-                                    <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,12,12,12'}">
+                                CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                                       Path=FontScale,
+                                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                       ConverterParameter='8,8,0,0'}"
+                                        >
+                                    <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,4,4'}">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="1.15*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=108}" />
-                                            <ColumnDefinition Width="1.5*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=132}" />
-                                            <ColumnDefinition Width="1.15*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=128}" />
-                                            <ColumnDefinition Width="1.0*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}" />
-                                            <ColumnDefinition Width="1.05*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}" />
-                                            <ColumnDefinition Width="0.85*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}" />
-                                            <ColumnDefinition Width="0.55*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=52}" />
-                                            <ColumnDefinition Width="1.0*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=100}" />
-                                            <ColumnDefinition Width="0.9*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=84}" />
+                                            <ColumnDefinition Width="0.85*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=110}" />
+                                            <ColumnDefinition Width="1.2*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=125}" />
+                                            <ColumnDefinition Width="1.2*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=130}" />
+                                            <ColumnDefinition Width="1.0*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=90}" />
+                                            <ColumnDefinition Width="1.0*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=85}" />
+                                            <ColumnDefinition Width="0.90*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=85}" />
+                                            <ColumnDefinition Width="0.5*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=51}" />
+                                            <ColumnDefinition Width="0.85*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=85}" />
+                                            <ColumnDefinition Width="0.8*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=84}" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="PO #" Style="{StaticResource PoTableHeaderCellStyle}" />
-                                        <TextBlock Grid.Column="1" Text="Supplier" Style="{StaticResource PoTableHeaderCellStyle}" />
-                                        <TextBlock Grid.Column="2" Text="Branch" Style="{StaticResource PoTableHeaderCellStyle}" />
-                                        <TextBlock Grid.Column="3" Text="Order Date" Style="{StaticResource PoTableHeaderCellStyle}" />
-                                        <TextBlock Grid.Column="4" Text="Expected Delivery" Style="{StaticResource PoTableHeaderCellStyle}" />
-                                        <TextBlock Grid.Column="5" Text="Days Waiting" Style="{StaticResource PoTableHeaderCellStyle}" />
-                                        <TextBlock Grid.Column="6"
+                                        <TextBlock Grid.Column="0" Text="PO #" Style="{StaticResource PoTableHeaderCellStyle}" 
+                                         />
+                                        <TextBlock Grid.Column="1" Text="Supplier" Style="{StaticResource PoTableHeaderCellStyle}" 
+                                         />
+                                        <TextBlock Grid.Column="2" Text="Branch" Style="{StaticResource PoTableHeaderCellStyle}" 
+                                         />
+                                        <TextBlock Grid.Column="3" Text="Order Date" Style="{StaticResource PoTableHeaderCellStyle}" 
+                                         />
+                                        <TextBlock Grid.Column="4"
+                                                   Text="Expected Delivery"
+                                                   Style="{StaticResource PoTableHeaderCellWrap150CenterStyle}"
+                                                   VerticalAlignment="Center" />
+
+                                        <TextBlock Grid.Column="5"
+                                                   Text="Days Waiting"
+                                                   Style="{StaticResource PoTableHeaderCellWrap150CenterStyle}"
+                                                   VerticalAlignment="Center" />
+                                        
+                                        <TextBlock Grid.Column="6"                                         
                                                    Text="Items"
                                                    Style="{StaticResource PoTableHeaderCellStyle}"
                                                    HorizontalAlignment="Center"
                                                    TextAlignment="Center" />
-                                        <TextBlock Grid.Column="7" Text="Status" Style="{StaticResource PoTableHeaderCellStyle}" />
+
+                                        <TextBlock Grid.Column="7" 
+                                                   Text="Status" 
+                                                   Style="{StaticResource PoTableHeaderCellStyle}" 
+                                                   HorizontalAlignment="Center"                                                   
+                                         />
                                         <TextBlock Grid.Column="8"
                                                    Text="Total"
                                                    Style="{StaticResource PoTableHeaderCellStyle}"
@@ -312,16 +555,38 @@
                                 <Border Grid.Row="0"
                                         Grid.Column="1"
                                         Background="#E5E7EB"
-                                        CornerRadius="0,8,0,0" />
+                                CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                                       Path=FontScale,
+                                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                       ConverterParameter='0,8,0,0'}"                                        />
 
-                                <ScrollViewer Grid.Row="1"
-                                              Grid.Column="0"
-                                              Grid.ColumnSpan="2"
-                                              VerticalScrollBarVisibility="Auto"
-                                              HorizontalScrollBarVisibility="Disabled"
-                                              FocusVisualStyle="{x:Null}"
-                                              MaxHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=420}">
-                                    <ItemsControl x:Name="FullPurchaseOrderList">
+                                <ScrollViewer x:Name="ListScrollViewer"
+                                      Grid.Row="1"
+                                      Grid.Column="0"
+                                      Grid.ColumnSpan="2"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      FocusVisualStyle="{x:Null}"
+                                      PreviewMouseWheel="ListScrollViewer_PreviewMouseWheel"
+                                      MaxHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=600}">
+                                    
+                                    <ItemsControl x:Name="FullPurchaseOrderList"                                                  
+                                                  >
+                                        <ItemsControl.Style>
+                                            <Style TargetType="ItemsControl">
+                                                <Setter Property="Margin"
+                                                    Value="{Binding Source={StaticResource UiScaleState},
+                                                                    Path=FontScale,
+                                                                    Converter={StaticResource ThicknessScaleConverter},
+                                                                    ConverterParameter='0,0,17,0'}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ElementName=ListScrollViewer, Path=ComputedVerticalScrollBarVisibility}"
+                                                                Value="Visible">
+                                                        <Setter Property="Margin" Value="0" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ItemsControl.Style>
                                         <ItemsControl.ItemContainerStyle>
                                             <Style TargetType="ContentPresenter">
                                                 <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -330,70 +595,103 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border HorizontalAlignment="Stretch"
-                                                        BorderBrush="#F3F4F6"
-                                                        BorderThickness="0,1,0,0"
-                                                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,12,12,12'}"
-                                                        MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=44}">
+                                                    BorderBrush="#F3F4F6"
+                                                    BorderThickness="0,1,0,0"
+                                                    Background="Transparent"
+                                                    Cursor="Hand"
+                                                    Tag="{Binding PONumber}"
+                                                    PreviewMouseLeftButtonDown="PurchaseOrderRow_MouseLeftButtonUp"
+                                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,12,0,12'}"
+                                                    MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=44}">
+                                                    
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="1.15*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=108}" />
-                                                            <ColumnDefinition Width="1.5*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=132}" />
-                                                            <ColumnDefinition Width="1.15*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=128}" />
-                                                            <ColumnDefinition Width="1.0*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}" />
-                                                            <ColumnDefinition Width="1.05*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}" />
-                                                            <ColumnDefinition Width="0.85*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}" />
-                                                            <ColumnDefinition Width="0.55*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=52}" />
-                                                            <ColumnDefinition Width="1.0*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=100}" />
-                                                            <ColumnDefinition Width="0.9*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=84}" />
+                                                            <ColumnDefinition Width="0.85*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=110}" />
+                                                            <ColumnDefinition Width="1.2*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=125}" />
+                                                            <ColumnDefinition Width="1.2*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=130}" />
+                                                            <ColumnDefinition Width="1.0*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=90}" />
+                                                            <ColumnDefinition Width="1.0*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=85}" />
+                                                            <ColumnDefinition Width="0.90*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=85}" />
+                                                            <ColumnDefinition Width="0.5*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=51}" />
+                                                            <ColumnDefinition Width="0.85*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=85}" />
+                                                            <ColumnDefinition Width="0.8*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=84}" />
                                                         </Grid.ColumnDefinitions>
 
-                                                        <StackPanel Grid.Column="0"
-                                                                    Orientation="Horizontal"
-                                                                    VerticalAlignment="Center"
-                                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,14,0'}">
-                                                            <Button Content="{Binding PONumber}"
-                                                                    Tag="{Binding PONumber}"
-                                                                    Style="{StaticResource PoLinkButtonStyle}"
-                                                                    Click="ViewRow_Click" />
-                                                            <Border Background="#FEE2E2"
-                                                                    CornerRadius="4"
-                                                                    Padding="6,2"
-                                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,0'}"
+                                                        <WrapPanel Grid.Column="0"
+                                                               VerticalAlignment="Center"
+                                                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                                                Path=FontScale,
+                                                                                Converter={StaticResource ThicknessScaleConverter},
+                                                                                ConverterParameter='0,0,14,0'}">
+                                                            <TextBlock Text="{Binding PONumber}"
+                                                                   Style="{StaticResource PoTableCellTextStyle}"
+                                                                   FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                                      Path=FontScale,
+                                                                                      Converter={StaticResource FontScaleConverter},
+                                                                                      ConverterParameter=14}"
+                                                                   VerticalAlignment="Center" />
+
+                                                            <Border Background="#D4183D"
+                                                                    CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                                                                           Path=FontScale,
+                                                                                           Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                                           ConverterParameter='4'}"
+                                                                    Padding="{Binding Source={StaticResource UiScaleState},
+                                                                                      Path=FontScale,
+                                                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                                                      ConverterParameter='6,2,6,3'}"
+                                                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                                                     Path=FontScale,
+                                                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                                                     ConverterParameter='8,0,0,0'}"
                                                                     VerticalAlignment="Center"
                                                                     Visibility="{Binding OverdueBadgeVisibility}">
                                                                 <TextBlock Text="Overdue"
-                                                                           Foreground="#DC2626"
-                                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=10}" />
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="White"
+                                                                   FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                                      Path=FontScale,
+                                                                                      Converter={StaticResource FontScaleConverter},
+                                                                                      ConverterParameter=13}" />
                                                             </Border>
-                                                        </StackPanel>
+                                                        </WrapPanel>
 
-                                                        <TextBlock Grid.Column="1" Text="{Binding SupplierName}" Style="{StaticResource PoTableCellTextStyle}" />
-                                                        <TextBlock Grid.Column="2" Text="{Binding BranchName}" Style="{StaticResource PoTableCellTextStyle}" />
-                                                        <TextBlock Grid.Column="3" Text="{Binding OrderDateDisplay}" Style="{StaticResource PoTableMutedCellStyle}" />
-                                                        <TextBlock Grid.Column="4" Text="{Binding ExpectedDeliveryDisplay}" Style="{StaticResource PoTableMutedCellStyle}" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding SupplierName}" Style="{StaticResource PoTableCellTextStyle}" 
+                                                            />
+                                                        <TextBlock Grid.Column="2" Text="{Binding BranchName}" Style="{StaticResource PoTableCellTextStyle}"  
+                                                            />
+                                                        <TextBlock Grid.Column="3" Text="{Binding OrderDateDisplay}" Style="{StaticResource PoTableMutedCellStyle}"  
+                                                            />
+                                                        <TextBlock Grid.Column="4" Text="{Binding ExpectedDeliveryDisplay}" Style="{StaticResource PoTableMutedCellStyle}"  HorizontalAlignment="Center"
+                                                            />
                                                         <TextBlock Grid.Column="5"
                                                                    Text="{Binding DaysWaitingText}"
+                                                                   HorizontalAlignment="Center"
                                                                    Foreground="{Binding DaysWaitingForeground}"
-                                                                   Style="{StaticResource PoTableMutedCellStyle}" />
+                                                                   Style="{StaticResource PoTableMutedCellStyle}"  
+                                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
                                                         <TextBlock Grid.Column="6"
                                                                    Text="{Binding ItemsCount}"
                                                                    HorizontalAlignment="Center"
                                                                    TextAlignment="Center"
-                                                                   Style="{StaticResource PoTableCellTextStyle}" />
-                                                        <Border Grid.Column="7"
+                                                                   Style="{StaticResource PoTableCellTextStyle}"  
+                                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+                                                        <Border Grid.Column="7" HorizontalAlignment="Center"
                                                                 Background="{Binding StatusBadgeBackground}"
+                                                                BorderBrush="#929394"
                                                                 Style="{StaticResource GridStatusBadgeBorderStyle}"
-                                                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,14,0'}">
+                                                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,0'}">
                                                             <TextBlock Text="{Binding StatusDisplay}"
                                                                        Foreground="{Binding StatusBadgeForeground}"
                                                                        Style="{StaticResource GridStatusBadgeTextStyle}" />
                                                         </Border>
                                                         <TextBlock Grid.Column="8"
                                                                    Text="{Binding TotalDisplay}"
+                                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                                                    FontWeight="SemiBold"
                                                                    Style="{StaticResource PoTableCellTextStyle}"
                                                                    HorizontalAlignment="Right"
-                                                                   TextAlignment="Right"
+                                                                   TextAlignment="Center"
                                                                    Margin="0" />
                                                     </Grid>
                                                 </Border>
@@ -427,6 +725,7 @@
                     <Button Grid.Column="1"
                             Content="Close"
                             MinWidth="110"
+                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                             Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=35}"
                             Style="{StaticResource VcSecondaryButtonStyle}"
                             Click="Close_Click"

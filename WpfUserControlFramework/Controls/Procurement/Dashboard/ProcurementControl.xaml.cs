@@ -2,6 +2,9 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System;
+using System.Collections.Generic;
+using System.Windows.Input;
 
 namespace RestaurantPosWpf
 {
@@ -164,9 +167,12 @@ namespace RestaurantPosWpf
         {
             return display switch
             {
-                "Awaiting Approval" or "Draft" => (
+                "Awaiting Approval" => (
                     new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FEF3C7")!),
                     new SolidColorBrush((Color)ColorConverter.ConvertFromString("#92400E")!)),
+                "Draft" => (
+                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EAEBED")!),
+                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#111827")!)),
                 "Sent" or "Confirmed" or "Awaiting Delivery" => (
                     new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DBEAFE")!),
                     new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E40AF")!)),
@@ -513,7 +519,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Beverage World",
                     SupplierReference = "BW-78901",
                     DeliveryDate = new DateTime(2026, 3, 3),
-                    DeliveryLocation = "Main Street Kitchen - Dry Storage",
+                    DeliveryLocation = "Main Street Kitchen",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 2, 28, 14, 0, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -556,7 +562,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Fresh Produce Co",
                     SupplierReference = "FPC-66102",
                     DeliveryDate = new DateTime(2026, 3, 4),
-                    DeliveryLocation = "Main Street Kitchen - Cold Room",
+                    DeliveryLocation = "Main Street Kitchen",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 3, 1, 9, 10, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -573,7 +579,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Dairy Fresh Ltd",
                     SupplierReference = "DF-31255",
                     DeliveryDate = new DateTime(2026, 3, 5),
-                    DeliveryLocation = "Main Street Kitchen - Cold Room",
+                    DeliveryLocation = "Main Street Kitchen",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 3, 5, 11, 45, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -590,7 +596,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Beverage World",
                     SupplierReference = "BW-78962",
                     DeliveryDate = new DateTime(2026, 3, 6),
-                    DeliveryLocation = "Main Street Kitchen - Beverage Storage",
+                    DeliveryLocation = "Main Street Kitchen",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 3, 6, 9, 5, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -625,7 +631,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Fresh Produce Co",
                     SupplierReference = "FPC-66208",
                     DeliveryDate = new DateTime(2026, 3, 5),
-                    DeliveryLocation = "Main Street Kitchen - Prep Area",
+                    DeliveryLocation = "Main Street Kitchen",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 3, 8, 10, 15, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -642,7 +648,7 @@ namespace RestaurantPosWpf
                     SupplierName = "FreshPro Distributors",
                     SupplierReference = "FPD-10001",
                     DeliveryDate = new DateTime(2026, 2, 25),
-                    DeliveryLocation = "Main Street Kitchen - Dry Storage",
+                    DeliveryLocation = "Main Street Kitchen",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 2, 20, 8, 0, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -659,7 +665,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Coastal Seafood Ltd",
                     SupplierReference = "CS-44021",
                     DeliveryDate = new DateTime(2026, 3, 12),
-                    DeliveryLocation = "Riverside Bistro - Cold Room",
+                    DeliveryLocation = "Riverside Bistro",
                     ApprovedBy = string.Empty,
                     ApprovedOn = default,
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -676,7 +682,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Beverage World",
                     SupplierReference = "BW-77990",
                     DeliveryDate = new DateTime(2026, 3, 5),
-                    DeliveryLocation = "Main Street Kitchen - Beverage Storage",
+                    DeliveryLocation = "Main Street Kitchen",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 3, 4, 11, 0, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -710,7 +716,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Fresh Produce Co",
                     SupplierReference = "FPC-66001",
                     DeliveryDate = new DateTime(2026, 2, 27),
-                    DeliveryLocation = "Main Street Kitchen - Prep Area",
+                    DeliveryLocation = "Main Street Kitchen",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 2, 25, 14, 0, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -727,7 +733,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Dairy Fresh Ltd",
                     SupplierReference = "DF-30990",
                     DeliveryDate = new DateTime(2026, 2, 20),
-                    DeliveryLocation = "Main Street Kitchen - Cold Room",
+                    DeliveryLocation = "Main Street Kitchen",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 2, 18, 10, 0, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -744,7 +750,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Beverage World",
                     SupplierReference = "BW-78001",
                     DeliveryDate = new DateTime(2026, 3, 14),
-                    DeliveryLocation = "Riverside Bistro - Dry Storage",
+                    DeliveryLocation = "Riverside Bistro",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 3, 10, 8, 30, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -761,7 +767,7 @@ namespace RestaurantPosWpf
                     SupplierName = "FreshPro Distributors",
                     SupplierReference = "FPD-10120",
                     DeliveryDate = new DateTime(2026, 3, 18),
-                    DeliveryLocation = "Main Street Kitchen - Dry Storage",
+                    DeliveryLocation = "Main Street Kitchen",
                     ApprovedBy = string.Empty,
                     ApprovedOn = default,
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -795,7 +801,7 @@ namespace RestaurantPosWpf
                     SupplierName = "Coastal Seafood Ltd",
                     SupplierReference = "CS-44100",
                     DeliveryDate = new DateTime(2026, 3, 6),
-                    DeliveryLocation = "Riverside Bistro - Cold Room",
+                    DeliveryLocation = "Riverside Bistro",
                     ApprovedBy = "Michael Roberts",
                     ApprovedOn = new DateTime(2026, 3, 3, 11, 0, 0),
                     Items = new List<ProcurementPurchaseOrderItem>
@@ -1044,6 +1050,10 @@ namespace RestaurantPosWpf
     public partial class ProcurementControl : UserControl
     {
 
+        private Border _procurementNewPoScrim;
+        private ProcurementSupplierPickerControl _procurementSupplierPickerOverlay;
+        private SupplierNewPO _procurementNewPoOverlay;
+        private WeakReference<IInputElement> _procurementNewPoLastFocus = new WeakReference<IInputElement>(null);
 
         private readonly Action<DiscrepanciesNavigationContext>? _onViewDiscrepancies;
         private ProcurementDiscrepancies? _activeDiscrepanciesOverlay;
@@ -1098,7 +1108,241 @@ namespace RestaurantPosWpf
 
         private void CreateNewOrder_Click(object sender, RoutedEventArgs e)
         {
-            // Navigate to PO creation — wired up by parent
+            if (IsProcurementNewPoFlowOpen())
+                return;
+
+            OpenProcurementSupplierPickerOverlay(sender as IInputElement);
+        }
+
+        private bool IsProcurementNewPoFlowOpen()
+        {
+            return _procurementSupplierPickerOverlay != null
+                || _procurementNewPoOverlay != null;
+        }
+
+        private void OpenProcurementSupplierPickerOverlay(IInputElement openerFocus)
+        {
+            if (OverlayHost == null)
+                return;
+
+            IInputElement focusElement = openerFocus ?? Keyboard.FocusedElement;
+            _procurementNewPoLastFocus = new WeakReference<IInputElement>(focusElement);
+
+            _procurementNewPoScrim = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x80, 0x00, 0x00, 0x00)),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                IsHitTestVisible = true
+            };
+
+            _procurementSupplierPickerOverlay = new ProcurementSupplierPickerControl
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            _procurementSupplierPickerOverlay.SetSupplierOptions(BuildProcurementSupplierPickerItems());
+            _procurementSupplierPickerOverlay.Cancelled += ProcurementSupplierPickerOverlay_Cancelled;
+            _procurementSupplierPickerOverlay.SupplierConfirmed += ProcurementSupplierPickerOverlay_SupplierConfirmed;
+
+            OverlayHost.Children.Add(_procurementNewPoScrim);
+            OverlayHost.Children.Add(_procurementSupplierPickerOverlay);
+
+            _procurementSupplierPickerOverlay.Focus();
+        }
+
+        private void ProcurementSupplierPickerOverlay_Cancelled(object sender, EventArgs e)
+        {
+            CloseProcurementSupplierPickerOverlay(true);
+        }
+
+        private void ProcurementSupplierPickerOverlay_SupplierConfirmed(object sender, ProcurementSupplierConfirmedEventArgs e)
+        {
+            string code;
+            string supplierName;
+            string emailContact;
+            string phoneNumber;
+            string paymentTerms;
+
+            if (!TrySimulateProcurementSupplierNewPoFields(e.SupplierCode, out code, out supplierName, out emailContact, out phoneNumber, out paymentTerms))
+            {
+                MessageBox.Show(
+                    "Could not retrieve the selected supplier details.",
+                    "Create New Order",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+
+                return;
+            }
+
+            CloseProcurementSupplierPickerOverlay(false);
+            OpenProcurementNewPoOverlay(code, supplierName, emailContact, phoneNumber, paymentTerms);
+        }
+
+        private void OpenProcurementNewPoOverlay(
+            string code,
+            string supplierName,
+            string emailContact,
+            string phoneNumber,
+            string paymentTerms)
+        {
+            if (OverlayHost == null)
+                return;
+
+            _procurementNewPoOverlay = new SupplierNewPO(code, supplierName, emailContact, phoneNumber, paymentTerms);
+            _procurementNewPoOverlay.RequestClose += ProcurementNewPoOverlay_RequestClose;
+
+            OverlayHost.Children.Add(_procurementNewPoOverlay);
+            _procurementNewPoOverlay.Focus();
+        }
+
+        private void ProcurementNewPoOverlay_RequestClose(object sender, EventArgs e)
+        {
+            CloseProcurementNewPoOverlay();
+        }
+
+        private void CloseProcurementSupplierPickerOverlay(bool closeEntireFlow)
+        {
+            if (_procurementSupplierPickerOverlay != null)
+            {
+                _procurementSupplierPickerOverlay.Cancelled -= ProcurementSupplierPickerOverlay_Cancelled;
+                _procurementSupplierPickerOverlay.SupplierConfirmed -= ProcurementSupplierPickerOverlay_SupplierConfirmed;
+
+                if (OverlayHost != null && OverlayHost.Children.Contains(_procurementSupplierPickerOverlay))
+                    OverlayHost.Children.Remove(_procurementSupplierPickerOverlay);
+
+                _procurementSupplierPickerOverlay = null;
+            }
+
+            if (closeEntireFlow)
+                CleanupProcurementNewPoFlow();
+        }
+
+        private void CloseProcurementNewPoOverlay()
+        {
+            if (_procurementNewPoOverlay != null)
+            {
+                _procurementNewPoOverlay.RequestClose -= ProcurementNewPoOverlay_RequestClose;
+
+                if (OverlayHost != null && OverlayHost.Children.Contains(_procurementNewPoOverlay))
+                    OverlayHost.Children.Remove(_procurementNewPoOverlay);
+
+                _procurementNewPoOverlay = null;
+            }
+
+            CleanupProcurementNewPoFlow();
+        }
+
+        private void CleanupProcurementNewPoFlow()
+        {
+            if (_procurementSupplierPickerOverlay != null)
+            {
+                _procurementSupplierPickerOverlay.Cancelled -= ProcurementSupplierPickerOverlay_Cancelled;
+                _procurementSupplierPickerOverlay.SupplierConfirmed -= ProcurementSupplierPickerOverlay_SupplierConfirmed;
+
+                if (OverlayHost != null && OverlayHost.Children.Contains(_procurementSupplierPickerOverlay))
+                    OverlayHost.Children.Remove(_procurementSupplierPickerOverlay);
+
+                _procurementSupplierPickerOverlay = null;
+            }
+
+            if (_procurementNewPoOverlay != null)
+            {
+                _procurementNewPoOverlay.RequestClose -= ProcurementNewPoOverlay_RequestClose;
+
+                if (OverlayHost != null && OverlayHost.Children.Contains(_procurementNewPoOverlay))
+                    OverlayHost.Children.Remove(_procurementNewPoOverlay);
+
+                _procurementNewPoOverlay = null;
+            }
+
+            if (_procurementNewPoScrim != null)
+            {
+                if (OverlayHost != null && OverlayHost.Children.Contains(_procurementNewPoScrim))
+                    OverlayHost.Children.Remove(_procurementNewPoScrim);
+
+                _procurementNewPoScrim = null;
+            }
+
+            RestoreProcurementNewPoFocus();
+        }
+
+        private void RestoreProcurementNewPoFocus()
+        {
+            IInputElement lastFocus;
+            if (_procurementNewPoLastFocus != null && _procurementNewPoLastFocus.TryGetTarget(out lastFocus) && lastFocus != null)
+            {
+                Keyboard.Focus(lastFocus);
+            }
+            else if (MainProcurementSurface != null)
+            {
+                Keyboard.Focus(MainProcurementSurface);
+            }
+        }
+
+        private List<ProcurementSupplierPickerItem> BuildProcurementSupplierPickerItems()
+        {
+            return new List<ProcurementSupplierPickerItem>
+    {
+        new ProcurementSupplierPickerItem("SUP-001", "SUP-001 - Riverside Produce"),
+        new ProcurementSupplierPickerItem("SUP-002", "SUP-002 - Ocean Fresh Seafood"),
+        new ProcurementSupplierPickerItem("SUP-003", "SUP-003 - Valley Meats"),
+        new ProcurementSupplierPickerItem("SUP-004", "SUP-004 - Cape Beverage Co.")
+    };
+        }
+
+        private bool TrySimulateProcurementSupplierNewPoFields(
+            string selectedSupplierCode,
+            out string code,
+            out string supplierName,
+            out string emailContact,
+            out string phoneNumber,
+            out string paymentTerms)
+        {
+            code = string.Empty;
+            supplierName = string.Empty;
+            emailContact = string.Empty;
+            phoneNumber = string.Empty;
+            paymentTerms = string.Empty;
+
+            switch ((selectedSupplierCode ?? string.Empty).Trim().ToUpper())
+            {
+                case "SUP-001":
+                    code = "SUP-001";
+                    supplierName = "Riverside Produce";
+                    emailContact = "orders@riversideproduce.test";
+                    phoneNumber = "021 555 0101";
+                    paymentTerms = "30 Days";
+                    return true;
+
+                case "SUP-002":
+                    code = "SUP-002";
+                    supplierName = "Ocean Fresh Seafood";
+                    emailContact = "supply@oceanfreshseafood.test";
+                    phoneNumber = "021 555 0102";
+                    paymentTerms = "COD";
+                    return true;
+
+                case "SUP-003":
+                    code = "SUP-003";
+                    supplierName = "Valley Meats";
+                    emailContact = "dispatch@valleymeats.test";
+                    phoneNumber = "021 555 0103";
+                    paymentTerms = "14 Days";
+                    return true;
+
+                case "SUP-004":
+                    code = "SUP-004";
+                    supplierName = "Cape Beverage Co.";
+                    emailContact = "sales@capebeverage.test";
+                    phoneNumber = "021 555 0104";
+                    paymentTerms = "30 Days";
+                    return true;
+
+                default:
+                    return false;
+            }
         }
 
         private void ViewAlertDetails_Click(object sender, RoutedEventArgs e)

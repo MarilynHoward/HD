@@ -28,11 +28,11 @@ namespace RestaurantPosWpf
 
         private static bool _dpiHooked;
 
-        public static double FontScale { get; private set; } = 1.0;
+        public static double FontScale { get; private set; } = 1.25;
 
         public static event Action<double>? ScaleChanged;
 
-        private static double _lastFontScale = 1.0;
+        private static double _lastFontScale = 1.25;
 
         private static bool _scaleSnapshotEnabled = true;
 

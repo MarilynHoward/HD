@@ -821,6 +821,11 @@
               HorizontalAlignment="Stretch"
               VerticalAlignment="Stretch">
         </Grid>
-
+        
+        <Grid x:Name="OverlayHost"
+          Panel.ZIndex="10000"
+          HorizontalAlignment="Stretch"
+          VerticalAlignment="Stretch" />
+        
     </Grid>
 </UserControl>

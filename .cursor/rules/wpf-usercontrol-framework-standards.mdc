@@ -17,3 +17,52 @@ Follow these standards when editing this project:
 - For popup/dialog controls, preserve the standard five-row layout (header, divider, form, divider, footer) with scalable dimensions.
 - Keep control-specific resources in `<UserControl.Resources>` only when they are local to one control; promote reused styles to shared theme resources.
 - Keep control implementation self-contained in the control code-behind (`.xaml.cs`) for models/constants/demo data unless a broader refactor is explicitly requested.
+
+## New user control design & implementation
+
+Use `WpfUserControlFramework/Controls/Procurement/PurchaseOrders/ProcurementPOrders.xaml` (+ `.xaml.cs`) as the **reference** for patterns below unless a control already extracts them into shared theme styles.
+
+### UI scale (125%) and wide tables
+
+- Design and verify layouts at **125%** scale (`UiScaleState.FontScale`).
+- For tables with many columns, the goal is **no horizontal scrollbar**: fit columns using **proportional `*` widths** with **scaled `MinWidth`** (`LayoutScaleConverter`), reserve space for the **vertical** scrollbar (e.g. header grid column `Width="{x:Static SystemParameters.VerticalScrollBarWidth}"` aligned with list `ScrollViewer`), and adjust content margins when the scrollbar appears (same triggers as `ProcurementPOrders`). Do not rely on horizontal `ScrollViewer` for the primary table body as the default fix.
+
+### Tabular UI (any implementation)
+
+- Rules apply to **any** tabular presentation (`DataGrid`, `ItemsControl` + `Grid`, etc.). For the **ItemsControl + header row** pattern, match `ProcurementPOrders` (and procurement table rules in `wpf-procurement-table-format.mdc` where applicable).
+- **Column header alignment** must match the data cells in that column (left / center / right, including `TextAlignment` and header styles such as wrap vs single-line).
+
+### Typography (all visible text)
+
+- Every on-screen text element must set **FontSize** via `FontScaleConverter` and `UiScaleState.FontScale` (base size as `ConverterParameter`).
+- Default ladder:
+  - **Page / main header**: 18, **Bold**
+  - **Subtitle**: 15, **Normal**
+  - **Button labels**: 16
+  - **Table header and row text**: 14
+  - **Badges**: primary status / pill text **Bold**, base size **13**, may step down to **10** when space requires; **small secondary** badge-style labels (e.g. compact “Overdue” tag) may use **SemiBold** instead of Bold
+  - **Section header**: 16, **SemiBold**
+
+### Figma or mock images
+
+- From shared visuals, extract **fields, behavior, and layout intent**; implement using **this solution’s** scaling, theme brushes, table rules, and typography ladder—not pixel-perfect overrides that break converters or shared styles.
+
+### What to scale (converters, not inline math)
+
+Apply the existing converter patterns to: **FontSize**, **Margin**, **Padding**, **CornerRadius**, **Width**, **Height** (except **Canvas** width/height inside icons), **MinWidth**, **MinHeight**, **MaxWidth**, **MaxHeight**.
+
+### Standard search box
+
+- Reuse the **search host** pattern from `ProcurementPOrders`: border, **inner/outer focus rings**, watermark `TextBox` style, debounced/filter behavior as needed, and `PreviewMouseLeftButtonDown` on the chrome to move focus into the `TextBox`.
+
+### Focus rings
+
+- Use the same **outer + inner** focus ring approach as the `ProcurementPOrders` search box; keep colors aligned with shared `FocusOuter` / `FocusInner` where the theme defines them.
+
+### Nested scroll / “mouse-trap” (mouse wheel)
+
+- For a **nested** list/table `ScrollViewer` inside a page `ScrollViewer`, implement **`PreviewMouseWheel`** like `ListScrollViewer_PreviewMouseWheel` in `ProcurementPOrders.xaml.cs`: scroll the inner viewer first; at inner top/bottom (or when inner has no scroll), route wheel deltas to the **page** `ScrollViewer` and mark handled as appropriate.
+
+### Scrollbar width and layout nudging
+
+- Match **page** and **list** `ScrollViewer` margin compensation when `ComputedVerticalScrollBarVisibility` is visible (`ProcurementPOrders`: page `ScrollViewer` and `StackPanel` / `ItemsControl` margin triggers). Keep header and body columns aligned with the scrollbar gutter.

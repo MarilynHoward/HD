@@ -34,10 +34,10 @@
 
 
     <local:UiScaleState x:Key="UiScaleState"
-                        FontScale="1.0" />
+                        FontScale="1.25" />
 
     <!-- (Optional) if you still use UiFontScale anywhere -->
-    <sys:Double x:Key="UiFontScale">1.0</sys:Double>
+    <sys:Double x:Key="UiFontScale">1.25</sys:Double>
 
     <!-- Neutrals -->
     <Color x:Key="Color.White">#FFFFFF</Color>

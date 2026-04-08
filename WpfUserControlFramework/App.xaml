@@ -10,7 +10,7 @@
                 <ResourceDictionary Source="PeoplePosTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <sys:Double x:Key="UiFontScale">1.0</sys:Double>
+            <sys:Double x:Key="UiFontScale">1.25</sys:Double>
 
             <!-- Global font family -->
             <Style TargetType="{x:Type TextBlock}">

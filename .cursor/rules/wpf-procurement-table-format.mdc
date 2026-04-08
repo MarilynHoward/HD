@@ -13,3 +13,11 @@ alwaysApply: false
   - aligned `Grid.ColumnDefinitions` shared by header and item rows
 - Keep cell typography consistent with shared theme brushes (`MainForeground`, `DimmedForeground`) and scale via `UiScaleState.FontScale` converters.
 - Render status/type tags as pill badges inside the row grid (left-aligned, scalable padding, rounded corners).
+
+## Scale and wide tables (125%, no horizontal scroll)
+
+- **Validate at 125%** (`UiScaleState.FontScale`): many-column tables must remain usable without relying on a **horizontal** scrollbar for the primary grid body.
+- Use **proportional star (`*`) columns** with **scaled `MinWidth`** (`LayoutScaleConverter`), reserve the **vertical scrollbar** gutter in the header row (e.g. `SystemParameters.VerticalScrollBarWidth` aligned with the list `ScrollViewer`), and apply **margin compensation** when the vertical scrollbar appears—see `ProcurementPOrders` for the full pattern.
+- **Header vs cell alignment** must match per column (left / center / right).
+
+For search box, nested scroll mouse-wheel routing, focus rings, and the full new-control checklist, see **`wpf-usercontrol-framework-standards.mdc`** (section *New user control design & implementation*).
