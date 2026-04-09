@@ -279,8 +279,11 @@
             </DockPanel>
         </Border>
 
-        <!-- Content Area -->
-        <ContentControl x:Name="ContentArea" Grid.Column="1" />
+        <!-- Content Area: bounded height so child ScrollViewers can scroll -->
+        <ContentControl x:Name="ContentArea"
+                        Grid.Column="1"
+                        VerticalAlignment="Stretch"
+                        VerticalContentAlignment="Stretch" />
 
         <!-- Scrim Overlay: semi-transparent dark overlay for modal dialogs -->
         <Border x:Name="ScrimOverlay"

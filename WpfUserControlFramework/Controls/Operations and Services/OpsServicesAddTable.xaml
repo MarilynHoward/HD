@@ -1,14 +1,18 @@
 <UserControl x:Class="RestaurantPosWpf.OpsServicesAddTable"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             VerticalAlignment="Stretch"
+             HorizontalAlignment="Stretch">
 
     <Border Background="White"
-            BorderBrush="#E5E7EB"
+            BorderBrush="{StaticResource Brush.BorderSoft}"
             BorderThickness="1"
+            VerticalAlignment="Stretch"
+            HorizontalAlignment="Stretch"
             Padding="{Binding Source={StaticResource UiScaleState},
                              Path=FontScale,
                              Converter={StaticResource ThicknessScaleConverter},
-                             ConverterParameter='24,16,24,20'}">
+                             ConverterParameter='28,20,28,20'}">
         <Border.CornerRadius>
             <Binding RelativeSource="{RelativeSource Self}"
                      Path="ActualHeight"
@@ -16,14 +20,13 @@
                      ConverterParameter="14"/>
         </Border.CornerRadius>
 
-        <Grid MaxWidth="{Binding Source={StaticResource UiScaleState},
-                                 Path=FontScale,
-                                 Converter={StaticResource LayoutScaleConverter},
-                                 ConverterParameter=640}">
+        <Grid HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
@@ -35,14 +38,14 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="Add New Table"
-                               Foreground="#0F172A"
+                               Foreground="{StaticResource MainForeground}"
                                FontWeight="Bold"
                                FontSize="{Binding Source={StaticResource UiScaleState},
                                                   Path=FontScale,
                                                   Converter={StaticResource FontScaleConverter},
                                                   ConverterParameter=18}"/>
                     <TextBlock Text="Enter the details for the new table."
-                               Foreground="#6B7280"
+                               Foreground="{StaticResource DimmedForeground}"
                                Margin="{Binding Source={StaticResource UiScaleState},
                                                 Path=FontScale,
                                                 Converter={StaticResource ThicknessScaleConverter},
@@ -50,28 +53,43 @@
                                FontSize="{Binding Source={StaticResource UiScaleState},
                                                   Path=FontScale,
                                                   Converter={StaticResource FontScaleConverter},
-                                                  ConverterParameter=14}"/>
+                                                  ConverterParameter=15}"/>
                 </StackPanel>
                 <Button Grid.Column="1"
                         Click="CloseButton_Click"
                         Background="Transparent"
                         BorderThickness="0"
-                        Foreground="#64748B"
+                        Foreground="{StaticResource DimmedForeground}"
                         Content="✕"
                         VerticalAlignment="Top"
-                        FocusVisualStyle="{x:Null}"/>
+                        FocusVisualStyle="{x:Null}"
+                        FontSize="{Binding Source={StaticResource UiScaleState},
+                                           Path=FontScale,
+                                           Converter={StaticResource FontScaleConverter},
+                                           ConverterParameter=16}"/>
             </Grid>
 
-            <Rectangle Grid.Row="1" Height="1" Fill="#E5E7EB"
+            <Rectangle Grid.Row="1" Height="1" Fill="{StaticResource Brush.BorderSoft}"
                        Margin="{Binding Source={StaticResource UiScaleState},
                                         Path=FontScale,
                                         Converter={StaticResource ThicknessScaleConverter},
-                                        ConverterParameter='0,10,0,10'}"/>
+                                        ConverterParameter='0,14,0,14'}"/>
 
-            <ScrollViewer Grid.Row="2"
+            <ScrollViewer x:Name="FormScroll"
+                          Grid.Row="2"
                           VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalAlignment="Stretch"
                           FocusVisualStyle="{x:Null}">
-                <Grid>
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar" BasedOn="{StaticResource ScrollBarAutoHide}" />
+                </ScrollViewer.Resources>
+                <!-- Symmetric horizontal inset: matches procurement scrollbar-gutter intent so fields don’t crowd the bar. -->
+                <Grid x:Name="FormFieldsGrid"
+                      Margin="{Binding Source={StaticResource UiScaleState},
+                                        Path=FontScale,
+                                        Converter={StaticResource ThicknessScaleConverter},
+                                        ConverterParameter='12,0,12,0'}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
@@ -85,80 +103,175 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,10">
-                        <TextBlock Text="Table Name *" Foreground="#374151"
-                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
-                                   Margin="0,0,0,4"/>
+                    <StackPanel Grid.Row="0" Grid.Column="0"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,18'}">
+                        <StackPanel Orientation="Horizontal"
+                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
+                            <TextBlock Text="Table Name"
+                                       Foreground="{StaticResource DimmedForeground}"
+                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+                            <TextBlock Text=" *"
+                                       Foreground="{StaticResource Brush.PrimaryBlue}"
+                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+                        </StackPanel>
                         <TextBox x:Name="TxtName" Style="{StaticResource IcEnabledTextBoxStyle}"/>
                     </StackPanel>
-
-                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,10">
-                        <TextBlock Text="Seats *" Foreground="#374151" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" Margin="0,0,0,4"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,18'}">
+                        <StackPanel Orientation="Horizontal"
+                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
+                            <TextBlock Text="Seats"
+                                       Foreground="{StaticResource DimmedForeground}"
+                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+                            <TextBlock Text=" *"
+                                       Foreground="{StaticResource Brush.PrimaryBlue}"
+                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+                        </StackPanel>
                         <TextBox x:Name="TxtSeats" Style="{StaticResource IcEnabledTextBoxStyle}" Text="4"/>
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,10">
-                        <TextBlock Text="Shape" Foreground="#374151" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" Margin="0,0,0,4"/>
-                        <ComboBox x:Name="CmbShape" Style="{StaticResource IcEnabledComboBoxStyle}"/>
+
+                    <StackPanel Grid.Row="1" Grid.Column="0"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,18'}">
+                        <TextBlock Text="Shape"
+                                   Foreground="{StaticResource DimmedForeground}"
+                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
+                        <ComboBox x:Name="CmbShape" Style="{StaticResource IcEnabledComboBoxStyle}"
+                                  Foreground="{StaticResource MainForeground}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,18'}">
+                        <TextBlock Text="Floor"
+                                   Foreground="{StaticResource DimmedForeground}"
+                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
+                        <ComboBox x:Name="CmbFloor" Style="{StaticResource IcEnabledComboBoxStyle}"
+                                  Foreground="{StaticResource MainForeground}"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,10">
-                        <TextBlock Text="Floor" Foreground="#374151" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" Margin="0,0,0,4"/>
-                        <ComboBox x:Name="CmbFloor" Style="{StaticResource IcEnabledComboBoxStyle}" IsEditable="True"/>
-                    </StackPanel>
-                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="8,0,0,10">
-                        <TextBlock Text="Assigned Waiter" Foreground="#374151" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" Margin="0,0,0,4"/>
-                        <ComboBox x:Name="CmbWaiter" Style="{StaticResource IcEnabledComboBoxStyle}"/>
+                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,18'}">
+                        <TextBlock Text="Assigned Waiter"
+                                   Foreground="{StaticResource DimmedForeground}"
+                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
+                        <ComboBox x:Name="CmbWaiter" Style="{StaticResource IcEnabledComboBoxStyle}"
+                                  Foreground="{StaticResource MainForeground}"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,8,10">
-                        <TextBlock Text="Zone" Foreground="#374151" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" Margin="0,0,0,4"/>
+                    <StackPanel Grid.Row="3" Grid.Column="0"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,18'}">
+                        <TextBlock Text="Zone"
+                                   Foreground="{StaticResource DimmedForeground}"
+                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
                         <TextBox x:Name="TxtZone" Style="{StaticResource IcEnabledTextBoxStyle}" Text="1"/>
                     </StackPanel>
-                    <StackPanel Grid.Row="3" Grid.Column="1" Margin="8,0,0,10">
-                        <TextBlock Text="Station" Foreground="#374151" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" Margin="0,0,0,4"/>
+                    <StackPanel Grid.Row="3" Grid.Column="1"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,18'}">
+                        <TextBlock Text="Station"
+                                   Foreground="{StaticResource DimmedForeground}"
+                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
                         <TextBox x:Name="TxtStation" Style="{StaticResource IcEnabledTextBoxStyle}" Text="1"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="4" Grid.Column="0" Margin="0,0,8,10">
-                        <TextBlock Text="Turn Time (min)" Foreground="#374151" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" Margin="0,0,0,4"/>
+                    <StackPanel Grid.Row="4" Grid.Column="0"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,18'}">
+                        <TextBlock Text="Turn Time (min)"
+                                   Foreground="{StaticResource DimmedForeground}"
+                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
                         <TextBox x:Name="TxtTurn" Style="{StaticResource IcEnabledTextBoxStyle}" Text="60"/>
                     </StackPanel>
-                    <StackPanel Grid.Row="4" Grid.Column="1" Margin="8,0,0,10">
-                        <TextBlock Text="Status" Foreground="#374151" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" Margin="0,0,0,4"/>
-                        <ComboBox x:Name="CmbStatus" Style="{StaticResource IcEnabledComboBoxStyle}"/>
+                    <StackPanel Grid.Row="4" Grid.Column="1"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,18'}">
+                        <TextBlock Text="Status"
+                                   Foreground="{StaticResource DimmedForeground}"
+                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
+                        <ComboBox x:Name="CmbStatus" Style="{StaticResource IcEnabledComboBoxStyle}"
+                                  Foreground="{StaticResource MainForeground}"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,10">
-                        <TextBlock Text="Notes" Foreground="#374151" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}" Margin="0,0,0,4"/>
-                        <TextBox x:Name="TxtNotes" Style="{StaticResource IcEnabledTextBoxStyle}" AcceptsReturn="True" MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=72}" TextWrapping="Wrap"/>
+                    <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,10,0,22'}">
+                        <TextBlock Text="Notes"
+                                   Foreground="{StaticResource DimmedForeground}"
+                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,6'}"/>
+                        <TextBox x:Name="TxtNotes" Style="{StaticResource IcEnabledTextBoxStyle}"
+                                 AcceptsReturn="True"
+                                 VerticalContentAlignment="Top"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Foreground="{StaticResource MainForeground}"
+                                 MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=60}"
+                                 MaxHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=60}"
+                                 TextWrapping="Wrap"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="Active" VerticalAlignment="Center" Margin="0,0,12,0"
-                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
-                        <ToggleButton x:Name="TogActive" IsChecked="True" Margin="0,0,24,0"/>
-                        <TextBlock Text="Accessible" VerticalAlignment="Center" Margin="0,0,12,0"
-                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
-                        <ToggleButton x:Name="TogAccessible" Margin="0,0,24,0"/>
-                        <TextBlock Text="VIP/Priority" VerticalAlignment="Center" Margin="0,0,12,0"
-                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
-                        <ToggleButton x:Name="TogVip" Margin="0,0,24,0"/>
-                        <TextBlock Text="Can Merge" VerticalAlignment="Center" Margin="0,0,12,0"
-                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
-                        <ToggleButton x:Name="TogMerge" IsChecked="True"/>
-                    </StackPanel>
+                    <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2"
+                               Text="Options"
+                               Foreground="{StaticResource MainForeground}"
+                               FontWeight="SemiBold"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,18,0,12'}"/>
+
+                    <Grid Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <CheckBox x:Name="ChkActive"
+                                  Grid.Row="0" Grid.Column="0"
+                                  Style="{StaticResource IcFieldCheckBoxStyle}"
+                                  Content="Active"
+                                  Foreground="{StaticResource MainForeground}"
+                                  IsChecked="True"
+                                  HorizontalAlignment="Stretch"
+                                  Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,12'}"/>
+                        <CheckBox x:Name="ChkAccessible"
+                                  Grid.Row="0" Grid.Column="1"
+                                  Style="{StaticResource IcFieldCheckBoxStyle}"
+                                  Content="Accessible"
+                                  Foreground="{StaticResource MainForeground}"
+                                  HorizontalAlignment="Stretch"
+                                  Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,0,0,12'}"/>
+                        <CheckBox x:Name="ChkVip"
+                                  Grid.Row="1" Grid.Column="0"
+                                  Style="{StaticResource IcFieldCheckBoxStyle}"
+                                  Content="VIP / Priority"
+                                  Foreground="{StaticResource MainForeground}"
+                                  HorizontalAlignment="Stretch"
+                                  Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"/>
+                        <CheckBox x:Name="ChkMerge"
+                                  Grid.Row="1" Grid.Column="1"
+                                  Style="{StaticResource IcFieldCheckBoxStyle}"
+                                  Content="Can merge"
+                                  Foreground="{StaticResource MainForeground}"
+                                  IsChecked="True"
+                                  HorizontalAlignment="Stretch"
+                                  Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,0,0,0'}"/>
+                    </Grid>
                 </Grid>
             </ScrollViewer>
 
-            <TextBlock x:Name="TxtError" Grid.Row="3" Foreground="#B91C1C" TextWrapping="Wrap" Visibility="Collapsed"
+            <TextBlock x:Name="TxtError" Grid.Row="3" Foreground="{StaticResource Brush.DangerTextStrong}" TextWrapping="Wrap" Visibility="Collapsed"
                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
-                       Margin="0,8,0,4"/>
+                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,4'}"/>
 
-            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-                <Button Content="Cancel" Click="CloseButton_Click" Style="{StaticResource VcSecondaryButtonStyle}" Margin="0,0,10,0"/>
+            <Rectangle Grid.Row="4" Height="1" Fill="{StaticResource Brush.BorderSoft}"
+                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,12'}"/>
+
+            <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancel" Click="CloseButton_Click" Style="{StaticResource VcSecondaryButtonStyle}"
+                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"/>
                 <Button Content="Add Table" Click="AddTable_Click" Style="{StaticResource VcPrimaryButtonStyle}"/>
             </StackPanel>
         </Grid>

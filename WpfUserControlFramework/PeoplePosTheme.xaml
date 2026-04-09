@@ -70,6 +70,15 @@
     <!-- States -->
     <Color x:Key="Color.DangerRed">#B91C1C</Color>
     <Color x:Key="Color.SuccessGreen">#16A34A</Color>
+    <!-- Operations / stats / danger surfaces (avoid hex in controls) -->
+    <Color x:Key="Color.OperationsHeaderSubtitle">#DBEAFE</Color>
+    <Color x:Key="Color.OpsStatSeatsViolet">#7C3AED</Color>
+    <Color x:Key="Color.OpsStatAssignedAmber">#CA8A04</Color>
+    <Color x:Key="Color.DangerSurfaceLight">#FEF2F2</Color>
+    <Color x:Key="Color.DangerBorderLight">#FECACA</Color>
+    <Color x:Key="Color.DangerTextStrong">#991B1B</Color>
+    <Color x:Key="Color.DangerChipBackground">#FEE2E2</Color>
+    <Color x:Key="Color.DangerButtonBorderSoft">#FCA5A5</Color>
 
     <!-- Brushes from colours -->
     <SolidColorBrush x:Key="Brush.PrimaryBlue"
@@ -109,6 +118,27 @@
     <Color x:Key="Color.SurfaceOffWhite">#F9FAFB</Color>
     <SolidColorBrush x:Key="Brush.SurfaceOffWhite"
                  Color="{StaticResource Color.SurfaceOffWhite}" />
+
+    <SolidColorBrush x:Key="Brush.OperationsHeaderSubtitle"
+                     Color="{StaticResource Color.OperationsHeaderSubtitle}" />
+    <SolidColorBrush x:Key="Brush.SuccessGreen"
+                     Color="{StaticResource Color.SuccessGreen}" />
+    <SolidColorBrush x:Key="Brush.OpsStatSeatsViolet"
+                     Color="{StaticResource Color.OpsStatSeatsViolet}" />
+    <SolidColorBrush x:Key="Brush.OpsStatAssignedAmber"
+                     Color="{StaticResource Color.OpsStatAssignedAmber}" />
+    <SolidColorBrush x:Key="Brush.DangerSurfaceLight"
+                     Color="{StaticResource Color.DangerSurfaceLight}" />
+    <SolidColorBrush x:Key="Brush.DangerBorderLight"
+                     Color="{StaticResource Color.DangerBorderLight}" />
+    <SolidColorBrush x:Key="Brush.DangerTextStrong"
+                     Color="{StaticResource Color.DangerTextStrong}" />
+    <SolidColorBrush x:Key="Brush.DangerChipBackground"
+                     Color="{StaticResource Color.DangerChipBackground}" />
+    <SolidColorBrush x:Key="Brush.DangerButtonBorderSoft"
+                     Color="{StaticResource Color.DangerButtonBorderSoft}" />
+    <SolidColorBrush x:Key="Brush.DangerRed"
+                     Color="{StaticResource Color.DangerRed}" />
     
     <Geometry x:Key="Icon.Cube">
                     M12,2 L21,7 L12,12 L3,7 Z
@@ -3823,7 +3853,7 @@ ConverterParameter="32" />
                         CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent},
                           Path=ActualHeight,
                           Converter={StaticResource CornerRadiusFromHeightConverter},
-                          ConverterParameter=4}"
+                          ConverterParameter=10}"
                         Padding="{TemplateBinding Padding}"
                         SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -3847,6 +3877,155 @@ ConverterParameter="32" />
                                 Value="#9CA3AF" />
                             <Setter Property="Cursor"
                                 Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Secondary button with capsule/pill shape (nav tabs, chips). ConverterParameter large → radius caps at height/2. -->
+    <Style x:Key="VcSecondaryPillButtonStyle"
+       TargetType="Button">
+        <Setter Property="FontSize">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                     Path="FontScale"
+                     Converter="{StaticResource FontScaleConverter}"
+                     ConverterParameter="14" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Height">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                     Path="FontScale"
+                     Converter="{StaticResource LayoutScaleConverter}"
+                     ConverterParameter="34" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                     Path="FontScale"
+                     Converter="{StaticResource ThicknessScaleConverter}"
+                     ConverterParameter="18,6" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.TextDark}" />
+        <Setter Property="Background" Value="{StaticResource Brush.SurfaceGrey}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderGrey}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonBorder"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent},
+                          Path=ActualHeight,
+                          Converter={StaticResource CornerRadiusFromHeightConverter},
+                          ConverterParameter=80}"
+                        Padding="{TemplateBinding Padding}"
+                        SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonBorder"
+                                Property="Background"
+                                Value="{StaticResource Brush.SurfaceGreySoft}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="ButtonBorder"
+                                Property="Background"
+                                Value="{StaticResource Brush.SurfaceGrey}" />
+                            <Setter Property="Foreground" Value="#9CA3AF" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Lucide-style stroke icons bound to parent Button.Foreground (Operations nav, Add Shift frequency, etc.) -->
+    <Style x:Key="OpsLucideNavIconPathStyle"
+           TargetType="Path">
+        <Setter Property="Fill" Value="Transparent" />
+        <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+        <Setter Property="StrokeThickness" Value="2" />
+        <Setter Property="StrokeStartLineCap" Value="Round" />
+        <Setter Property="StrokeEndLineCap" Value="Round" />
+        <Setter Property="StrokeLineJoin" Value="Round" />
+    </Style>
+
+    <!-- Operations & Services sub-nav: white pill + soft border when inactive; code sets primary blue + white when active -->
+    <Style x:Key="OpsSubNavPillButtonStyle"
+           TargetType="Button">
+        <Setter Property="FontSize">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource FontScaleConverter}"
+                         ConverterParameter="16" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Height">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource LayoutScaleConverter}"
+                         ConverterParameter="40" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource ThicknessScaleConverter}"
+                         ConverterParameter="16,8" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Foreground" Value="{StaticResource MainForeground}" />
+        <Setter Property="Background" Value="{StaticResource Brush.White}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSoft}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent},
+                                                   Path=ActualHeight,
+                                                   Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                   ConverterParameter=80}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- No IsMouseOver background change: code sets primary blue on active tab; hover must not wash it out -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="ButtonBorder"
+                                    Property="Background"
+                                    Value="{StaticResource Brush.White}" />
+                            <Setter TargetName="ButtonBorder"
+                                    Property="BorderBrush"
+                                    Value="{StaticResource Brush.BorderSoft}" />
+                            <Setter Property="Foreground" Value="#9CA3AF" />
+                            <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -4014,7 +4193,7 @@ ConverterParameter="32" />
                         CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent},
                           Path=ActualHeight,
                           Converter={StaticResource CornerRadiusFromHeightConverter},
-                          ConverterParameter=4}"
+                          ConverterParameter=10}"
                         Padding="{TemplateBinding Padding}"
                         SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"

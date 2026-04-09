@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Windows;
-using System.Windows.Controls.Primitives;
 
 namespace RestaurantPosWpf;
 
@@ -29,11 +28,18 @@ public partial class OpsServicesAddTable : UserControl
         CmbShape.ItemsSource = new[] { "Square", "Round" };
         CmbShape.SelectedIndex = 0;
 
-        var floors = OpsServicesStore.GetTables().Select(t => t.LocationName).Distinct().OrderBy(x => x).ToList();
-        if (!floors.Contains("Main Floor"))
-            floors.Insert(0, "Main Floor");
+        var floors = OpsServicesStore.GetTables()
+            .Select(t => t.LocationName?.Trim())
+            .Where(f => !string.IsNullOrWhiteSpace(f))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        const string defaultFloor = "Main Floor";
+        if (!floors.Exists(s => string.Equals(s, defaultFloor, StringComparison.OrdinalIgnoreCase)))
+            floors.Add(defaultFloor);
+        floors.Sort(StringComparer.OrdinalIgnoreCase);
         CmbFloor.ItemsSource = floors;
-        CmbFloor.SelectedIndex = 0;
+        CmbFloor.SelectedItem = floors.FirstOrDefault(f => string.Equals(f, defaultFloor, StringComparison.OrdinalIgnoreCase))
+            ?? floors.FirstOrDefault();
 
         var waiters = new List<WaiterOption> { new() { Id = null, Label = "Unassigned" } };
         waiters.AddRange(OpsServicesStore.GetEmployees()
@@ -75,7 +81,7 @@ public partial class OpsServicesAddTable : UserControl
         if (!int.TryParse(TxtTurn.Text.Trim(), NumberStyles.Integer, CultureInfo.CurrentCulture, out var turn))
             turn = 60;
 
-        var floor = (CmbFloor.Text ?? "").Trim();
+        var floor = (CmbFloor.SelectedItem as string ?? "").Trim();
         if (string.IsNullOrEmpty(floor))
             floor = "Main Floor";
 
@@ -94,13 +100,13 @@ public partial class OpsServicesAddTable : UserControl
             TurnTimeMinutes = turn,
             Status = CmbStatus.SelectedItem as string ?? "Available",
             Notes = TxtNotes.Text.Trim(),
-            IsActive = TogActive.IsChecked == true,
-            Accessible = TogAccessible.IsChecked == true,
-            VipPriority = TogVip.IsChecked == true,
-            CanMerge = TogMerge.IsChecked == true,
+            IsActive = ChkActive.IsChecked == true,
+            Accessible = ChkAccessible.IsChecked == true,
+            VipPriority = ChkVip.IsChecked == true,
+            CanMerge = ChkMerge.IsChecked == true,
             CreatedUtc = DateTime.UtcNow,
             ModifiedUtc = DateTime.UtcNow,
-            OpsStatus = TogActive.IsChecked == true ? "Available" : "Inactive",
+            OpsStatus = ChkActive.IsChecked == true ? "Available" : "Inactive",
             OpsServerId = waiterId
         };
 

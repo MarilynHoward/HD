@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace RestaurantPosWpf;
@@ -36,7 +37,7 @@ public partial class OpsServicesAddShift : UserControl
         if (CmbEmployee.Items.Count > 0)
             CmbEmployee.SelectedIndex = 0;
 
-        CalDaily.SelectedDate = DateTime.Today;
+        DpDaily.SelectedDate = DateTime.Today;
         CalMonthly.SelectionMode = CalendarSelectionMode.MultipleRange;
         CalMonthly.SelectedDates.Clear();
         CalMonthly.DisplayDate = DateTime.Today;
@@ -74,21 +75,24 @@ public partial class OpsServicesAddShift : UserControl
         HighlightFreqButton(BtnFreqMonthly, f == AddShiftFreq.Monthly);
     }
 
-    private static void HighlightFreqButton(Button b, bool on)
+    /// <summary>Selected segment: white pill on shared gray track; unselected: transparent on track with muted label/icon.</summary>
+    private void HighlightFreqButton(Button b, bool on)
     {
         if (on)
         {
-            b.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EEF2FF")!);
-            b.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5D5FEF")!);
+            b.Background = TryThemeBrush("Brush.White", "#FFFFFF");
+            b.BorderBrush = TryThemeBrush("Brush.BorderSoft", "#EEF1F5");
             b.BorderThickness = new Thickness(1);
             b.FontWeight = FontWeights.SemiBold;
+            b.Foreground = TryThemeBrush("MainForeground", "#111827");
         }
         else
         {
-            b.ClearValue(System.Windows.Controls.Control.BackgroundProperty);
-            b.ClearValue(System.Windows.Controls.Control.BorderBrushProperty);
-            b.BorderThickness = new Thickness(1);
+            b.Background = Brushes.Transparent;
+            b.BorderBrush = Brushes.Transparent;
+            b.BorderThickness = new Thickness(0);
             b.FontWeight = FontWeights.Normal;
+            b.Foreground = TryThemeBrush("DimmedForeground", "#687280");
         }
     }
 
@@ -98,18 +102,14 @@ public partial class OpsServicesAddShift : UserControl
 
     private void BtnFreqMonthly_Click(object sender, RoutedEventArgs e) => SetFrequency(AddShiftFreq.Monthly);
 
-    private void CalDaily_OnSelectedDatesChanged(object sender, SelectionChangedEventArgs e) => UpdateDailySelectedLabel();
+    private void DpDaily_OnSelectedDateChanged(object? sender, SelectionChangedEventArgs e) => UpdateDailySelectedLabel();
 
     private void UpdateDailySelectedLabel()
     {
-        if (CalDaily.SelectedDate is { } dt)
-        {
-            TxtDailySelected.Text = $"Selected: {dt:dddd, MMMM d, yyyy}";
-        }
+        if (DpDaily.SelectedDate is { } dt)
+            TxtDailySelected.Text = $"{dt:dddd, MMMM d, yyyy}";
         else
-        {
-            TxtDailySelected.Text = "Select a date on the calendar.";
-        }
+            TxtDailySelected.Text = "Choose a date.";
     }
 
     private void DayToggle_Click(object sender, RoutedEventArgs e)
@@ -167,6 +167,91 @@ public partial class OpsServicesAddShift : UserControl
 
     private void CalMonthly_OnSelectedDatesChanged(object sender, SelectionChangedEventArgs e) => RebuildMonthlyChips();
 
+    /// <summary>
+    /// Monthly mode: each day click toggles selection (add if absent, remove if already selected).
+    /// </summary>
+    private void CalMonthly_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Calendar cal)
+            return;
+
+        var dayBtn = FindAncestor<CalendarDayButton>(e.OriginalSource as DependencyObject);
+        if (dayBtn == null)
+            return;
+
+        if (!TryGetCalendarDayDate(dayBtn, out var clicked))
+            return;
+
+        if (dayBtn.IsBlackedOut)
+            return;
+
+        // Ignore grey "other month" cells so selection matches visible month intent
+        if (dayBtn.IsInactive)
+            return;
+
+        clicked = clicked.Date;
+
+        if (MonthlySelectedContains(cal, clicked))
+            MonthlyRemoveSelectedDate(cal, clicked);
+        else
+            cal.SelectedDates.Add(clicked);
+
+        e.Handled = true;
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? d) where T : DependencyObject
+    {
+        while (d != null)
+        {
+            if (d is T match)
+                return match;
+            d = VisualTreeHelper.GetParent(d);
+        }
+
+        return null;
+    }
+
+    private static bool TryGetCalendarDayDate(CalendarDayButton dayBtn, out DateTime date)
+    {
+        if (dayBtn.DataContext is DateTime dt)
+        {
+            date = dt;
+            return true;
+        }
+
+        if (dayBtn.DataContext != null &&
+            DateTime.TryParse(dayBtn.DataContext.ToString(), CultureInfo.CurrentCulture, DateTimeStyles.None, out var parsed))
+        {
+            date = parsed;
+            return true;
+        }
+
+        date = default;
+        return false;
+    }
+
+    private static bool MonthlySelectedContains(System.Windows.Controls.Calendar cal, DateTime day)
+    {
+        var d = day.Date;
+        foreach (var x in cal.SelectedDates)
+        {
+            if (x.Date == d)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void MonthlyRemoveSelectedDate(System.Windows.Controls.Calendar cal, DateTime day)
+    {
+        var d = day.Date;
+        for (var i = cal.SelectedDates.Count - 1; i >= 0; i--)
+        {
+            if (cal.SelectedDates[i].Date == d)
+                cal.SelectedDates.RemoveAt(i);
+        }
+    }
+
     private void RebuildMonthlyChips()
     {
         MonthlyChipsPanel.Children.Clear();
@@ -201,11 +286,11 @@ public partial class OpsServicesAddShift : UserControl
         {
             var header = new TextBlock
             {
-                Text = "🍴 " + grp.Key,
+                Text = grp.Key,
                 FontWeight = FontWeights.SemiBold,
                 FontSize = S(14),
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#111827")!),
-                Margin = new Thickness(0, S(10), 0, S(6))
+                Foreground = TryThemeBrush("MainForeground", "#111827"),
+                Margin = new Thickness(0, S(8), 0, S(4))
             };
             TablePickHost.Children.Add(header);
 
@@ -234,9 +319,9 @@ public partial class OpsServicesAddShift : UserControl
                     FontSize = S(13)
                 };
                 label.Inlines.Add(new System.Windows.Documents.Run(t.Name) { FontWeight = FontWeights.SemiBold });
-                label.Inlines.Add(new System.Windows.Documents.Run($"  ·  {t.SeatCount} seats")
+                label.Inlines.Add(new Run($"  ·  {t.SeatCount} seats")
                 {
-                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280")!)
+                    Foreground = TryThemeBrush("DimmedForeground", "#687280")
                 });
                 cb.Content = label;
                 cb.Checked += TableCheckChanged;
@@ -249,6 +334,10 @@ public partial class OpsServicesAddShift : UserControl
             TablePickHost.Children.Add(grid);
         }
     }
+
+    private static Brush TryThemeBrush(string key, string fallbackHex) =>
+        Application.Current.TryFindResource(key) as Brush
+        ?? new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallbackHex)!);
 
     private static void ApplyTableCardStyle(Border card, bool selected)
     {
@@ -328,7 +417,7 @@ public partial class OpsServicesAddShift : UserControl
         switch (_freq)
         {
             case AddShiftFreq.Daily:
-                if (CalDaily.SelectedDate is not { } d0)
+                if (DpDaily.SelectedDate is not { } d0)
                 {
                     ShowError("Select a date.");
                     return;
