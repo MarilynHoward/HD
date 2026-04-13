@@ -295,7 +295,8 @@ namespace RestaurantPosWpf
                 navigateToShiftScheduling: () =>
                     NavigateTo(_navItems.First(i =>
                         i.Category == "Operations and Services" && i.Label == "Shift Scheduling")),
-                openAddTableDialog: ShowOpsAddTableDialog);
+                openAddTableDialog: ShowOpsAddTableDialog,
+                openManageFloorsDialog: ShowOpsManageFloorsDialog);
         }
 
         private void NavigateToOpsTableManagement()
@@ -334,6 +335,24 @@ namespace RestaurantPosWpf
             var wa = SystemParameters.WorkArea;
             w.MaxHeight = wa.Height * 0.9;
             w.MaxWidth = Math.Min(wa.Width * 0.42, 560);
+            ScrimOverlay.Visibility = Visibility.Visible;
+            w.ShowDialog();
+            ScrimOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void ShowOpsManageFloorsDialog()
+        {
+            Window? w = null;
+            var dlg = new OpsServicesManageFloors(() => w?.Close());
+            w = CreateOpsModalWindow(dlg);
+            var wa = SystemParameters.WorkArea;
+            w.SizeToContent = SizeToContent.Manual;
+            w.Width = Math.Min(wa.Width * 0.42, 560);
+            w.Height = Math.Min(Math.Max(520, wa.Height * 0.72), wa.Height * 0.9);
+            w.MinWidth = 400;
+            w.MinHeight = 440;
+            w.MaxWidth = Math.Min(wa.Width * 0.5, 640);
+            w.MaxHeight = wa.Height * 0.92;
             ScrimOverlay.Visibility = Visibility.Visible;
             w.ShowDialog();
             ScrimOverlay.Visibility = Visibility.Collapsed;

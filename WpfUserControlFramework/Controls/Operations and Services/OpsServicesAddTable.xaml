@@ -138,7 +138,7 @@
                                    Foreground="{StaticResource DimmedForeground}"
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
-                        <ComboBox x:Name="CmbShape" Style="{StaticResource IcEnabledComboBoxStyle}"
+                        <ComboBox x:Name="CmbShape" Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
                                   Foreground="{StaticResource MainForeground}"/>
                     </StackPanel>
                     <StackPanel Grid.Row="1" Grid.Column="1"
@@ -147,7 +147,7 @@
                                    Foreground="{StaticResource DimmedForeground}"
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
-                        <ComboBox x:Name="CmbFloor" Style="{StaticResource IcEnabledComboBoxStyle}"
+                        <ComboBox x:Name="CmbFloor" Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
                                   Foreground="{StaticResource MainForeground}"/>
                     </StackPanel>
 
@@ -157,7 +157,7 @@
                                    Foreground="{StaticResource DimmedForeground}"
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
-                        <ComboBox x:Name="CmbWaiter" Style="{StaticResource IcEnabledComboBoxStyle}"
+                        <ComboBox x:Name="CmbWaiter" Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
                                   Foreground="{StaticResource MainForeground}"/>
                     </StackPanel>
 
@@ -192,7 +192,7 @@
                                    Foreground="{StaticResource DimmedForeground}"
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
-                        <ComboBox x:Name="CmbStatus" Style="{StaticResource IcEnabledComboBoxStyle}"
+                        <ComboBox x:Name="CmbStatus" Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
                                   Foreground="{StaticResource MainForeground}"/>
                     </StackPanel>
 

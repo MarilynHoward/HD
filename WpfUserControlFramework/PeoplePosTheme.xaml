@@ -1897,6 +1897,220 @@
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
     </Style>
 
+    <!-- Operations & Services user controls: table row / field typography (base 14, scaled). -->
+    <Style x:Key="IcOpsServicesComboBoxItemStyle" TargetType="ComboBoxItem">
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Foreground" Value="{StaticResource MainForeground}" />
+        <Setter Property="FontSize">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                     Path="FontScale"
+                     Converter="{StaticResource FontScaleConverter}"
+                     ConverterParameter="14" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                     Path="FontScale"
+                     Converter="{StaticResource ThicknessScaleConverter}"
+                     ConverterParameter="12,8,12,8" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Background" Value="White" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#F6F8FC" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="#E9EEF6" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.55" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Floor filter (and similar host chrome): list rows clear by default; blue only when selected; light tint when highlighted. -->
+    <Style x:Key="IcOpsServicesFloorFilterComboBoxItemStyle" TargetType="ComboBoxItem">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource MainForeground}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="FontSize">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource FontScaleConverter}"
+                         ConverterParameter="14" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource ThicknessScaleConverter}"
+                         ConverterParameter="12,8,12,8" />
+            </Setter.Value>
+        </Setter>
+        <!-- Default Aero/Fluent template paints system highlight (grey + white text); host only our brushes. -->
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"
+                                          TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter Property="Background" Value="#EFF6FF" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.PrimaryBlue}" />
+                <Setter Property="Foreground" Value="White" />
+            </Trigger>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="IsSelected" Value="True" />
+                    <Condition Property="IsHighlighted" Value="True" />
+                </MultiTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.PrimaryBlueHover}" />
+                <Setter Property="Foreground" Value="White" />
+            </MultiTrigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.55" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="IcOpsServicesEnabledComboBoxStyle"
+           TargetType="ComboBox"
+           BasedOn="{StaticResource IcEnabledComboBoxStyle}">
+        <Setter Property="FontSize">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                     Path="FontScale"
+                     Converter="{StaticResource FontScaleConverter}"
+                     ConverterParameter="14" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource IcOpsServicesComboBoxItemStyle}" />
+    </Style>
+
+    <!-- Same as IcOpsServicesEnabledComboBoxStyle but no template focus rings (host draws outer/inner focus). -->
+    <Style x:Key="IcOpsServicesComboBoxHostChromeOnlyStyle"
+           TargetType="ComboBox"
+           BasedOn="{StaticResource IcOpsServicesEnabledComboBoxStyle}">
+        <Setter Property="ItemContainerStyle" Value="{StaticResource IcOpsServicesFloorFilterComboBoxItemStyle}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid SnapsToDevicePixels="True"
+                          UseLayoutRounding="True"
+                          ClipToBounds="False">
+                        <Border x:Name="BaseBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                SnapsToDevicePixels="True">
+                            <Border.CornerRadius>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource LayoutScaleConverter}"
+                                         ConverterParameter="9" />
+                            </Border.CornerRadius>
+                        </Border>
+                        <ToggleButton x:Name="ToggleButton"
+                                      Focusable="False"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                      ClickMode="Press"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      HorizontalContentAlignment="Stretch"
+                                      VerticalContentAlignment="Stretch">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border Background="Transparent" SnapsToDevicePixels="True">
+                                        <ContentPresenter />
+                                    </Border>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0"
+                                                  Margin="{TemplateBinding Padding}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                  RecognizesAccessKey="True" />
+                                <Path Grid.Column="1"
+                                      Margin="0,0,12,0"
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Center"
+                                      Stroke="#9CA3AF"
+                                      StrokeThickness="2"
+                                      Data="M 0 0 L 5 5 L 10 0" />
+                            </Grid>
+                        </ToggleButton>
+                        <Popup x:Name="Popup"
+                               Placement="Bottom"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               PopupAnimation="Fade">
+                            <Grid SnapsToDevicePixels="True"
+                                  UseLayoutRounding="True"
+                                  MinWidth="{TemplateBinding ActualWidth}"
+                                  Margin="0,6,0,0">
+                                <Border Background="White"
+                                        BorderThickness="1"
+                                        BorderBrush="#E5E7EB"
+                                        SnapsToDevicePixels="True">
+                                    <Border.CornerRadius>
+                                        <Binding Source="{StaticResource UiScaleState}"
+                                                 Path="FontScale"
+                                                 Converter="{StaticResource LayoutScaleConverter}"
+                                                 ConverterParameter="9" />
+                                    </Border.CornerRadius>
+                                </Border>
+                                <ScrollViewer Margin="0" SnapsToDevicePixels="True">
+                                    <ItemsPresenter />
+                                </ScrollViewer>
+                            </Grid>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="BaseBorder" Property="Background" Value="#FFEFEFF2" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="BaseBorder" Property="Background" Value="#FFE5E7EB" />
+                            <Setter Property="Foreground" Value="#9CA3AF" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- =========================
      Ic Numeric Up/Down styles
      Composite field: Border + TextBox + 2 RepeatButtons

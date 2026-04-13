@@ -28,11 +28,7 @@ public partial class OpsServicesAddTable : UserControl
         CmbShape.ItemsSource = new[] { "Square", "Round" };
         CmbShape.SelectedIndex = 0;
 
-        var floors = OpsServicesStore.GetTables()
-            .Select(t => t.LocationName?.Trim())
-            .Where(f => !string.IsNullOrWhiteSpace(f))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var floors = OpsServicesStore.GetDistinctFloorNamesForFilter().ToList();
         const string defaultFloor = "Main Floor";
         if (!floors.Exists(s => string.Equals(s, defaultFloor, StringComparison.OrdinalIgnoreCase)))
             floors.Add(defaultFloor);

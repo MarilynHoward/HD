@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <UserControl.Resources>
+        <SolidColorBrush x:Key="OpsAddShiftWeeklyRangeTitleBrush" Color="#384C8E" />
         <!-- Flat segment inside frequency bar; selected state set in code-behind (white pill on gray track) -->
         <Style x:Key="OpsFreqSegmentButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
@@ -51,7 +52,7 @@
             </Setter>
         </Style>
 
-        <!-- Weekday chips: rounded, theme borders; checked = primary blue ring + bold (matches product controls) -->
+        <!-- Weekday chips: unchecked = bordered tile; checked = same fill + text as VcPrimaryButtonStyle (+ hover/press like primary). -->
         <Style x:Key="OpsDayOfWeekToggleStyle" TargetType="ToggleButton">
             <Setter Property="Foreground" Value="{StaticResource DimmedForeground}" />
             <Setter Property="FontWeight" Value="Normal" />
@@ -81,15 +82,19 @@
                              ConverterParameter="4,6,4,6" />
                 </Setter.Value>
             </Setter>
+            <Setter Property="Background" Value="{StaticResource Brush.White}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderGrey}" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
                         <Border x:Name="Chrome"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Background="{StaticResource Brush.White}"
+                                BorderBrush="{StaticResource Brush.BorderGrey}"
+                                BorderThickness="1"
                                 Padding="{TemplateBinding Padding}"
-                                SnapsToDevicePixels="True">
+                                SnapsToDevicePixels="True"
+                                TextElement.Foreground="{TemplateBinding Foreground}">
                             <Border.CornerRadius>
                                 <Binding Path="ActualHeight"
                                          RelativeSource="{RelativeSource Self}"
@@ -101,9 +106,43 @@
                                               RecognizesAccessKey="True" />
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.92" />
+                            <!-- Unchecked: hover / press (VcSecondary-style affordance) -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                    <Condition Property="IsChecked" Value="False" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource Brush.SurfaceOffWhite}" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Brush.BorderSoft}" />
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsPressed" Value="True" />
+                                    <Condition Property="IsChecked" Value="False" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource Brush.SurfaceGreySoft}" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Brush.BorderSoft}" />
+                            </MultiTrigger>
+                            <!-- Checked: match VcPrimaryButtonStyle base -->
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource Brush.PrimaryBlue}" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="Transparent" />
+                                <Setter TargetName="Chrome" Property="BorderThickness" Value="0" />
                             </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True" />
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource Brush.PrimaryBlueHover}" />
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True" />
+                                    <Condition Property="IsPressed" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource Brush.PrimaryBluePressed}" />
+                            </MultiTrigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
                             </Trigger>
@@ -111,15 +150,9 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Setter Property="Background" Value="{StaticResource Brush.White}" />
-            <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderGrey}" />
-            <Setter Property="BorderThickness" Value="1" />
             <Style.Triggers>
                 <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Background" Value="{StaticResource Brush.White}" />
-                    <Setter Property="BorderBrush" Value="{StaticResource Brush.PrimaryBlue}" />
-                    <Setter Property="BorderThickness" Value="2" />
-                    <Setter Property="Foreground" Value="{StaticResource MainForeground}" />
+                    <Setter Property="Foreground" Value="{StaticResource Brush.White}" />
                     <Setter Property="FontWeight" Value="SemiBold" />
                 </Trigger>
             </Style.Triggers>
@@ -187,15 +220,19 @@
                 </StackPanel>
                 <Button Grid.Column="1"
                         Click="CloseButton_Click"
-                        Style="{StaticResource VcSecondaryButtonStyle}"
+                        Background="Transparent"
+                        BorderBrush="Transparent"
+                        BorderThickness="0"
+                        Foreground="{StaticResource DimmedForeground}"
                         Content="✕"
-                        MinWidth="{Binding Source={StaticResource UiScaleState},
-                                           Path=FontScale,
-                                           Converter={StaticResource LayoutScaleConverter},
-                                           ConverterParameter=36}"
                         Padding="0"
                         VerticalAlignment="Top"
+                        Cursor="Hand"
                         FocusVisualStyle="{x:Null}"
+                        FontSize="{Binding Source={StaticResource UiScaleState},
+                                           Path=FontScale,
+                                           Converter={StaticResource FontScaleConverter},
+                                           ConverterParameter=16}"
                         ToolTip="Close"/>
             </Grid>
 
@@ -332,18 +369,33 @@
                         </Grid>
                     </Border>
 
-                    <TextBlock Text="Employee *"
-                               Foreground="{StaticResource MainForeground}"
-                               FontSize="{Binding Source={StaticResource UiScaleState},
-                                                  Path=FontScale,
-                                                  Converter={StaticResource FontScaleConverter},
-                                                  ConverterParameter=14}"
-                               Margin="{Binding Source={StaticResource UiScaleState},
-                                                Path=FontScale,
-                                                Converter={StaticResource ThicknessScaleConverter},
-                                                ConverterParameter='0,0,0,4'}"/>
-                    <ComboBox x:Name="CmbEmployee"
-                              Style="{StaticResource IcEnabledComboBoxStyle}"
+                    <StackPanel Orientation="Horizontal"
+                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                 Path=FontScale,
+                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                 ConverterParameter='0,0,0,4'}">
+                        <TextBlock Text="Employee"
+                                   Foreground="{StaticResource MainForeground}"
+                                   VerticalAlignment="Center"
+                                   FontSize="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource FontScaleConverter},
+                                                      ConverterParameter=12}"/>
+                        <TextBlock Text=" *"
+                                   Foreground="{StaticResource Brush.DangerRed}"
+                                   VerticalAlignment="Center"
+                                   FontSize="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource FontScaleConverter},
+                                                      ConverterParameter=12}"/>
+                    </StackPanel>
+                        <ComboBox x:Name="CmbEmployee"
+                              SelectionChanged="CmbEmployee_SelectionChanged"
+                              Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
+                              FontSize="{Binding Source={StaticResource UiScaleState},
+                                                 Path=FontScale,
+                                                 Converter={StaticResource FontScaleConverter},
+                                                 ConverterParameter=14}"
                               Margin="{Binding Source={StaticResource UiScaleState},
                                                Path=FontScale,
                                                Converter={StaticResource ThicknessScaleConverter},
@@ -362,18 +414,32 @@
 
                     <!-- Daily: compact DatePicker instead of full Calendar -->
                     <StackPanel x:Name="PanelDaily" Visibility="Collapsed">
-                        <TextBlock Text="Date *"
-                                   Foreground="{StaticResource MainForeground}"
-                                   FontSize="{Binding Source={StaticResource UiScaleState},
-                                                      Path=FontScale,
-                                                      Converter={StaticResource FontScaleConverter},
-                                                      ConverterParameter=14}"
-                                   Margin="{Binding Source={StaticResource UiScaleState},
-                                                    Path=FontScale,
-                                                    Converter={StaticResource ThicknessScaleConverter},
-                                                    ConverterParameter='0,0,0,4'}"/>
+                        <StackPanel Orientation="Horizontal"
+                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                     Path=FontScale,
+                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                     ConverterParameter='0,0,0,4'}">
+                            <TextBlock Text="Date"
+                                       Foreground="{StaticResource MainForeground}"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource FontScaleConverter},
+                                                          ConverterParameter=12}"/>
+                            <TextBlock Text=" *"
+                                       Foreground="{StaticResource Brush.DangerRed}"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource FontScaleConverter},
+                                                          ConverterParameter=12}"/>
+                        </StackPanel>
                         <DatePicker x:Name="DpDaily"
                                     Style="{StaticResource LocalIcDatePickerStyle}"
+                                    FontSize="{Binding Source={StaticResource UiScaleState},
+                                                        Path=FontScale,
+                                                        Converter={StaticResource FontScaleConverter},
+                                                        ConverterParameter=14}"
                                     SelectedDateFormat="Long"
                                     SelectedDateChanged="DpDaily_OnSelectedDateChanged"
                                     Margin="{Binding Source={StaticResource UiScaleState},
@@ -385,7 +451,7 @@
                                    FontSize="{Binding Source={StaticResource UiScaleState},
                                                       Path=FontScale,
                                                       Converter={StaticResource FontScaleConverter},
-                                                      ConverterParameter=13}"
+                                                      ConverterParameter=14}"
                                    Margin="{Binding Source={StaticResource UiScaleState},
                                                     Path=FontScale,
                                                     Converter={StaticResource ThicknessScaleConverter},
@@ -393,16 +459,26 @@
                     </StackPanel>
 
                     <StackPanel x:Name="PanelWeekly" Visibility="Collapsed">
-                        <TextBlock Text="Days of week *"
-                                   Foreground="{StaticResource MainForeground}"
-                                   FontSize="{Binding Source={StaticResource UiScaleState},
-                                                      Path=FontScale,
-                                                      Converter={StaticResource FontScaleConverter},
-                                                      ConverterParameter=14}"
-                                   Margin="{Binding Source={StaticResource UiScaleState},
-                                                    Path=FontScale,
-                                                    Converter={StaticResource ThicknessScaleConverter},
-                                                    ConverterParameter='0,0,0,4'}"/>
+                        <StackPanel Orientation="Horizontal"
+                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                     Path=FontScale,
+                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                     ConverterParameter='0,0,0,4'}">
+                            <TextBlock Text="Days of week"
+                                       Foreground="{StaticResource MainForeground}"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource FontScaleConverter},
+                                                          ConverterParameter=12}"/>
+                            <TextBlock Text=" *"
+                                       Foreground="{StaticResource Brush.DangerRed}"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource FontScaleConverter},
+                                                          ConverterParameter=12}"/>
+                        </StackPanel>
                         <Border Background="{StaticResource Brush.SurfaceGreySoft}"
                                 BorderBrush="{StaticResource Brush.BorderSoft}"
                                 BorderThickness="1"
@@ -469,17 +545,7 @@
                                                     Path=FontScale,
                                                     Converter={StaticResource ThicknessScaleConverter},
                                                     ConverterParameter='0,0,0,4'}"/>
-                        <TextBlock x:Name="TxtWeeklyRange"
-                                   Foreground="{StaticResource Brush.PrimaryBlue}"
-                                   FontSize="{Binding Source={StaticResource UiScaleState},
-                                                      Path=FontScale,
-                                                      Converter={StaticResource FontScaleConverter},
-                                                      ConverterParameter=13}"
-                                   TextWrapping="Wrap"
-                                   Margin="{Binding Source={StaticResource UiScaleState},
-                                                    Path=FontScale,
-                                                    Converter={StaticResource ThicknessScaleConverter},
-                                                    ConverterParameter='0,0,0,8'}"/>
+                        <!-- Duration + repeat copy: one card (ref: "Weekly Recurring Schedule" + "This shift will repeat…"). -->
                         <Border Background="#EFF6FF"
                                 BorderBrush="#BFDBFE"
                                 BorderThickness="1"
@@ -495,27 +561,95 @@
                                                  Path=FontScale,
                                                  Converter={StaticResource ThicknessScaleConverter},
                                                  ConverterParameter='0,0,0,10'}">
-                            <TextBlock TextWrapping="Wrap"
-                                       Foreground="{StaticResource Brush.PrimaryBlue}"
-                                       FontSize="{Binding Source={StaticResource UiScaleState},
-                                                          Path=FontScale,
-                                                          Converter={StaticResource FontScaleConverter},
-                                                          ConverterParameter=13}"
-                                       Text="Repeats each week on the selected days for the range shown above."/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Viewbox Grid.Column="0"
+                                         Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=20}"
+                                         Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=20}"
+                                         VerticalAlignment="Top"
+                                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,10,0'}">
+                                    <!-- Lucide repeat (stroke 2 @ 24); explicit stroke (not inside Button for OpsLucideNavIconPathStyle). -->
+                                    <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                        <Path Data="M17,2 L21,6 L17,10"
+                                              Fill="Transparent"
+                                              Stroke="{StaticResource OpsAddShiftWeeklyRangeTitleBrush}"
+                                              StrokeThickness="2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              StrokeLineJoin="Round" />
+                                        <Path Data="M3,11 L3,10 A4,4 0 0 1 7,6 L21,6"
+                                              Fill="Transparent"
+                                              Stroke="{StaticResource OpsAddShiftWeeklyRangeTitleBrush}"
+                                              StrokeThickness="2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              StrokeLineJoin="Round" />
+                                        <Path Data="M7,22 L3,18 L7,14"
+                                              Fill="Transparent"
+                                              Stroke="{StaticResource OpsAddShiftWeeklyRangeTitleBrush}"
+                                              StrokeThickness="2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              StrokeLineJoin="Round" />
+                                        <Path Data="M21,13 L21,14 A4,4 0 0 1 17,18 L3,18"
+                                              Fill="Transparent"
+                                              Stroke="{StaticResource OpsAddShiftWeeklyRangeTitleBrush}"
+                                              StrokeThickness="2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              StrokeLineJoin="Round" />
+                                    </Canvas>
+                                </Viewbox>
+                                <StackPanel Grid.Column="1" Orientation="Vertical">
+                                    <TextBlock x:Name="TxtWeeklyRange"
+                                               TextWrapping="Wrap"
+                                               Foreground="{StaticResource OpsAddShiftWeeklyRangeTitleBrush}"
+                                               FontWeight="SemiBold"
+                                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource FontScaleConverter},
+                                                                  ConverterParameter=16}" />
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{StaticResource Brush.PrimaryBlue}"
+                                               FontWeight="Normal"
+                                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource FontScaleConverter},
+                                                                  ConverterParameter=13}"
+                                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                                Path=FontScale,
+                                                                Converter={StaticResource ThicknessScaleConverter},
+                                                                ConverterParameter='0,4,0,0'}"
+                                               Text="Repeats each week on the selected days for the range shown above." />
+                                </StackPanel>
+                            </Grid>
                         </Border>
                     </StackPanel>
 
                     <StackPanel x:Name="PanelMonthly" Visibility="Collapsed">
-                        <TextBlock Text="Dates in month *"
-                                   Foreground="{StaticResource MainForeground}"
-                                   FontSize="{Binding Source={StaticResource UiScaleState},
-                                                      Path=FontScale,
-                                                      Converter={StaticResource FontScaleConverter},
-                                                      ConverterParameter=14}"
-                                   Margin="{Binding Source={StaticResource UiScaleState},
-                                                    Path=FontScale,
-                                                    Converter={StaticResource ThicknessScaleConverter},
-                                                    ConverterParameter='0,0,0,2'}"/>
+                        <StackPanel Orientation="Horizontal"
+                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                     Path=FontScale,
+                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                     ConverterParameter='0,0,0,2'}">
+                            <TextBlock Text="Dates in month"
+                                       Foreground="{StaticResource MainForeground}"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource FontScaleConverter},
+                                                          ConverterParameter=12}"/>
+                            <TextBlock Text=" *"
+                                       Foreground="{StaticResource Brush.DangerRed}"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource FontScaleConverter},
+                                                          ConverterParameter=12}"/>
+                        </StackPanel>
                         <TextBlock Text="Click multiple days on the calendar."
                                    Foreground="{StaticResource DimmedForeground}"
                                    FontSize="{Binding Source={StaticResource UiScaleState},
@@ -546,7 +680,8 @@
                                 <Calendar x:Name="CalMonthly"
                                           SelectionMode="MultipleRange"
                                           PreviewMouseLeftButtonDown="CalMonthly_PreviewMouseLeftButtonDown"
-                                          SelectedDatesChanged="CalMonthly_OnSelectedDatesChanged"/>
+                                          SelectedDatesChanged="CalMonthly_OnSelectedDatesChanged"
+                                          DisplayDateChanged="CalMonthly_DisplayDateChanged"/>
                             </ScrollViewer>
                         </Border>
                         <WrapPanel x:Name="MonthlyChipsPanel"
@@ -565,51 +700,107 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                            <TextBlock Text="Start time *"
-                                       Foreground="{StaticResource MainForeground}"
-                                       FontSize="{Binding Source={StaticResource UiScaleState},
-                                                          Path=FontScale,
-                                                          Converter={StaticResource FontScaleConverter},
-                                                          ConverterParameter=14}"
-                                       Margin="{Binding Source={StaticResource UiScaleState},
-                                                        Path=FontScale,
-                                                        Converter={StaticResource ThicknessScaleConverter},
-                                                        ConverterParameter='0,0,0,4'}"/>
+                            <StackPanel Orientation="Horizontal"
+                                        Margin="{Binding Source={StaticResource UiScaleState},
+                                                         Path=FontScale,
+                                                         Converter={StaticResource ThicknessScaleConverter},
+                                                         ConverterParameter='0,0,0,4'}">
+                                <TextBlock Text="Start time"
+                                           Foreground="{StaticResource MainForeground}"
+                                           VerticalAlignment="Center"
+                                           FontSize="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource FontScaleConverter},
+                                                              ConverterParameter=12}"/>
+                                <TextBlock Text=" *"
+                                           Foreground="{StaticResource Brush.DangerRed}"
+                                           VerticalAlignment="Center"
+                                           FontSize="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource FontScaleConverter},
+                                                              ConverterParameter=12}"/>
+                            </StackPanel>
                             <TextBox x:Name="TxtStartTime"
                                      Style="{StaticResource IcEnabledTextBoxStyle}"
+                                     FontSize="{Binding Source={StaticResource UiScaleState},
+                                                        Path=FontScale,
+                                                        Converter={StaticResource FontScaleConverter},
+                                                        ConverterParameter=14}"
                                      Text="09:00"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                            <TextBlock Text="End time *"
-                                       Foreground="{StaticResource MainForeground}"
-                                       FontSize="{Binding Source={StaticResource UiScaleState},
-                                                          Path=FontScale,
-                                                          Converter={StaticResource FontScaleConverter},
-                                                          ConverterParameter=14}"
-                                       Margin="{Binding Source={StaticResource UiScaleState},
-                                                        Path=FontScale,
-                                                        Converter={StaticResource ThicknessScaleConverter},
-                                                        ConverterParameter='0,0,0,4'}"/>
+                            <StackPanel Orientation="Horizontal"
+                                        Margin="{Binding Source={StaticResource UiScaleState},
+                                                         Path=FontScale,
+                                                         Converter={StaticResource ThicknessScaleConverter},
+                                                         ConverterParameter='0,0,0,4'}">
+                                <TextBlock Text="End time"
+                                           Foreground="{StaticResource MainForeground}"
+                                           VerticalAlignment="Center"
+                                           FontSize="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource FontScaleConverter},
+                                                              ConverterParameter=12}"/>
+                                <TextBlock Text=" *"
+                                           Foreground="{StaticResource Brush.DangerRed}"
+                                           VerticalAlignment="Center"
+                                           FontSize="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource FontScaleConverter},
+                                                              ConverterParameter=12}"/>
+                            </StackPanel>
                             <TextBox x:Name="TxtEndTime"
                                      Style="{StaticResource IcEnabledTextBoxStyle}"
+                                     FontSize="{Binding Source={StaticResource UiScaleState},
+                                                        Path=FontScale,
+                                                        Converter={StaticResource FontScaleConverter},
+                                                        ConverterParameter=14}"
                                      Text="17:00"/>
                         </StackPanel>
                     </Grid>
 
-                    <DockPanel LastChildFill="True"
+                    <TextBlock x:Name="TxtTimeRangeError"
+                               TextWrapping="Wrap"
+                               Visibility="Collapsed"
+                               Foreground="{StaticResource Brush.DangerRed}"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=13}"
                                Margin="{Binding Source={StaticResource UiScaleState},
                                                 Path=FontScale,
                                                 Converter={StaticResource ThicknessScaleConverter},
-                                                ConverterParameter='0,0,0,4'}">
-                        <TextBlock DockPanel.Dock="Left"
-                                   Text="Table assignment *"
-                                   Foreground="{StaticResource MainForeground}"
-                                   FontWeight="SemiBold"
-                                   FontSize="{Binding Source={StaticResource UiScaleState},
-                                                      Path=FontScale,
-                                                      Converter={StaticResource FontScaleConverter},
-                                                      ConverterParameter=16}"/>
-                        <Border DockPanel.Dock="Right"
+                                                ConverterParameter='0,0,0,10'}"
+                               Text="End time must be after start time."/>
+
+                    <Grid Margin="{Binding Source={StaticResource UiScaleState},
+                                           Path=FontScale,
+                                           Converter={StaticResource ThicknessScaleConverter},
+                                           ConverterParameter='0,0,0,4'}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="Table assignment"
+                                       Foreground="{StaticResource MainForeground}"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource FontScaleConverter},
+                                                          ConverterParameter=12}"/>
+                            <TextBlock Text=" *"
+                                       Foreground="{StaticResource Brush.DangerRed}"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource FontScaleConverter},
+                                                          ConverterParameter=12}"/>
+                        </StackPanel>
+                        <Border Grid.Column="1"
                                 Background="{StaticResource Brush.SurfaceOffWhite}"
                                 CornerRadius="{Binding ActualHeight,
                                                         RelativeSource={RelativeSource Self},
@@ -620,17 +811,23 @@
                                                   Converter={StaticResource ThicknessScaleConverter},
                                                   ConverterParameter='8,4,8,4'}"
                                 VerticalAlignment="Center"
-                                Margin="8,0,0,0"
+                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                 Path=FontScale,
+                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                 ConverterParameter='8,0,0,0'}"
                                 BorderBrush="{StaticResource Brush.BorderSoft}"
-                                BorderThickness="1">
+                                BorderThickness="1"
+                                HorizontalAlignment="Stretch">
                             <TextBlock x:Name="TxtTableCount"
+                                       HorizontalAlignment="Stretch"
+                                       TextAlignment="Right"
                                        FontSize="{Binding Source={StaticResource UiScaleState},
                                                           Path=FontScale,
                                                           Converter={StaticResource FontScaleConverter},
-                                                          ConverterParameter=12}"
+                                                          ConverterParameter=13}"
                                        Foreground="{StaticResource MainForeground}"/>
                         </Border>
-                    </DockPanel>
+                    </Grid>
                     <TextBlock x:Name="TxtTableSubtitle"
                                Foreground="{StaticResource DimmedForeground}"
                                FontSize="{Binding Source={StaticResource UiScaleState},
@@ -661,7 +858,7 @@
 
             <TextBlock x:Name="TxtFormError"
                        Grid.Row="3"
-                       Foreground="#B91C1C"
+                       Foreground="{StaticResource Brush.DangerRed}"
                        TextWrapping="Wrap"
                        Visibility="Collapsed"
                        FontSize="{Binding Source={StaticResource UiScaleState},
@@ -699,7 +896,9 @@
                                          Path=FontScale,
                                          Converter={StaticResource ThicknessScaleConverter},
                                          ConverterParameter='0,0,10,0'}"/>
-                <Button Click="AddShift_Click"
+                <Button x:Name="BtnAddShift"
+                        Click="AddShift_Click"
+                        IsEnabled="False"
                         Style="{StaticResource VcPrimaryButtonStyle}">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="+"

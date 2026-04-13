@@ -2,10 +2,25 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:RestaurantPosWpf"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              VerticalAlignment="Stretch"
              HorizontalAlignment="Stretch">
 
     <UserControl.Resources>
+        <!-- Table list cards: elevation (shadow) reads as “standing up” vs flat rows. -->
+        <DropShadowEffect x:Key="OpsTableMgmtTableRowSelectedShadow"
+                          BlurRadius="12"
+                          Direction="270"
+                          Opacity="0.16"
+                          ShadowDepth="3"
+                          Color="#000000" />
+        <DropShadowEffect x:Key="OpsTableMgmtTableRowHoverShadow"
+                          BlurRadius="16"
+                          Direction="270"
+                          Opacity="0.2"
+                          ShadowDepth="4"
+                          Color="#000000" />
+
         <Style x:Key="OpsTableMgmtListBoxItemStyle" TargetType="ListBoxItem">
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,0,0,0" />
@@ -14,26 +29,15 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
+                        <!-- Chrome is on the card (RowBorder) so fill matches Floor Location pill; keep host transparent. -->
                         <Border x:Name="ItemChrome"
                                 Background="Transparent"
                                 BorderBrush="Transparent"
-                                BorderThickness="2"
+                                BorderThickness="0"
                                 Padding="0"
-                                SnapsToDevicePixels="True"
-                                CornerRadius="{Binding ActualHeight,
-                                                        RelativeSource={RelativeSource Self},
-                                                        Converter={StaticResource CornerRadiusFromHeightConverter},
-                                                        ConverterParameter=10}">
+                                SnapsToDevicePixels="True">
                             <ContentPresenter />
                         </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ItemChrome" Property="Opacity" Value="0.97" />
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemChrome" Property="BorderBrush" Value="{StaticResource Brush.PrimaryBlue}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -45,52 +49,40 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Padding"
+                    Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,4,4,4'}" />
+        </Style>
+
+        <!-- VcSecondaryButtonStyle fixes Height; strip row needs auto height to match Active Status border. -->
+        <Style x:Key="OpsTableMgmtHistoryStripButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource VcSecondaryButtonStyle}">
+            <Setter Property="Height" Value="{x:Static sys:Double.NaN}" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding">
+                <Setter.Value>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource ThicknessScaleConverter}"
+                             ConverterParameter="10,8,10,8" />
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
 
-    <Border Background="{StaticResource Brush.White}"
-            BorderBrush="{StaticResource Brush.BorderSoft}"
-            BorderThickness="1"
-            SnapsToDevicePixels="True"
-            FocusVisualStyle="{x:Null}"
-            CornerRadius="{Binding ActualHeight,
-                                   RelativeSource={RelativeSource Self},
-                                   Converter={StaticResource CornerRadiusFromHeightConverter},
-                                   ConverterParameter=12}"
-            Margin="{Binding Source={StaticResource UiScaleState},
-                             Path=FontScale,
-                             Converter={StaticResource ThicknessScaleConverter},
-                             ConverterParameter='24,24,24,24'}"
-            Padding="0">
-
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
+    <Grid Background="{StaticResource Brush.White}"
+          SnapsToDevicePixels="True"
+          FocusVisualStyle="{x:Null}"
+          Margin="{Binding Source={StaticResource UiScaleState},
+                           Path=FontScale,
+                           Converter={StaticResource ThicknessScaleConverter},
+                           ConverterParameter='24,24,24,24'}">
+        <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0"
-                    Background="{StaticResource Brush.PrimaryBlue}"
-                    CornerRadius="{Binding ActualHeight,
-                                            RelativeSource={RelativeSource Self},
-                                            Converter={StaticResource CornerRadiusFromHeightConverter},
-                                            ConverterParameter=10}"
-                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='20,16,20,16'}"
-                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
-                <StackPanel>
-                    <TextBlock Text="Operations and Services"
-                               Foreground="{StaticResource Brush.White}"
-                               FontWeight="Bold"
-                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}"/>
-                    <TextBlock Text="Retail Point of Sale &amp; Inventory Management System"
-                               Foreground="{StaticResource Brush.OperationsHeaderSubtitle}"
-                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}"
-                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"/>
-                </StackPanel>
-            </Border>
-
-            <StackPanel Grid.Row="1"
+            <StackPanel Grid.Row="0"
                         Orientation="Horizontal"
                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,14'}">
                 <Button x:Name="PillShift"
@@ -155,7 +147,7 @@
             </StackPanel>
 
             <ScrollViewer x:Name="TableMgmtBodyScroll"
-                          Grid.Row="2"
+                          Grid.Row="1"
                           Margin="0,0,0,0"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
@@ -187,11 +179,11 @@
 
                         <!-- Search + floor filter stack -->
                         <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                            <!-- Search tables (Procurement-style chrome + focus rings) -->
+                            <!-- Search tables (matches ProcurementPOrders) -->
                             <Border x:Name="TableSearchHostBorder"
                                     PreviewMouseLeftButtonDown="TableSearchHostBorder_PreviewMouseLeftButtonDown"
-                                    Background="{StaticResource Brush.White}"
-                                    BorderBrush="{StaticResource Brush.BorderGrey}"
+                                    Background="White"
+                                    BorderBrush="#CCC"
                                     SnapsToDevicePixels="True"
                                     ClipToBounds="False"
                                     Margin="0,0,0,8"
@@ -199,9 +191,133 @@
                                                               Path=FontScale,
                                                               Converter={StaticResource LayoutScaleConverter},
                                                               ConverterParameter=1}">
+
+                                <Border.CornerRadius>
+                                    <Binding RelativeSource="{RelativeSource Self}"
+                                             Path="ActualHeight"
+                                             Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                             ConverterParameter="8" />
+                                </Border.CornerRadius>
+
+                                <Grid>
+
+                                    <Border Panel.ZIndex="10"
+                                            Visibility="Collapsed"
+                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                             ConverterParameter='-3'}"
+                                            CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                                                    Path=FontScale,
+                                                                    Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                    ConverterParameter='9'}"
+                                            BorderThickness="3"
+                                            BorderBrush="#C1DEFE"
+                                            Background="Transparent"
+                                            SnapsToDevicePixels="True"
+                                            RenderOptions.EdgeMode="Aliased"
+                                            IsHitTestVisible="False">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=TxtSearch}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+
+                                    <Border Panel.ZIndex="11"
+                                            Visibility="Collapsed"
+                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                             ConverterParameter='-1'}"
+                                            CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                                                    Path=FontScale,
+                                                                    Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                    ConverterParameter='8'}"
+                                            BorderThickness="1"
+                                            BorderBrush="#93C5FD"
+                                            Background="Transparent"
+                                            SnapsToDevicePixels="True"
+                                            RenderOptions.EdgeMode="Aliased"
+                                            IsHitTestVisible="False">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=TxtSearch}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                 Path=FontScale,
+                                                 Converter={StaticResource LayoutScaleConverter},
+                                                 ConverterParameter=16}"
+                                                 Height="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource LayoutScaleConverter},
+                                                  ConverterParameter=16}"
+                                                 Margin="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource ThicknessScaleConverter},
+                                                  ConverterParameter='10,0,6,0'}"
+                                                 VerticalAlignment="Center">
+                                            <Canvas Width="16" Height="16" SnapsToDevicePixels="True">
+                                                <Ellipse Canvas.Left="2"
+                                                         Canvas.Top="2"
+                                                         Width="10"
+                                                         Height="10"
+                                                         Stroke="#9CA3AF"
+                                                         StrokeThickness="1.6"
+                                                         Fill="Transparent" />
+                                                <Line X1="10.5"
+                                                      Y1="10.5"
+                                                      X2="15"
+                                                      Y2="15"
+                                                      Stroke="#9CA3AF"
+                                                      StrokeThickness="1.6"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round" />
+                                            </Canvas>
+                                        </Viewbox>
+
+                                        <TextBox x:Name="TxtSearch"
+                                                 Grid.Column="1"
+                                                 Height="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource LayoutScaleConverter},
+                                                                  ConverterParameter=40}"
+                                                 TextChanged="TxtSearch_TextChanged"
+                                                 BorderThickness="0"
+                                                 Background="Transparent"
+                                                 Padding="0"
+                                                 FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                    Path=FontScale,
+                                                                    Converter={StaticResource FontScaleConverter},
+                                                                    ConverterParameter=14}"
+                                                 VerticalAlignment="Center"
+                                                 Style="{StaticResource SearchWatermarkTextBox}"
+                                                 Tag="Search tables..." />
+                                    </Grid>
+                                </Grid>
+
                                 <Border.Style>
                                     <Style TargetType="Border">
-                                        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderGrey}" />
+                                        <Setter Property="BorderBrush" Value="#CCC" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=TxtSearch}" Value="True">
                                                 <Setter Property="BorderBrush" Value="Transparent" />
@@ -209,90 +325,6 @@
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
-                                <Border.CornerRadius>
-                                    <Binding RelativeSource="{RelativeSource Self}"
-                                             Path="ActualHeight"
-                                             Converter="{StaticResource CornerRadiusFromHeightConverter}"
-                                             ConverterParameter="8" />
-                                </Border.CornerRadius>
-                                <Grid>
-                                    <Border Panel.ZIndex="10"
-                                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='-3'}"
-                                            BorderThickness="3"
-                                            BorderBrush="{StaticResource FocusOuter}"
-                                            Background="Transparent"
-                                            SnapsToDevicePixels="True"
-                                            RenderOptions.EdgeMode="Aliased"
-                                            IsHitTestVisible="False">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Visibility" Value="Collapsed" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=TxtSearch}" Value="True">
-                                                        <Setter Property="Visibility" Value="Visible" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <Border.CornerRadius>
-                                            <Binding RelativeSource="{RelativeSource Self}"
-                                                     Path="ActualHeight"
-                                                     Converter="{StaticResource CornerRadiusFromHeightConverter}"
-                                                     ConverterParameter="9" />
-                                        </Border.CornerRadius>
-                                    </Border>
-                                    <Border Panel.ZIndex="11"
-                                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='-1'}"
-                                            BorderThickness="1"
-                                            BorderBrush="{StaticResource FocusInner}"
-                                            Background="Transparent"
-                                            SnapsToDevicePixels="True"
-                                            RenderOptions.EdgeMode="Aliased"
-                                            IsHitTestVisible="False">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Visibility" Value="Collapsed" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=TxtSearch}" Value="True">
-                                                        <Setter Property="Visibility" Value="Visible" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <Border.CornerRadius>
-                                            <Binding RelativeSource="{RelativeSource Self}"
-                                                     Path="ActualHeight"
-                                                     Converter="{StaticResource CornerRadiusFromHeightConverter}"
-                                                     ConverterParameter="8" />
-                                        </Border.CornerRadius>
-                                    </Border>
-                                    <Grid Panel.ZIndex="1">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Viewbox Grid.Column="0"
-                                                 Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
-                                                 Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
-                                                 Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,0,6,0'}"
-                                                 VerticalAlignment="Center">
-                                            <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
-                                                <Ellipse Canvas.Left="3" Canvas.Top="3" Width="10" Height="10"
-                                                         Stroke="{StaticResource Brush.TextMuted}" StrokeThickness="2" Fill="Transparent"/>
-                                                <Line X1="11.5" Y1="11.5" X2="18" Y2="18"
-                                                      Stroke="{StaticResource Brush.TextMuted}" StrokeThickness="2"
-                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                                            </Canvas>
-                                        </Viewbox>
-                                        <TextBox x:Name="TxtSearch"
-                                                 Grid.Column="1"
-                                                 Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=40}"
-                                                 TextChanged="TxtSearch_TextChanged"
-                                                 Style="{StaticResource SearchWatermarkTextBox}"
-                                                 Tag="Search tables..."
-                                                 VerticalAlignment="Center"/>
-                                    </Grid>
-                                </Grid>
                             </Border>
 
                             <!-- Floor filter: full-width chrome + focus rings (same pattern as search) -->
@@ -396,13 +428,14 @@
                                         </Viewbox>
                                         <ComboBox x:Name="CmbFloorFilter"
                                                   Grid.Column="1"
-                                                  Style="{StaticResource IcEnabledComboBoxStyle}"
+                                                  Style="{StaticResource IcOpsServicesComboBoxHostChromeOnlyStyle}"
                                                   VerticalAlignment="Stretch"
                                                   Margin="0,4,8,4"
                                                   BorderThickness="0"
                                                   Background="Transparent"
                                                   Foreground="{StaticResource MainForeground}"
                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                                  FocusVisualStyle="{x:Null}"
                                                   SelectionChanged="CmbFloorFilter_SelectionChanged"/>
                                     </Grid>
                                 </Grid>
@@ -417,7 +450,7 @@
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,6'}"/>
                             <UniformGrid Columns="2" Margin="0,0,0,6">
-                                <Border Background="{StaticResource Brush.SurfaceGreySoft}"
+                                <Border Background="#F1F5FE"
                                         BorderBrush="{StaticResource Brush.BorderSoft}"
                                         BorderThickness="1"
                                         CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
@@ -426,14 +459,14 @@
                                     <StackPanel>
                                         <TextBlock x:Name="StatTotal"
                                                    FontWeight="SemiBold"
-                                                   Foreground="{StaticResource Brush.PrimaryBlue}"
+                                                   Foreground="#6465D9"
                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
                                         <TextBlock Text="Total Tables"
-                                                   Foreground="{StaticResource DimmedForeground}"
+                                                   Foreground="#636363"
                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Background="{StaticResource Brush.SurfaceGreySoft}"
+                                <Border Background="#F0FDF4"
                                         BorderBrush="{StaticResource Brush.BorderSoft}"
                                         BorderThickness="1"
                                         CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
@@ -442,16 +475,16 @@
                                     <StackPanel>
                                         <TextBlock x:Name="StatActive"
                                                    FontWeight="SemiBold"
-                                                   Foreground="{StaticResource Brush.SuccessGreen}"
+                                                   Foreground="#319E5D"
                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
                                         <TextBlock Text="Active"
-                                                   Foreground="{StaticResource DimmedForeground}"
+                                                   Foreground="#636363"
                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
                                     </StackPanel>
                                 </Border>
                             </UniformGrid>
                             <UniformGrid Columns="2">
-                                <Border Background="{StaticResource Brush.SurfaceGreySoft}"
+                                <Border Background="#FBF5FF"
                                         BorderBrush="{StaticResource Brush.BorderSoft}"
                                         BorderThickness="1"
                                         CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
@@ -460,14 +493,14 @@
                                     <StackPanel>
                                         <TextBlock x:Name="StatSeats"
                                                    FontWeight="SemiBold"
-                                                   Foreground="{StaticResource Brush.OpsStatSeatsViolet}"
+                                                   Foreground="#9F54CB"
                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
                                         <TextBlock Text="Total Seats"
-                                                   Foreground="{StaticResource DimmedForeground}"
+                                                   Foreground="#636363"
                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Background="{StaticResource Brush.SurfaceGreySoft}"
+                                <Border Background="#FEFBEA"
                                         BorderBrush="{StaticResource Brush.BorderSoft}"
                                         BorderThickness="1"
                                         CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
@@ -476,10 +509,10 @@
                                     <StackPanel>
                                         <TextBlock x:Name="StatAssigned"
                                                    FontWeight="SemiBold"
-                                                   Foreground="{StaticResource Brush.OpsStatAssignedAmber}"
+                                                   Foreground="#C47D2F"
                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
                                         <TextBlock Text="Assigned"
-                                                   Foreground="{StaticResource DimmedForeground}"
+                                                   Foreground="#636363"
                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
                                     </StackPanel>
                                 </Border>
@@ -497,11 +530,34 @@
                                 <DataTemplate DataType="{x:Type local:OpsFloorTable}">
                                     <Border x:Name="RowBorder"
                                             Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='6,5,6,5'}"
-                                            BorderBrush="{StaticResource Brush.BorderSoft}"
                                             BorderThickness="1"
-                                            Background="{StaticResource Brush.White}"
                                             SnapsToDevicePixels="True"
                                             Margin="0,0,0,4">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{StaticResource Brush.White}" />
+                                                <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSoft}" />
+                                                <Setter Property="Effect" Value="{x:Null}" />
+                                                <Style.Triggers>
+                                                    <!-- Same pill treatment as Floor Location (DetFloorPillBorder): #EFF6FF / #93C5FD; shadow keeps card “standing up”. -->
+                                                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="True">
+                                                        <Setter Property="Background" Value="#EFF6FF" />
+                                                        <Setter Property="BorderBrush" Value="#93C5FD" />
+                                                        <Setter Property="Effect" Value="{StaticResource OpsTableMgmtTableRowSelectedShadow}" />
+                                                    </DataTrigger>
+                                                    <!-- Hover only when not selected (selected row unchanged on hover except same elevation). -->
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsMouseOver}" Value="True" />
+                                                            <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="False" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Background" Value="{StaticResource Brush.SurfaceGreySoft}" />
+                                                        <Setter Property="BorderBrush" Value="{StaticResource Brush.SurfaceGrey}" />
+                                                        <Setter Property="Effect" Value="{StaticResource OpsTableMgmtTableRowHoverShadow}" />
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                         <Border.CornerRadius>
                                             <Binding Path="ActualHeight"
                                                      RelativeSource="{RelativeSource Self}"
@@ -607,6 +663,22 @@
                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,0'}"/>
                                     </StackPanel>
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button x:Name="BtnAddFloor"
+                                                Click="BtnAddFloor_Click"
+                                                Style="{StaticResource VcPrimaryButtonStyle}"
+                                                Margin="0,0,8,0"
+                                                FocusVisualStyle="{x:Null}">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="+"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}"/>
+                                                <TextBlock Text=" Add Floor"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
+                                            </StackPanel>
+                                        </Button>
                                         <Button x:Name="BtnAddTable"
                                                 Click="BtnAddTable_Click"
                                                 Style="{StaticResource VcPrimaryButtonStyle}"
@@ -670,13 +742,17 @@
                                            Margin="0,0,0,0"/>
 
                                 <StackPanel x:Name="DetailPanel" Visibility="Collapsed">
+                                    <!-- Row 0: two form columns. Row 1: Active Status | View History in one grid row (matched height; no * rows inside StackPanel). -->
                                     <Grid Margin="0,0,0,12">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <!-- Left column -->
-                                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,0">
                                             <TextBlock Text="Table Name"
                                                        Foreground="{StaticResource DimmedForeground}"
                                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
@@ -724,7 +800,7 @@
                                                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
                                                 </Border>
                                                 <ComboBox x:Name="DetShape"
-                                                          Style="{StaticResource IcEnabledComboBoxStyle}"
+                                                          Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
                                                           Visibility="Collapsed"
                                                           VerticalAlignment="Center"
                                                           Foreground="{StaticResource MainForeground}"
@@ -734,45 +810,9 @@
                                             <TextBlock Text="Active Status"
                                                        Foreground="{StaticResource DimmedForeground}"
                                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                                       Margin="0,12,0,4"/>
-                                            <Border Background="{StaticResource Brush.SurfaceGreySoft}"
-                                                    BorderBrush="{StaticResource Brush.BorderSoft}"
-                                                    BorderThickness="1"
-                                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,8,10,8'}"
-                                                    CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}">
-                                                <Grid>
-                                                    <DockPanel x:Name="DetActiveReadOnlyRow" LastChildFill="False">
-                                                        <TextBlock x:Name="TxtDetActiveCaption"
-                                                                   DockPanel.Dock="Left"
-                                                                   VerticalAlignment="Center"
-                                                                   Foreground="{StaticResource MainForeground}"
-                                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
-                                                        <Border x:Name="DetActivePillBorder"
-                                                                DockPanel.Dock="Right"
-                                                                HorizontalAlignment="Right"
-                                                                VerticalAlignment="Center"
-                                                                Background="#DCFCE7"
-                                                                BorderBrush="#86EFAC"
-                                                                BorderThickness="1"
-                                                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,4,8,4'}"
-                                                                SnapsToDevicePixels="True"
-                                                                CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=6}">
-                                                            <TextBlock x:Name="DetActivePillText"
-                                                                       FontWeight="Bold"
-                                                                       Foreground="{StaticResource Brush.SuccessGreen}"
-                                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
-                                                        </Border>
-                                                    </DockPanel>
-                                                    <ToggleButton x:Name="DetActive"
-                                                                  Visibility="Collapsed"
-                                                                  HorizontalAlignment="Right"
-                                                                  VerticalAlignment="Center"
-                                                                  IsEnabled="False"/>
-                                                </Grid>
-                                            </Border>
+                                                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,12,0,10'}"/>
                                         </StackPanel>
-                                        <!-- Right column -->
-                                        <StackPanel Grid.Column="1">
+                                        <StackPanel Grid.Row="0" Grid.Column="1">
                                             <TextBlock Text="Floor Location"
                                                        Foreground="{StaticResource DimmedForeground}"
                                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
@@ -793,7 +833,7 @@
                                                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
                                                 </Border>
                                                 <ComboBox x:Name="DetFloor"
-                                                          Style="{StaticResource IcEnabledComboBoxStyle}"
+                                                          Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
                                                           Visibility="Collapsed"
                                                           VerticalAlignment="Center"
                                                           Foreground="{StaticResource MainForeground}"
@@ -811,7 +851,7 @@
                                                            Foreground="{StaticResource MainForeground}"
                                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
                                                 <ComboBox x:Name="DetWaiter"
-                                                          Style="{StaticResource IcEnabledComboBoxStyle}"
+                                                          Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
                                                           Visibility="Collapsed"
                                                           VerticalAlignment="Center"
                                                           IsEnabled="False"
@@ -823,7 +863,7 @@
                                                        FontWeight="SemiBold"
                                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                                        Margin="0,12,0,8"/>
-                                            <Grid>
+                                            <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,10'}">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
@@ -877,182 +917,63 @@
                                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
                                             </Grid>
                                         </StackPanel>
-                                    </Grid>
-
-                                    <UniformGrid Columns="3" Margin="0,4,0,0">
-                                        <Button x:Name="BtnExport"
-                                                Content="Export Details"
-                                                Click="BtnExport_Click"
-                                                Style="{StaticResource VcSecondaryButtonStyle}"
-                                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,6,10,6'}"
-                                                Margin="0,0,6,0"
-                                                FocusVisualStyle="{x:Null}"/>
+                                        <Border Grid.Row="1"
+                                                Grid.Column="0"
+                                                Margin="0,0,12,0"
+                                                HorizontalAlignment="Stretch"
+                                                VerticalAlignment="Stretch"
+                                                Background="{StaticResource Brush.SurfaceGreySoft}"
+                                                BorderBrush="{StaticResource Brush.BorderSoft}"
+                                                BorderThickness="1"
+                                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,8,10,8'}"
+                                                CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}">
+                                            <Grid>
+                                                <DockPanel x:Name="DetActiveReadOnlyRow" LastChildFill="False">
+                                                    <TextBlock x:Name="TxtDetActiveCaption"
+                                                               DockPanel.Dock="Left"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="{StaticResource MainForeground}"
+                                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+                                                    <Border x:Name="DetActivePillBorder"
+                                                            DockPanel.Dock="Right"
+                                                            HorizontalAlignment="Right"
+                                                            VerticalAlignment="Center"
+                                                            Background="#DCFCE7"
+                                                            BorderBrush="#86EFAC"
+                                                            BorderThickness="1"
+                                                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,4,8,4'}"
+                                                            SnapsToDevicePixels="True"
+                                                            CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=6}">
+                                                        <TextBlock x:Name="DetActivePillText"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{StaticResource Brush.SuccessGreen}"
+                                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
+                                                    </Border>
+                                                </DockPanel>
+                                                <ToggleButton x:Name="DetActive"
+                                                              Visibility="Collapsed"
+                                                              HorizontalAlignment="Right"
+                                                              VerticalAlignment="Center"
+                                                              IsEnabled="False"/>
+                                            </Grid>
+                                        </Border>
                                         <Button x:Name="BtnHistory"
+                                                Grid.Row="1"
+                                                Grid.Column="1"
                                                 Content="View History"
                                                 Click="BtnHistory_Click"
-                                                Style="{StaticResource VcSecondaryButtonStyle}"
-                                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,6,10,6'}"
-                                                Margin="6,0,6,0"
+                                                Style="{StaticResource OpsTableMgmtHistoryStripButtonStyle}"
+                                                HorizontalAlignment="Stretch"
+                                                VerticalAlignment="Stretch"
                                                 FocusVisualStyle="{x:Null}"/>
-                                        <Button x:Name="BtnDuplicate"
-                                                Content="Duplicate"
-                                                Click="BtnDuplicate_Click"
-                                                Style="{StaticResource VcSecondaryButtonStyle}"
-                                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,6,10,6'}"
-                                                Margin="6,0,0,0"
-                                                FocusVisualStyle="{x:Null}"/>
-                                    </UniformGrid>
+                                    </Grid>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
                     </ScrollViewer>
                     </Grid>
 
-                    <!-- Below the fold: user scrolls from filters + details to reach operations -->
-                    <Border x:Name="OperationsCard"
-                            HorizontalAlignment="Stretch"
-                            Margin="0,16,0,0"
-                            Background="{StaticResource Brush.White}"
-                            BorderBrush="{StaticResource Brush.BorderSoft}"
-                            BorderThickness="1"
-                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='14,12,14,14'}"
-                            Visibility="Collapsed"
-                            SnapsToDevicePixels="True"
-                            CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=10}">
-                        <StackPanel>
-                                <DockPanel LastChildFill="False" Margin="0,0,0,8">
-                                    <TextBlock Text="Table Operations"
-                                               DockPanel.Dock="Left"
-                                               FontWeight="SemiBold"
-                                               Foreground="{StaticResource MainForeground}"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
-                                               VerticalAlignment="Center"/>
-                                    <Border x:Name="OpsStatusChipHost"
-                                            DockPanel.Dock="Right"
-                                            Background="{StaticResource Brush.DangerChipBackground}"
-                                            CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
-                                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,4,8,4'}"
-                                            VerticalAlignment="Center">
-                                        <TextBlock x:Name="DetOpsStatus"
-                                                   FontWeight="Bold"
-                                                   Foreground="{StaticResource Brush.DangerTextStrong}"
-                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
-                                    </Border>
-                                </DockPanel>
-
-                                <TextBlock Text="Current status"
-                                           Foreground="{StaticResource DimmedForeground}"
-                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                           Margin="0,0,0,6"/>
-                                <WrapPanel Margin="0,0,0,10">
-                                    <Button Content="Available" Tag="Available" Click="BtnQuickStatus_Click" Style="{StaticResource VcSecondaryButtonStyle}" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" Margin="0,0,5,5" Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}" FocusVisualStyle="{x:Null}"/>
-                                    <Button Content="Reserved" Tag="Reserved" Click="BtnQuickStatus_Click" Style="{StaticResource VcSecondaryButtonStyle}" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" Margin="0,0,5,5" Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}" FocusVisualStyle="{x:Null}"/>
-                                    <Button Content="Hold" Tag="Hold" Click="BtnQuickStatus_Click" Style="{StaticResource VcSecondaryButtonStyle}" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" Margin="0,0,5,5" Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}" FocusVisualStyle="{x:Null}"/>
-                                    <Button Content="Cleaning" Tag="Cleaning" Click="BtnQuickStatus_Click" Style="{StaticResource VcSecondaryButtonStyle}" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" Margin="0,0,5,5" Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}" FocusVisualStyle="{x:Null}"/>
-                                    <Button Content="Maintenance" Tag="Maintenance" Click="BtnQuickStatus_Click" Style="{StaticResource VcSecondaryButtonStyle}" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" Margin="0,0,5,5" Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}" FocusVisualStyle="{x:Null}"/>
-                                    <Button Content="Seat Party" Tag="Occupied" Click="BtnQuickStatus_Click" Style="{StaticResource VcSecondaryButtonStyle}" FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" Margin="0,0,5,5" Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}" FocusVisualStyle="{x:Null}"/>
-                                </WrapPanel>
-
-                                <Border x:Name="OverdueBanner"
-                                        Background="{StaticResource Brush.DangerSurfaceLight}"
-                                        BorderBrush="{StaticResource Brush.DangerBorderLight}"
-                                        BorderThickness="1"
-                                        CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
-                                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,10,12,10'}"
-                                        Margin="0,0,0,12"
-                                        Visibility="Collapsed">
-                                    <DockPanel LastChildFill="False">
-                                        <TextBlock x:Name="TxtOverdue"
-                                                   TextWrapping="Wrap"
-                                                   DockPanel.Dock="Left"
-                                                   Foreground="{StaticResource Brush.DangerTextStrong}"
-                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
-                                        <Button Content="Clear Table"
-                                                DockPanel.Dock="Right"
-                                                Style="{StaticResource VcSecondaryButtonStyle}"
-                                                Click="BtnClearTable_Click"
-                                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}"
-                                                Margin="12,0,0,0"
-                                                FocusVisualStyle="{x:Null}"/>
-                                    </DockPanel>
-                                </Border>
-
-                                <TextBlock Text="Table configuration"
-                                           Foreground="{StaticResource DimmedForeground}"
-                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                           Margin="0,0,0,6"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                    <Button x:Name="BtnMerge"
-                                            Content="Merge Tables"
-                                            Click="BtnMerge_Click"
-                                            Style="{StaticResource VcSecondaryButtonStyle}"
-                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                            Margin="0,0,8,0"
-                                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}"
-                                            FocusVisualStyle="{x:Null}"/>
-                                    <Button x:Name="BtnSplit"
-                                            Content="Split Tables"
-                                            Click="BtnSplit_Click"
-                                            Style="{StaticResource VcSecondaryButtonStyle}"
-                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}"
-                                            FocusVisualStyle="{x:Null}"/>
-                                </StackPanel>
-
-                                <TextBlock Text="Server assignment"
-                                           Foreground="{StaticResource DimmedForeground}"
-                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                           Margin="0,0,0,6"/>
-                                <Border Background="{StaticResource Brush.SurfaceGreySoft}"
-                                        BorderBrush="{StaticResource Brush.BorderSoft}"
-                                        BorderThickness="1"
-                                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,8,10,8'}"
-                                        Margin="0,0,0,12"
-                                        CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}">
-                                    <DockPanel LastChildFill="False">
-                                        <TextBlock x:Name="TxtServerName"
-                                                   DockPanel.Dock="Left"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                                   Foreground="{StaticResource MainForeground}"/>
-                                        <Button x:Name="BtnTransfer"
-                                                Content="Transfer"
-                                                DockPanel.Dock="Right"
-                                                Style="{StaticResource VcSecondaryButtonStyle}"
-                                                Click="BtnTransfer_Click"
-                                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}"
-                                                FocusVisualStyle="{x:Null}"/>
-                                    </DockPanel>
-                                </Border>
-
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Accessible"
-                                               VerticalAlignment="Center"
-                                               Foreground="{StaticResource MainForeground}"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                               Margin="0,0,8,0"/>
-                                    <ToggleButton x:Name="DetAccessible"
-                                                  IsEnabled="False"
-                                                  Margin="0,0,24,0"
-                                                  VerticalAlignment="Center"/>
-                                    <TextBlock Text="Priority / VIP"
-                                               VerticalAlignment="Center"
-                                               Foreground="{StaticResource MainForeground}"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                               Margin="0,0,8,0"/>
-                                    <ToggleButton x:Name="DetVip"
-                                                  IsEnabled="False"
-                                                  VerticalAlignment="Center"/>
-                                </StackPanel>
-                                </StackPanel>
-                        </Border>
                 </StackPanel>
             </ScrollViewer>
         </Grid>
-    </Border>
 </UserControl>

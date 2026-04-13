@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
@@ -25,6 +25,9 @@ public partial class OpsServicesShiftScheduling : UserControl
     private string _staffSearchQuery = "";
     private DateTime _anchorDate = DateTime.Today;
     private OpsScheduleViewMode _viewMode = OpsScheduleViewMode.Week;
+    private HwndSource? _monthScrollHwndSource;
+    /// <summary>Month only: horizontal scroll for day columns; staff column stays in the sibling grid cell.</summary>
+    private ScrollViewer? _monthDaysHorizontalScroll;
 
     public OpsServicesShiftScheduling(
         Action navigateToTableManagement,
@@ -54,10 +57,12 @@ public partial class OpsServicesShiftScheduling : UserControl
 
         HighlightShiftPill(true);
         RebuildAll();
+        Dispatcher.BeginInvoke(new Action(AttachMonthScrollHwndHook), DispatcherPriority.Loaded);
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        DetachMonthScrollHwndHook();
         OpsServicesStore.DataChanged -= OnStoreChanged;
         _staffSearchDebounce.Stop();
         _staffSearchDebounce.Tick -= StaffSearchDebounce_Tick;
@@ -91,8 +96,137 @@ public partial class OpsServicesShiftScheduling : UserControl
     }
 
     /// <summary>
-    /// The horizontal schedule viewer does not scroll vertically; forward wheel to the page viewer so the toolbar/filter stay visible.
-    /// Shift + wheel scrolls horizontally in month view when needed.
+    /// Month: Shift or Ctrl + wheel pans horizontally; plain wheel scrolls the vertical schedule.
+    /// </summary>
+    private void MonthScheduleClipBorder_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (_viewMode != OpsScheduleViewMode.Month)
+            return;
+
+        var sv = _monthDaysHorizontalScroll;
+        var wantHorizontal = sv is { ScrollableWidth: > 0.5 }
+                             && (Keyboard.Modifiers == ModifierKeys.Shift || Keyboard.Modifiers == ModifierKeys.Control);
+        if (wantHorizontal && sv != null)
+        {
+            var delta = e.Delta > 0 ? -S(48) : S(48);
+            var next = Math.Max(0, Math.Min(sv.ScrollableWidth, sv.HorizontalOffset + delta));
+            sv.ScrollToHorizontalOffset(next);
+            UpdateMonthPanButtons();
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Delta > 0)
+            ScheduleMonthInnerVerticalScroll.LineUp();
+        else
+            ScheduleMonthInnerVerticalScroll.LineDown();
+        e.Handled = true;
+    }
+
+    private void BtnMonthScrollDaysLeft_Click(object sender, RoutedEventArgs e) =>
+        NudgeMonthHorizontalScrollByPages(-1);
+
+    private void BtnMonthScrollDaysRight_Click(object sender, RoutedEventArgs e) =>
+        NudgeMonthHorizontalScrollByPages(1);
+
+    private void NudgeMonthHorizontalScrollByPages(int pageDir)
+    {
+        if (_monthDaysHorizontalScroll is not { ScrollableWidth: > 0.5 } sv)
+            return;
+        var step = Math.Max(S(48), sv.ViewportWidth * 0.85);
+        var next = Math.Max(0, Math.Min(sv.ScrollableWidth, sv.HorizontalOffset + pageDir * step));
+        sv.ScrollToHorizontalOffset(next);
+        UpdateMonthPanButtons();
+    }
+
+    private void UpdateMonthPanButtons()
+    {
+        if (!IsLoaded)
+            return;
+        var month = _viewMode == OpsScheduleViewMode.Month;
+        BtnMonthScrollDaysLeft.Visibility = month ? Visibility.Visible : Visibility.Collapsed;
+        BtnMonthScrollDaysRight.Visibility = month ? Visibility.Visible : Visibility.Collapsed;
+        if (!month)
+            return;
+        var sv = _monthDaysHorizontalScroll;
+        if (sv == null)
+        {
+            BtnMonthScrollDaysLeft.IsEnabled = false;
+            BtnMonthScrollDaysRight.IsEnabled = false;
+            return;
+        }
+
+        var canPan = sv.ScrollableWidth > 0.5;
+        BtnMonthScrollDaysLeft.IsEnabled = canPan && sv.HorizontalOffset > 0.01;
+        BtnMonthScrollDaysRight.IsEnabled = canPan && sv.HorizontalOffset < sv.ScrollableWidth - 0.01;
+    }
+
+    private void AttachMonthScrollHwndHook()
+    {
+        if (_monthScrollHwndSource != null)
+            return;
+        if (PresentationSource.FromVisual(this) is not HwndSource src)
+            return;
+        src.AddHook(MonthScrollWndProc);
+        _monthScrollHwndSource = src;
+    }
+
+    private void DetachMonthScrollHwndHook()
+    {
+        if (_monthScrollHwndSource == null)
+            return;
+        _monthScrollHwndSource.RemoveHook(MonthScrollWndProc);
+        _monthScrollHwndSource = null;
+    }
+
+    private IntPtr MonthScrollWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int WM_MOUSEHWHEEL = 0x020E;
+        if (msg != WM_MOUSEHWHEEL)
+            return IntPtr.Zero;
+        if (_viewMode != OpsScheduleViewMode.Month)
+            return IntPtr.Zero;
+        if (_monthDaysHorizontalScroll is not { ScrollableWidth: > 0.5 } sv)
+            return IntPtr.Zero;
+
+        var xy = unchecked((uint)lParam.ToInt64());
+        var x = unchecked((short)(xy & 0xFFFF));
+        var y = unchecked((short)((xy >> 16) & 0xFFFF));
+        var screen = new System.Windows.Point(x, y);
+        try
+        {
+            var local = ScheduleMonthHostGrid.PointFromScreen(screen);
+            if (double.IsNaN(local.X) || local.X < -4 || local.Y < -4
+                || local.X > ScheduleMonthHostGrid.ActualWidth + 4 || local.Y > ScheduleMonthHostGrid.ActualHeight + 4)
+                return IntPtr.Zero;
+        }
+        catch
+        {
+            return IntPtr.Zero;
+        }
+
+        var delta = unchecked((short)(((uint)wParam.ToInt64() >> 16) & 0xFFFF));
+        var step = S(48) * (Math.Max(120, Math.Abs((int)delta)) / 120.0);
+        var deltaMove = delta > 0 ? -step : step;
+        var next = Math.Max(0, Math.Min(sv.ScrollableWidth, sv.HorizontalOffset + deltaMove));
+        sv.ScrollToHorizontalOffset(next);
+        UpdateMonthPanButtons();
+        handled = true;
+        return IntPtr.Zero;
+    }
+
+    private void MonthScheduleClipBorder_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        UpdateMonthPanButtons();
+
+    private void ScheduleMonthInnerVerticalScroll_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_viewMode != OpsScheduleViewMode.Month)
+            return;
+        UpdateMonthPanButtons();
+    }
+
+    /// <summary>
+    /// Week/Day: wheel scrolls the vertical body (date headers stay outside that viewer). Shift + wheel pans horizontally.
     /// </summary>
     private void ScheduleHorizontalScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
@@ -107,14 +241,15 @@ public partial class OpsServicesShiftScheduling : UserControl
             return;
         }
 
-        if (SchedulePageScrollViewer == null)
-            return;
-
-        if (e.Delta > 0)
-            SchedulePageScrollViewer.LineUp();
-        else
-            SchedulePageScrollViewer.LineDown();
-        e.Handled = true;
+        if (_viewMode != OpsScheduleViewMode.Month && ScheduleWeekBodyScrollViewer != null)
+        {
+            var body = ScheduleWeekBodyScrollViewer;
+            if (e.Delta > 0)
+                body.LineUp();
+            else
+                body.LineDown();
+            e.Handled = true;
+        }
     }
 
     private void OnStoreChanged(object? sender, EventArgs e) => Dispatcher.Invoke(RebuildAll);
@@ -161,6 +296,46 @@ public partial class OpsServicesShiftScheduling : UserControl
         return basePx * (state?.FontScale ?? 1.25);
     }
 
+    private static void ApplyWeekDayColumnDefinitions(Grid grid, double staffCol, int dateCount)
+    {
+        grid.ColumnDefinitions.Clear();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(staffCol) });
+        for (var i = 0; i < dateCount; i++)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition
+            {
+                Width = new GridLength(1, GridUnitType.Star),
+                MinWidth = 0
+            });
+        }
+    }
+
+    /// <summary>Week/day schedule: host the week layout in the chrome inner area.</summary>
+    private void EnsureScheduleInnerHostWeekLayout()
+    {
+        ScheduleInnerHost.Children.Clear();
+        ScheduleInnerHost.Children.Add(ScheduleWeekLayoutRoot);
+    }
+
+    /// <summary>Month schedule: host the generated month grid in the chrome inner area.</summary>
+    private void EnsureScheduleInnerHostMonthLayout(Grid monthRoot)
+    {
+        ScheduleInnerHost.Children.Clear();
+        ScheduleInnerHost.Children.Add(monthRoot);
+    }
+
+    /// <summary>Moves the staff filter search into a corner-slot border (below Staff (n) in the header card).</summary>
+    private void AttachStaffFilterSearchToCornerSlot(Border slot)
+    {
+        if (ReferenceEquals(slot.Child, StaffFilterSearchBoxBorder))
+            return;
+        if (StaffFilterSearchBoxBorder.Parent is Border oldHost)
+            oldHost.Child = null;
+        StaffFilterSearchBoxBorder.HorizontalAlignment = HorizontalAlignment.Stretch;
+        StaffFilterSearchBoxBorder.Margin = new Thickness(0);
+        slot.Child = StaffFilterSearchBoxBorder;
+    }
+
     private Brush TryBrush(string resourceKey, string fallbackHex)
     {
         if (TryFindResource(resourceKey) is Brush b)
@@ -185,6 +360,62 @@ public partial class OpsServicesShiftScheduling : UserControl
 
     private static string FormatShiftTimeRange(TimeOnly start, TimeOnly end) =>
         $"{start.ToString("HH:mm", CultureInfo.InvariantCulture)} to {end.ToString("HH:mm", CultureInfo.InvariantCulture)}";
+
+    private static string FormatShiftStartTime(TimeOnly t) =>
+        t.ToString("HH:mm", CultureInfo.InvariantCulture);
+
+    private static string FormatShiftEndLine(TimeOnly end) =>
+        $"to {end.ToString("HH:mm", CultureInfo.InvariantCulture)}";
+
+    /// <summary>Simple clock glyph (white strokes) for compact shift cards.</summary>
+    private static FrameworkElement CreateShiftClockIcon(double iconSize, double trailingGap)
+    {
+        const double c = 24;
+        var box = new Viewbox
+        {
+            Width = iconSize,
+            Height = iconSize,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, trailingGap, 0)
+        };
+        var canvas = new Canvas { Width = c, Height = c };
+        var stroke = Brushes.White;
+        var face = new Ellipse
+        {
+            Width = 18,
+            Height = 18,
+            Stroke = stroke,
+            StrokeThickness = 2,
+            Fill = Brushes.Transparent
+        };
+        Canvas.SetLeft(face, 3);
+        Canvas.SetTop(face, 3);
+        canvas.Children.Add(face);
+        canvas.Children.Add(new Line
+        {
+            X1 = 12,
+            Y1 = 12,
+            X2 = 12,
+            Y2 = 7.5,
+            Stroke = stroke,
+            StrokeThickness = 2,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round
+        });
+        canvas.Children.Add(new Line
+        {
+            X1 = 12,
+            Y1 = 12,
+            X2 = 16.5,
+            Y2 = 12,
+            Stroke = stroke,
+            StrokeThickness = 1.75,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round
+        });
+        box.Child = canvas;
+        return box;
+    }
 
     private static string ShiftCountLabel(int n) => n == 1 ? "1 shift" : $"{n} shifts";
 
@@ -254,10 +485,6 @@ public partial class OpsServicesShiftScheduling : UserControl
 
     private void RebuildScheduleGrid(IReadOnlyList<DateOnly> dates)
     {
-        ScheduleHostGrid.Children.Clear();
-        ScheduleHostGrid.RowDefinitions.Clear();
-        ScheduleHostGrid.ColumnDefinitions.Clear();
-
         var totalStaff = OpsServicesStore.GetEmployees().Count;
         var q = _staffSearchQuery.Trim();
         var employees = OpsServicesStore.GetEmployees()
@@ -266,49 +493,183 @@ public partial class OpsServicesShiftScheduling : UserControl
                         || e.Role.Contains(q, StringComparison.OrdinalIgnoreCase))
             .OrderBy(e => e.Name)
             .ToList();
-        double staffCol = S(200);
-        ScheduleHostGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(staffCol) });
-        // Month: enforce readable column mins + min total width so horizontal scroll appears when needed.
-        // Week/Day: MinWidth 0 on * columns so all days fit the viewport (no clipping); text wraps in cells.
-        var dayColMin = _viewMode == OpsScheduleViewMode.Month ? S(72) : 0d;
-        foreach (var _ in dates)
+        var staffCol = S(200);
+
+        if (_viewMode == OpsScheduleViewMode.Month)
         {
-            ScheduleHostGrid.ColumnDefinitions.Add(new ColumnDefinition
+            ScheduleHostGrid.Children.Clear();
+            ScheduleHostGrid.RowDefinitions.Clear();
+            ScheduleHostGrid.ColumnDefinitions.Clear();
+
+            var monthDayColW = S(72);
+            var daysOnlyW = dates.Count * monthDayColW;
+
+            var monthRoot = new Grid();
+            Grid.SetIsSharedSizeScope(monthRoot, true);
+            monthRoot.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(staffCol) });
+            monthRoot.ColumnDefinitions.Add(new ColumnDefinition
             {
                 Width = new GridLength(1, GridUnitType.Star),
-                MinWidth = dayColMin
+                MinWidth = S(120)
             });
+
+            var leftGrid = new Grid();
+            var daysGrid = new Grid
+            {
+                Width = daysOnlyW,
+                MinWidth = daysOnlyW,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                SnapsToDevicePixels = true
+            };
+            foreach (var _ in dates)
+            {
+                daysGrid.ColumnDefinitions.Add(new ColumnDefinition
+                {
+                    Width = new GridLength(monthDayColW)
+                });
+            }
+
+            var totalRows = 1 + employees.Count + 1;
+            for (var r = 0; r < totalRows; r++)
+            {
+                var sg = "OpSchedRow" + r;
+                leftGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto, SharedSizeGroup = sg });
+                daysGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto, SharedSizeGroup = sg });
+            }
+
+            var row = 0;
+            AddCornerCell(leftGrid, row, employees.Count, totalStaff);
+            for (var c = 0; c < dates.Count; c++)
+                AddHeaderCell(daysGrid, row, c, dates[c]);
+            row++;
+
+            foreach (var emp in employees)
+            {
+                AddStaffCell(leftGrid, row, 0, emp);
+                for (var c = 0; c < dates.Count; c++)
+                    AddDayCell(daysGrid, row, c, emp, dates[c]);
+                row++;
+            }
+
+            AddTotalsLabelCell(leftGrid, row, 0);
+            for (var c = 0; c < dates.Count; c++)
+                AddTotalsCountCell(daysGrid, row, c, dates[c]);
+
+            var daysScroll = new ScrollViewer
+            {
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                CanContentScroll = false,
+                FocusVisualStyle = null,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Content = daysGrid
+            };
+            daysScroll.ScrollChanged += (_, _) => UpdateMonthPanButtons();
+            _monthDaysHorizontalScroll = daysScroll;
+
+            Grid.SetColumn(leftGrid, 0);
+            Grid.SetColumn(daysScroll, 1);
+            monthRoot.Children.Add(leftGrid);
+            monthRoot.Children.Add(daysScroll);
+
+            ScheduleGridChromeBorder.ClearValue(FrameworkElement.WidthProperty);
+            ScheduleGridChromeBorder.ClearValue(FrameworkElement.MinWidthProperty);
+            ScheduleGridChromeBorder.HorizontalAlignment = HorizontalAlignment.Stretch;
+            EnsureScheduleInnerHostMonthLayout(monthRoot);
+
+            SyncScheduleScrollHostForViewMode();
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _monthDaysHorizontalScroll?.ScrollToHorizontalOffset(0);
+                MonthScheduleClipBorder.UpdateLayout();
+                UpdateMonthPanButtons();
+            }), DispatcherPriority.Loaded);
+
+            UpdateMonthPanButtons();
+            return;
         }
 
-        ScheduleHostGrid.MinWidth = _viewMode == OpsScheduleViewMode.Month
-            ? staffCol + dates.Count * dayColMin
-            : 0;
+        _monthDaysHorizontalScroll = null;
+
+        EnsureScheduleInnerHostWeekLayout();
+
+        ApplyWeekDayColumnDefinitions(ScheduleWeekHeaderGrid, staffCol, dates.Count);
+        ApplyWeekDayColumnDefinitions(ScheduleHostGrid, staffCol, dates.Count);
+
+        ScheduleWeekHeaderGrid.Children.Clear();
+
+        const int headerRow = 0;
+        AddCornerCell(ScheduleWeekHeaderGrid, headerRow, employees.Count, totalStaff);
+        for (var c = 0; c < dates.Count; c++)
+            AddHeaderCell(ScheduleWeekHeaderGrid, headerRow, c + 1, dates[c]);
+
+        ScheduleHostGrid.Children.Clear();
+        ScheduleHostGrid.RowDefinitions.Clear();
+        ScheduleHostGrid.ClearValue(FrameworkElement.WidthProperty);
+        ScheduleHostGrid.MinWidth = 0;
+        ScheduleHostGrid.ClearValue(FrameworkElement.HorizontalAlignmentProperty);
         ScheduleHostGrid.ClearValue(FrameworkElement.MaxWidthProperty);
 
-        int row = 0;
-        ScheduleHostGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        AddCornerCell(row, employees.Count, totalStaff);
-        for (int c = 0; c < dates.Count; c++)
-            AddHeaderCell(row, c + 1, dates[c]);
-        row++;
+        ScheduleGridChromeBorder.ClearValue(FrameworkElement.WidthProperty);
+        ScheduleGridChromeBorder.ClearValue(FrameworkElement.MinWidthProperty);
+        ScheduleGridChromeBorder.ClearValue(FrameworkElement.MaxWidthProperty);
+        ScheduleGridChromeBorder.HorizontalAlignment = HorizontalAlignment.Stretch;
+        ScheduleHorizontalScroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+        ScheduleHScrollExtentGrid.ClearValue(FrameworkElement.MinWidthProperty);
+        ScheduleHScrollExtentGrid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
 
+        var rowW = 0;
         foreach (var emp in employees)
         {
             ScheduleHostGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            AddStaffCell(row, 0, emp);
-            for (int c = 0; c < dates.Count; c++)
-                AddDayCell(row, c + 1, emp, dates[c]);
-            row++;
+            AddStaffCell(ScheduleHostGrid, rowW, 0, emp);
+            for (var c = 0; c < dates.Count; c++)
+                AddDayCell(ScheduleHostGrid, rowW, c + 1, emp, dates[c]);
+            rowW++;
         }
 
-        // Totals row
         ScheduleHostGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        AddTotalsLabelCell(row, 0);
-        for (int c = 0; c < dates.Count; c++)
-            AddTotalsCountCell(row, c + 1, dates[c]);
+        AddTotalsLabelCell(ScheduleHostGrid, rowW, 0);
+        for (var c = 0; c < dates.Count; c++)
+            AddTotalsCountCell(ScheduleHostGrid, rowW, c + 1, dates[c]);
+
+        ScheduleWeekBodyScrollViewer.ScrollToVerticalOffset(0);
+
+        SyncScheduleScrollHostForViewMode();
+        UpdateMonthPanButtons();
     }
 
-    private void AddCornerCell(int row, int visibleCount, int totalCount)
+    /// <summary>
+    /// Month: outer vertical ScrollViewer + inner horizontal ScrollViewer for day columns. Week/Day: page-vertical + inner-horizontal stack.
+    /// </summary>
+    private void SyncScheduleScrollHostForViewMode()
+    {
+        if (_viewMode == OpsScheduleViewMode.Month)
+        {
+            if (ScheduleHScrollExtentGrid.Children.Contains(ScheduleGridChromeBorder))
+                ScheduleHScrollExtentGrid.Children.Remove(ScheduleGridChromeBorder);
+            ScheduleMonthInnerVerticalScroll.Content = ScheduleGridChromeBorder;
+
+            ScheduleWeekDayHostGrid.Visibility = Visibility.Collapsed;
+            ScheduleMonthHostGrid.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            ScheduleMonthInnerVerticalScroll.Content = null;
+            if (!ScheduleHScrollExtentGrid.Children.Contains(ScheduleGridChromeBorder))
+            {
+                ScheduleHScrollExtentGrid.Children.Add(ScheduleGridChromeBorder);
+                Grid.SetColumn(ScheduleGridChromeBorder, 0);
+            }
+
+            ScheduleMonthHostGrid.Visibility = Visibility.Collapsed;
+            ScheduleWeekDayHostGrid.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void AddCornerCell(Grid target, int row, int visibleCount, int totalCount)
     {
         var label = visibleCount == totalCount
             ? $"Staff ({totalCount})"
@@ -319,24 +680,44 @@ public partial class OpsServicesShiftScheduling : UserControl
             FontWeight = FontWeights.SemiBold,
             Foreground = TryBrush("MainForeground", "#111827"),
             FontSize = S(16),
-            Margin = new Thickness(S(12), S(10), S(12), S(10)),
-            VerticalAlignment = VerticalAlignment.Center
+            Margin = new Thickness(S(10), S(8), S(10), S(2)),
+            VerticalAlignment = VerticalAlignment.Top
         };
+        var searchSlot = new Border
+        {
+            Margin = new Thickness(S(10), 0, S(10), S(8)),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = S(52)
+        };
+        AttachStaffFilterSearchToCornerSlot(searchSlot);
+
+        var stack = new StackPanel { Orientation = System.Windows.Controls.Orientation.Vertical };
+        stack.Children.Add(tb);
+        stack.Children.Add(searchSlot);
+
         var chrome = new Border
         {
             Background = TryBrush("Brush.White", "#FFFFFF"),
             BorderBrush = TryBrush("Brush.BorderSoft", "#EEF1F5"),
             BorderThickness = new Thickness(0, 0, 1, 1),
-            Child = tb
+            CornerRadius = new CornerRadius(S(12)),
+            Margin = new Thickness(S(4), S(3), S(4), S(3)),
+            Child = stack,
+            Effect = CloneCardShadow(),
+            VerticalAlignment = VerticalAlignment.Stretch
         };
         Grid.SetRow(chrome, row);
         Grid.SetColumn(chrome, 0);
-        ScheduleHostGrid.Children.Add(chrome);
+        target.Children.Add(chrome);
     }
 
-    private void AddHeaderCell(int row, int col, DateOnly date)
+    private void AddHeaderCell(Grid target, int row, int col, DateOnly date)
     {
-        var sp = new StackPanel { Margin = new Thickness(S(6), S(8), S(6), S(8)) };
+        var sp = new StackPanel
+        {
+            Margin = new Thickness(S(6), S(8), S(6), S(8)),
+            VerticalAlignment = VerticalAlignment.Center
+        };
         sp.Children.Add(new TextBlock
         {
             Text = date.ToString("ddd", CultureInfo.CurrentCulture),
@@ -349,7 +730,7 @@ public partial class OpsServicesShiftScheduling : UserControl
         });
         sp.Children.Add(new TextBlock
         {
-            Text = date.ToString("d MMM", CultureInfo.CurrentCulture),
+            Text = date.Day.ToString(CultureInfo.CurrentCulture),
             FontSize = S(14),
             FontWeight = FontWeights.SemiBold,
             Foreground = TryBrush("MainForeground", "#111827"),
@@ -366,14 +747,15 @@ public partial class OpsServicesShiftScheduling : UserControl
             CornerRadius = new CornerRadius(S(12)),
             Margin = new Thickness(S(4), S(4), S(4), S(4)),
             Child = sp,
-            Effect = CloneCardShadow()
+            Effect = CloneCardShadow(),
+            VerticalAlignment = VerticalAlignment.Stretch
         };
         Grid.SetRow(border, row);
         Grid.SetColumn(border, col);
-        ScheduleHostGrid.Children.Add(border);
+        target.Children.Add(border);
     }
 
-    private void AddStaffCell(int row, int col, OpsEmployee emp)
+    private void AddStaffCell(Grid target, int row, int col, OpsEmployee emp)
     {
         var dot = new Ellipse
         {
@@ -432,10 +814,10 @@ public partial class OpsServicesShiftScheduling : UserControl
         };
         Grid.SetRow(border, row);
         Grid.SetColumn(border, col);
-        ScheduleHostGrid.Children.Add(border);
+        target.Children.Add(border);
     }
 
-    private void AddDayCell(int row, int col, OpsEmployee emp, DateOnly date)
+    private void AddDayCell(Grid target, int row, int col, OpsEmployee emp, DateOnly date)
     {
         var shifts = OpsServicesStore.GetShifts()
             .Where(s => s.EmployeeId == emp.Id && s.Date == date)
@@ -446,36 +828,56 @@ public partial class OpsServicesShiftScheduling : UserControl
         foreach (var shift in shifts)
         {
             var accent = (Brush)new BrushConverter().ConvertFromString(emp.AccentColorHex)!;
+            var cardBg = accent is SolidColorBrush sb
+                ? new SolidColorBrush(Color.FromArgb(255, sb.Color.R, sb.Color.G, sb.Color.B))
+                : accent;
             var border = new Border
             {
-                Background = accent is SolidColorBrush sb
-                    ? new SolidColorBrush(Color.FromArgb(36, sb.Color.R, sb.Color.G, sb.Color.B))
-                    : accent,
-                BorderBrush = accent,
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(S(12)),
-                Padding = new Thickness(S(8), S(6), S(8), S(6)),
+                Background = cardBg,
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(S(8)),
+                Padding = new Thickness(S(10), S(8), S(10), S(8)),
                 Margin = new Thickness(0, 0, 0, S(6))
             };
-            var timeTb = new TextBlock
+            var white = Brushes.White;
+            var iconSize = S(14);
+            var startRow = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+            startRow.Children.Add(CreateShiftClockIcon(iconSize, S(6)));
+            startRow.Children.Add(new TextBlock
             {
-                Text = FormatShiftTimeRange(shift.Start, shift.End),
-                FontSize = S(13),
+                Text = FormatShiftStartTime(shift.Start),
+                FontSize = S(14),
                 FontWeight = FontWeights.SemiBold,
-                Foreground = TryBrush("MainForeground", "#111827"),
-                TextWrapping = TextWrapping.Wrap
-            };
-            var tablesTb = new TextBlock
+                Foreground = white,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextWrapping = TextWrapping.NoWrap
+            });
+            var toLine = new TextBlock
             {
-                Text = OpsServicesStore.TableNamesSummary(shift.TableIds),
-                FontSize = S(12),
-                Foreground = TryBrush("DimmedForeground", "#687280"),
+                Text = FormatShiftEndLine(shift.End),
+                FontSize = S(13),
+                FontWeight = FontWeights.Normal,
+                Foreground = white,
                 TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, S(4), 0, 0)
+                Margin = new Thickness(0, S(2), 0, 0)
             };
             var inner = new StackPanel();
-            inner.Children.Add(timeTb);
-            inner.Children.Add(tablesTb);
+            inner.Children.Add(startRow);
+            inner.Children.Add(toLine);
+            var tablesSummary = OpsServicesStore.TableNamesSummary(shift.TableIds);
+            if (!string.IsNullOrWhiteSpace(tablesSummary))
+            {
+                inner.Children.Add(new TextBlock
+                {
+                    Text = tablesSummary,
+                    FontSize = S(12),
+                    FontWeight = FontWeights.Normal,
+                    Foreground = white,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, S(2), 0, 0)
+                });
+            }
+
             border.Child = inner;
             stack.Children.Add(border);
         }
@@ -490,10 +892,10 @@ public partial class OpsServicesShiftScheduling : UserControl
         };
         Grid.SetRow(cell, row);
         Grid.SetColumn(cell, col);
-        ScheduleHostGrid.Children.Add(cell);
+        target.Children.Add(cell);
     }
 
-    private void AddTotalsLabelCell(int row, int col)
+    private void AddTotalsLabelCell(Grid target, int row, int col)
     {
         var tb = new TextBlock
         {
@@ -513,10 +915,10 @@ public partial class OpsServicesShiftScheduling : UserControl
         };
         Grid.SetRow(wrap, row);
         Grid.SetColumn(wrap, col);
-        ScheduleHostGrid.Children.Add(wrap);
+        target.Children.Add(wrap);
     }
 
-    private void AddTotalsCountCell(int row, int col, DateOnly date)
+    private void AddTotalsCountCell(Grid target, int row, int col, DateOnly date)
     {
         var n = OpsServicesStore.GetShifts().Count(s => s.Date == date);
         var tb = new TextBlock
@@ -537,7 +939,7 @@ public partial class OpsServicesShiftScheduling : UserControl
         };
         Grid.SetRow(wrap, row);
         Grid.SetColumn(wrap, col);
-        ScheduleHostGrid.Children.Add(wrap);
+        target.Children.Add(wrap);
     }
 
     private void RebuildFooterCounts(IReadOnlyList<DateOnly> dates)
@@ -557,9 +959,9 @@ public partial class OpsServicesShiftScheduling : UserControl
             return span.TotalHours;
         });
 
-        TxtStatStaff.Text = $"{OpsServicesStore.GetEmployees().Count} Total Staff";
-        TxtStatShifts.Text = $"{shiftsInRange.Count} Scheduled Shifts";
-        TxtStatHours.Text = $"{Math.Round(totalHours, 0)}h Total Hours";
+        TxtStatStaff.Text = OpsServicesStore.GetEmployees().Count.ToString(CultureInfo.CurrentCulture);
+        TxtStatShifts.Text = shiftsInRange.Count.ToString(CultureInfo.CurrentCulture);
+        TxtStatHours.Text = $"{Math.Round(totalHours, 0).ToString(CultureInfo.CurrentCulture)}h";
     }
 
     private void BtnPrevRange_Click(object sender, RoutedEventArgs e)
@@ -684,6 +1086,8 @@ public static class OpsServicesStore
     private static readonly List<OpsEmployee> Employees = new();
     private static readonly List<OpsFloorTable> Tables = new();
     private static readonly List<OpsScheduledShift> Shifts = new();
+    /// <summary>Distinct floor names for filters, combos, and manage-floors UI (includes floors with zero tables).</summary>
+    private static readonly List<string> CanonicalFloors = new();
     private static bool _seeded;
 
     public static DateTime StartOfWeekMonday(DateTime d)
@@ -768,6 +1172,8 @@ public static class OpsServicesStore
             Tables[1].PartySize = 4;
             Tables[1].OpsServerId = john;
         }
+
+        RebuildCanonicalFloorsFromTables();
 
         // Demo shifts: previous week through current week + 6 weeks (8 weeks total)
         var week0 = DateOnly.FromDateTime(StartOfWeekMonday(today.AddDays(-7)));
@@ -878,7 +1284,160 @@ public static class OpsServicesStore
     public static void AddTable(OpsFloorTable table)
     {
         Tables.Add(table);
+        RegisterFloorName(table.LocationName);
         DataChanged?.Invoke(null, EventArgs.Empty);
+    }
+
+    private static string NormalizeFloorName(string? s)
+    {
+        var t = (s ?? "").Trim();
+        return string.IsNullOrEmpty(t) ? "Main Floor" : t;
+    }
+
+    private static void SortCanonicalFloors() =>
+        CanonicalFloors.Sort(StringComparer.OrdinalIgnoreCase);
+
+    private static void RebuildCanonicalFloorsFromTables()
+    {
+        CanonicalFloors.Clear();
+        foreach (var t in Tables)
+            RegisterFloorName(t.LocationName);
+    }
+
+    /// <summary>Registers a floor name from table data (empty becomes Main Floor).</summary>
+    public static void RegisterFloorName(string? locationName)
+    {
+        var n = NormalizeFloorName(locationName);
+        if (CanonicalFloors.Exists(x => string.Equals(x, n, StringComparison.OrdinalIgnoreCase)))
+            return;
+        CanonicalFloors.Add(n);
+        SortCanonicalFloors();
+    }
+
+    private static void RemoveCanonicalFloorIfPresent(string name)
+    {
+        var n = NormalizeFloorName(name);
+        for (var i = 0; i < CanonicalFloors.Count; i++)
+        {
+            if (!string.Equals(CanonicalFloors[i], n, StringComparison.OrdinalIgnoreCase))
+                continue;
+            CanonicalFloors.RemoveAt(i);
+            return;
+        }
+    }
+
+    /// <summary>Sorted floor names for filters and combos (includes zero-table floors).</summary>
+    public static IReadOnlyList<string> GetDistinctFloorNamesForFilter()
+    {
+        foreach (var t in Tables)
+            RegisterFloorName(t.LocationName);
+        return CanonicalFloors.ToList();
+    }
+
+    /// <summary>Each canonical floor with live table count.</summary>
+    public static IReadOnlyList<(string Name, int TableCount)> GetFloorSummaries()
+    {
+        foreach (var t in Tables)
+            RegisterFloorName(t.LocationName);
+        return CanonicalFloors
+            .Select(f => (f, Tables.Count(t =>
+                string.Equals(NormalizeFloorName(t.LocationName), f, StringComparison.OrdinalIgnoreCase))))
+            .ToList();
+    }
+
+    public static bool TryAddFloor(string rawName, out string? error)
+    {
+        error = null;
+        var trimmed = (rawName ?? "").Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            error = "Enter a floor name.";
+            return false;
+        }
+
+        if (CanonicalFloors.Exists(x => string.Equals(x, trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            error = "A floor with that name already exists.";
+            return false;
+        }
+
+        CanonicalFloors.Add(trimmed);
+        SortCanonicalFloors();
+        DataChanged?.Invoke(null, EventArgs.Empty);
+        return true;
+    }
+
+    public static bool TryDeleteFloor(string name, out string? error)
+    {
+        error = null;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            error = "Floor name is required.";
+            return false;
+        }
+
+        // Match the canonical list entry (same key GetFloorSummaries uses per row) so counts stay aligned.
+        var trimmed = name.Trim();
+        var canonicalEntry = CanonicalFloors.FirstOrDefault(f =>
+            string.Equals(f, trimmed, StringComparison.OrdinalIgnoreCase));
+        if (canonicalEntry == null)
+        {
+            error = "That floor is not in the list anymore.";
+            return false;
+        }
+
+        var count = Tables.Count(t =>
+            string.Equals(NormalizeFloorName(t.LocationName), canonicalEntry,
+                StringComparison.OrdinalIgnoreCase));
+        if (count > 0)
+        {
+            error = $"This floor still has {count} table(s). Move or delete tables first.";
+            return false;
+        }
+
+        RemoveCanonicalFloorIfPresent(canonicalEntry);
+        DataChanged?.Invoke(null, EventArgs.Empty);
+        return true;
+    }
+
+    public static bool TryRenameFloor(string oldName, string newName, out string? error)
+    {
+        error = null;
+        var trimmedNew = (newName ?? "").Trim();
+        if (string.IsNullOrEmpty(trimmedNew))
+        {
+            error = "Enter a floor name.";
+            return false;
+        }
+
+        var o = NormalizeFloorName(oldName);
+        if (string.Equals(o, trimmedNew, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!CanonicalFloors.Exists(x => string.Equals(x, o, StringComparison.OrdinalIgnoreCase)))
+        {
+            error = "Floor not found.";
+            return false;
+        }
+
+        if (CanonicalFloors.Exists(x => string.Equals(x, trimmedNew, StringComparison.OrdinalIgnoreCase)))
+        {
+            error = "A floor with that name already exists.";
+            return false;
+        }
+
+        foreach (var t in Tables)
+        {
+            if (string.Equals(NormalizeFloorName(t.LocationName), o, StringComparison.OrdinalIgnoreCase))
+                t.LocationName = trimmedNew;
+        }
+
+        var idx = CanonicalFloors.FindIndex(x => string.Equals(x, o, StringComparison.OrdinalIgnoreCase));
+        if (idx >= 0)
+            CanonicalFloors[idx] = trimmedNew;
+        SortCanonicalFloors();
+        DataChanged?.Invoke(null, EventArgs.Empty);
+        return true;
     }
 
     public static bool RemoveTable(Guid id)

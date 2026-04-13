@@ -17,16 +17,19 @@ public partial class OpsServicesTableManagement : UserControl
 
     private readonly Action _navigateToShiftScheduling;
     private readonly Action _openAddTableDialog;
+    private readonly Action _openManageFloorsDialog;
     private OpsFloorTable? _selected;
     private OpsFloorTable? _editSnapshot;
     private bool _editing;
 
     public OpsServicesTableManagement(
         Action navigateToShiftScheduling,
-        Action openAddTableDialog)
+        Action openAddTableDialog,
+        Action openManageFloorsDialog)
     {
         _navigateToShiftScheduling = navigateToShiftScheduling ?? throw new ArgumentNullException(nameof(navigateToShiftScheduling));
         _openAddTableDialog = openAddTableDialog ?? throw new ArgumentNullException(nameof(openAddTableDialog));
+        _openManageFloorsDialog = openManageFloorsDialog ?? throw new ArgumentNullException(nameof(openManageFloorsDialog));
         InitializeComponent();
         TableMgmtBodyScroll.SizeChanged += TableMgmtBodyScroll_SizeChanged;
         Loaded += OnLoaded;
@@ -37,8 +40,8 @@ public partial class OpsServicesTableManagement : UserControl
         SyncTopWorkspaceMinHeight();
 
     /// <summary>
-    /// Outer page scroll only works when content is taller than the viewport. Pin the top block to the
-    /// scroll viewer's viewport height so Table Operations sits below the fold and the user can scroll.
+    /// Outer page scroll only works when content is taller than the viewport. Pin the top workspace
+    /// to the scroll viewer's viewport height so the user can scroll the full table management layout.
     /// </summary>
     private void SyncTopWorkspaceMinHeight()
     {
@@ -129,15 +132,8 @@ public partial class OpsServicesTableManagement : UserControl
     private void OnDataChanged(object? sender, EventArgs e) =>
         Dispatcher.Invoke(RefreshAll);
 
-    private static List<string> BuildDistinctSortedFloorsFromTables()
-    {
-        return OpsServicesStore.GetTables()
-            .Select(t => t.LocationName?.Trim())
-            .Where(f => !string.IsNullOrWhiteSpace(f))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
+    private static List<string> BuildDistinctSortedFloorsFromTables() =>
+        OpsServicesStore.GetDistinctFloorNamesForFilter().ToList();
 
     /// <summary>Floor picker items: distinct floors from tables plus the current value (editable combo / save).</summary>
     private static List<string> BuildFloorItemsForCombo(string? currentLocation)
@@ -304,29 +300,9 @@ public partial class OpsServicesTableManagement : UserControl
         }
 
         DetailPanel.Visibility = Visibility.Visible;
-        OperationsCard.Visibility = Visibility.Visible;
         TxtNoSelection.Visibility = Visibility.Collapsed;
         PushDetailFromModel();
         BtnDelete.IsEnabled = true;
-    }
-
-    private void BtnQuickStatus_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selected == null || sender is not Button b || b.Tag is not string status)
-            return;
-        _selected.OpsStatus = status;
-        if (status.Equals("Occupied", StringComparison.OrdinalIgnoreCase))
-        {
-            _selected.SeatedAtUtc ??= DateTime.UtcNow;
-            _selected.PartySize ??= 4;
-        }
-        else if (status.Equals("Available", StringComparison.OrdinalIgnoreCase))
-        {
-            _selected.SeatedAtUtc = null;
-            _selected.PartySize = null;
-        }
-
-        OpsServicesStore.NotifyDataChanged();
     }
 
     private void ClearDetail()
@@ -337,7 +313,6 @@ public partial class OpsServicesTableManagement : UserControl
         ExitEditUi();
         TxtNoSelection.Visibility = Visibility.Visible;
         DetailPanel.Visibility = Visibility.Collapsed;
-        OperationsCard.Visibility = Visibility.Collapsed;
     }
 
     private void PushDetailFromModel()
@@ -375,31 +350,6 @@ public partial class OpsServicesTableManagement : UserControl
 
         DetActive.IsChecked = _selected.IsActive;
         ApplyActiveStatusPresentation(_selected.IsActive);
-        DetAccessible.IsChecked = _selected.Accessible;
-        DetVip.IsChecked = _selected.VipPriority;
-
-        var ops = _selected.OpsStatus ?? "";
-        DetOpsStatus.Text = ops;
-        ApplyOpsStatusPresentation(ops);
-
-        var serverName = _selected.AssignedWaiterId is { } aid
-            ? OpsServicesStore.GetEmployee(aid)?.Name
-            : null;
-        TxtServerName.Text = string.IsNullOrWhiteSpace(serverName) ? "Unassigned" : serverName!;
-
-        OverdueBanner.Visibility = Visibility.Collapsed;
-        if ((_selected.OpsStatus ?? "").Equals("Occupied", StringComparison.OrdinalIgnoreCase) &&
-            _selected.SeatedAtUtc is { } seated &&
-            _selected.TurnTimeMinutes > 0)
-        {
-            var mins = (DateTime.UtcNow - seated).TotalMinutes;
-            if (mins > _selected.TurnTimeMinutes)
-            {
-                OverdueBanner.Visibility = Visibility.Visible;
-                TxtOverdue.Text =
-                    $"Table overdue! Seated {Math.Round(mins)} minutes ago · Target: {_selected.TurnTimeMinutes} min · Party of {_selected.PartySize ?? 0}.";
-            }
-        }
     }
 
     private void ApplyActiveStatusPresentation(bool isActive)
@@ -424,33 +374,6 @@ public partial class OpsServicesTableManagement : UserControl
         }
     }
 
-    private void ApplyOpsStatusPresentation(string status)
-    {
-        var s = (status ?? "").Trim();
-        Brush chipBg;
-        Brush chipFg;
-        if (s.Equals("Occupied", StringComparison.OrdinalIgnoreCase) ||
-            s.Equals("Inactive", StringComparison.OrdinalIgnoreCase))
-        {
-            chipBg = (Brush)FindResource("Brush.DangerChipBackground")!;
-            chipFg = (Brush)FindResource("Brush.DangerTextStrong")!;
-        }
-        else if (s.Equals("Available", StringComparison.OrdinalIgnoreCase))
-        {
-            chipBg = new SolidColorBrush(Color.FromRgb(220, 252, 231));
-            chipBg.Freeze();
-            chipFg = (Brush)FindResource("Brush.SuccessGreen")!;
-        }
-        else
-        {
-            chipBg = (Brush)FindResource("Brush.SurfaceGreySoft")!;
-            chipFg = (Brush)FindResource("MainForeground")!;
-        }
-
-        OpsStatusChipHost.Background = chipBg;
-        DetOpsStatus.Foreground = chipFg;
-    }
-
     private void PullDetailToModel()
     {
         if (_selected == null)
@@ -466,8 +389,6 @@ public partial class OpsServicesTableManagement : UserControl
         if (DetWaiter.SelectedItem is WaiterOption wo)
             _selected.AssignedWaiterId = wo.Id;
         _selected.IsActive = DetActive.IsChecked == true;
-        _selected.Accessible = DetAccessible.IsChecked == true;
-        _selected.VipPriority = DetVip.IsChecked == true;
         _selected.ModifiedUtc = DateTime.UtcNow;
         _selected.OpsServerId = _selected.AssignedWaiterId;
         if (!_selected.IsActive)
@@ -496,8 +417,6 @@ public partial class OpsServicesTableManagement : UserControl
         DetShape.IsEnabled = true;
         DetWaiter.IsEnabled = true;
         DetActive.IsEnabled = true;
-        DetAccessible.IsEnabled = true;
-        DetVip.IsEnabled = true;
         BtnEdit.Visibility = Visibility.Collapsed;
         BtnSave.Visibility = Visibility.Visible;
         BtnCancelEdit.Visibility = Visibility.Visible;
@@ -510,6 +429,7 @@ public partial class OpsServicesTableManagement : UserControl
         if (_selected == null)
             return;
         PullDetailToModel();
+        OpsServicesStore.RegisterFloorName(_selected.LocationName);
         _editSnapshot = null;
         ExitEditUi();
         OpsServicesStore.NotifyDataChanged();
@@ -532,8 +452,6 @@ public partial class OpsServicesTableManagement : UserControl
         DetShape.IsEnabled = false;
         DetWaiter.IsEnabled = false;
         DetActive.IsEnabled = false;
-        DetAccessible.IsEnabled = false;
-        DetVip.IsEnabled = false;
         DetFloor.Visibility = Visibility.Collapsed;
         DetFloorPillBorder.Visibility = Visibility.Visible;
         DetShape.Visibility = Visibility.Collapsed;
@@ -567,6 +485,8 @@ public partial class OpsServicesTableManagement : UserControl
         _selected = null;
         TablesListBox.SelectedItem = null;
     }
+
+    private void BtnAddFloor_Click(object sender, RoutedEventArgs e) => _openManageFloorsDialog();
 
     private void BtnAddTable_Click(object sender, RoutedEventArgs e) => _openAddTableDialog();
 
@@ -613,45 +533,8 @@ public partial class OpsServicesTableManagement : UserControl
         }
     }
 
-    private void BtnExport_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show(Window.GetWindow(this), "Export is not wired in this demo.", "Export", MessageBoxButton.OK,
-            MessageBoxImage.Information);
-
     private void BtnHistory_Click(object sender, RoutedEventArgs e) =>
         MessageBox.Show(Window.GetWindow(this), "History is not wired in this demo.", "History", MessageBoxButton.OK,
             MessageBoxImage.Information);
 
-    private void BtnDuplicate_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selected == null)
-            return;
-        var copy = OpsServicesStore.CloneTable(_selected);
-        copy.Id = Guid.NewGuid();
-        copy.Name = copy.Name + " (copy)";
-        copy.CreatedUtc = DateTime.UtcNow;
-        copy.ModifiedUtc = DateTime.UtcNow;
-        OpsServicesStore.AddTable(copy);
-    }
-
-    private void BtnClearTable_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selected == null)
-            return;
-        _selected.OpsStatus = "Available";
-        _selected.SeatedAtUtc = null;
-        _selected.PartySize = null;
-        OpsServicesStore.NotifyDataChanged();
-    }
-
-    private void BtnMerge_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show(Window.GetWindow(this), "Merge tables is not wired in this demo.", "Merge", MessageBoxButton.OK,
-            MessageBoxImage.Information);
-
-    private void BtnSplit_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show(Window.GetWindow(this), "Split tables is not wired in this demo.", "Split", MessageBoxButton.OK,
-            MessageBoxImage.Information);
-
-    private void BtnTransfer_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show(Window.GetWindow(this), "Use Edit to change the assigned waiter.", "Transfer", MessageBoxButton.OK,
-            MessageBoxImage.Information);
 }
