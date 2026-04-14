@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 
 namespace RestaurantPosWpf;
 
@@ -21,6 +22,8 @@ public partial class OpsServicesManageFloors : UserControl
     private readonly Action _close;
     private string? _renameFrom;
     private string? _pendingDeleteFloorName;
+    private bool _storeRefreshPosted;
+    private bool _manageFloorsUnloaded;
 
     public OpsServicesManageFloors(Action closeDialog)
     {
@@ -33,6 +36,7 @@ public partial class OpsServicesManageFloors : UserControl
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;
+        _manageFloorsUnloaded = false;
         OpsServicesStore.EnsureSeeded();
         RefreshList();
         OpsServicesStore.DataChanged += OnStoreChanged;
@@ -41,11 +45,23 @@ public partial class OpsServicesManageFloors : UserControl
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         Unloaded -= OnUnloaded;
+        _manageFloorsUnloaded = true;
         OpsServicesStore.DataChanged -= OnStoreChanged;
     }
 
-    private void OnStoreChanged(object? sender, EventArgs e) =>
-        Dispatcher.Invoke(RefreshList);
+    private void OnStoreChanged(object? sender, EventArgs e)
+    {
+        if (_manageFloorsUnloaded || _storeRefreshPosted)
+            return;
+        _storeRefreshPosted = true;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _storeRefreshPosted = false;
+            if (_manageFloorsUnloaded)
+                return;
+            RefreshList();
+        }), DispatcherPriority.DataBind);
+    }
 
     private void RefreshList()
     {

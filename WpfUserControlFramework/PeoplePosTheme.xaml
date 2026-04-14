@@ -1514,13 +1514,9 @@
                                       ConverterParameter=40}" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- Text box area -->
+                            <!-- Text box area (no Text binding: DatePicker sets text from SelectedDateFormat — Long/Short work). -->
                             <DatePickerTextBox x:Name="PART_TextBox"
                                            Grid.Column="0"
-                                           Text="{Binding SelectedDate,
-                                                  RelativeSource={RelativeSource TemplatedParent},
-                                                  StringFormat=yyyy/MM/dd,
-                                                  TargetNullValue=''}"
                                            FocusVisualStyle="{x:Null}"
                                            Background="Transparent"
                                            BorderThickness="0"
@@ -1882,6 +1878,364 @@
                 Value="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=BorderBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
+                </ControlTemplate>
+
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Lucide icon on the left; structure matches LocalIcDatePickerStyle (PART_TextBox sibling of PART_Button, not nested). -->
+    <Style x:Key="LocalIcDatePickerStyle_LucideLeftIcon"
+           TargetType="{x:Type DatePicker}"
+           BasedOn="{StaticResource LocalIcDatePickerStyle}">
+
+        <Setter Property="SelectedDateFormat" Value="Long" />
+
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DatePicker}">
+
+                    <ControlTemplate.Resources>
+
+                        <Style TargetType="{x:Type DatePickerTextBox}">
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                            <Setter Property="VerticalContentAlignment" Value="Center" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="{x:Type DatePickerTextBox}">
+                                        <Grid SnapsToDevicePixels="True"
+                                          UseLayoutRounding="True">
+
+                                            <Border Background="Transparent"
+                                                SnapsToDevicePixels="True"
+                                                Padding="{TemplateBinding Padding}">
+
+                                                <ScrollViewer x:Name="PART_ContentHost"
+                                                          VerticalAlignment="Center"
+                                                          SnapsToDevicePixels="True"
+                                                          FocusVisualStyle="{x:Null}" />
+
+                                            </Border>
+
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+
+                    </ControlTemplate.Resources>
+
+                    <Grid SnapsToDevicePixels="True"
+                      UseLayoutRounding="True">
+
+                        <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            SnapsToDevicePixels="True">
+
+                            <Border.CornerRadius>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                     Path="FontScale"
+                                     Converter="{StaticResource LayoutScaleConverter}"
+                                     ConverterParameter="10"/>
+                            </Border.CornerRadius>
+
+                        </Border>
+
+                        <Border x:Name="FocusOuter"
+                            Visibility="Collapsed"
+                            Background="Transparent"
+                            BorderBrush="#C1DEFE"
+                            SnapsToDevicePixels="True"
+                            RenderOptions.EdgeMode="Aliased">
+
+                            <Border.CornerRadius>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                     Path="FontScale"
+                                     Converter="{StaticResource LayoutScaleConverter}"
+                                     ConverterParameter="12"/>
+                            </Border.CornerRadius>
+
+                            <Border.Margin>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                     Path="FontScale"
+                                     Converter="{StaticResource ThicknessScaleConverter}"
+                                     ConverterParameter="-3,-3,-3,-3"/>
+                            </Border.Margin>
+
+                            <Border.BorderThickness>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                     Path="FontScale"
+                                     Converter="{StaticResource LayoutScaleConverter}"
+                                     ConverterParameter="3"/>
+                            </Border.BorderThickness>
+
+                        </Border>
+
+                        <Border x:Name="FocusInner"
+                            Visibility="Collapsed"
+                            Background="Transparent"
+                            BorderBrush="#93C5FD"
+                            SnapsToDevicePixels="True"
+                            RenderOptions.EdgeMode="Aliased">
+
+                            <Border.CornerRadius>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                     Path="FontScale"
+                                     Converter="{StaticResource LayoutScaleConverter}"
+                                     ConverterParameter="11"/>
+                            </Border.CornerRadius>
+
+                            <Border.Margin>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                     Path="FontScale"
+                                     Converter="{StaticResource ThicknessScaleConverter}"
+                                     ConverterParameter="-1,-1,-1,-1"/>
+                            </Border.Margin>
+
+                            <Border.BorderThickness>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                     Path="FontScale"
+                                     Converter="{StaticResource LayoutScaleConverter}"
+                                     ConverterParameter="1"/>
+                            </Border.BorderThickness>
+
+                        </Border>
+
+                        <Grid>
+
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="{Binding Source={StaticResource UiScaleState},
+                                      Path=FontScale,
+                                      Converter={StaticResource LayoutScaleConverter},
+                                      ConverterParameter=40}" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <ToggleButton x:Name="PART_Button"
+                                      Grid.Column="0"
+                                      FocusVisualStyle="{x:Null}"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Margin="0"
+                                      Focusable="False"
+                                      IsTabStop="False"
+                                      Padding="0"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Stretch"
+                                      IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Grid Background="Transparent">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"
+                                                          RecognizesAccessKey="True"/>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+
+                                <Viewbox Stretch="Uniform"
+                                     Width="{Binding Source={StaticResource UiScaleState},
+                                             Path=FontScale,
+                                             Converter={StaticResource LayoutScaleConverter},
+                                             ConverterParameter=18}"
+                                     Height="{Binding Source={StaticResource UiScaleState},
+                                              Path=FontScale,
+                                              Converter={StaticResource LayoutScaleConverter},
+                                              ConverterParameter=18}">
+
+                                    <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                        <Line X1="8"
+                                              Y1="2"
+                                              X2="8"
+                                              Y2="6"
+                                              Stroke="{StaticResource MainForeground}"
+                                              StrokeThickness="2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round" />
+                                        <Line X1="16"
+                                              Y1="2"
+                                              X2="16"
+                                              Y2="6"
+                                              Stroke="{StaticResource MainForeground}"
+                                              StrokeThickness="2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round" />
+                                        <Rectangle Canvas.Left="3"
+                                                   Canvas.Top="4"
+                                                   Width="18"
+                                                   Height="18"
+                                                   RadiusX="2"
+                                                   RadiusY="2"
+                                                   Stroke="{StaticResource MainForeground}"
+                                                   StrokeThickness="2"
+                                                   Fill="Transparent" />
+                                        <Line X1="3"
+                                              Y1="10"
+                                              X2="21"
+                                              Y2="10"
+                                              Stroke="{StaticResource MainForeground}"
+                                              StrokeThickness="2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round" />
+                                    </Canvas>
+
+                                </Viewbox>
+
+                            </ToggleButton>
+
+                            <DatePickerTextBox x:Name="PART_TextBox"
+                                           Grid.Column="1"
+                                           FocusVisualStyle="{x:Null}"
+                                           Background="Transparent"
+                                           BorderThickness="0"
+                                           IsReadOnly="True"
+                                           Padding="{TemplateBinding Padding}"
+                                           VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+
+                            <TextBlock x:Name="WatermarkText"
+                                   Grid.Column="1"
+                                   Text="Select a Date"
+                                   Foreground="#8A8F98"
+                                   IsHitTestVisible="False"
+                                   VerticalAlignment="Center"
+                                   Visibility="Hidden"
+                                   Margin="{TemplateBinding Padding}" />
+
+                        </Grid>
+
+                        <Popup x:Name="PART_Popup"
+                           Placement="Bottom"
+                           PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+                           IsOpen="{TemplateBinding IsDropDownOpen}"
+                           AllowsTransparency="True"
+                           Focusable="False"
+                           PopupAnimation="Fade"
+                           StaysOpen="False"
+                           HorizontalOffset="0">
+
+                            <Popup.VerticalOffset>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                     Path="FontScale"
+                                     Converter="{StaticResource LayoutScaleConverter}"
+                                     ConverterParameter="6"/>
+                            </Popup.VerticalOffset>
+
+                            <Border x:Name="SizeBox"
+                                Background="Transparent"
+                                SnapsToDevicePixels="True"
+                                ClipToBounds="False">
+
+                                <Border.Width>
+                                    <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource LayoutScaleConverter}"
+                                         ConverterParameter="520"/>
+                                </Border.Width>
+
+                                <Border.Height>
+                                    <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource LayoutScaleConverter}"
+                                         ConverterParameter="480"/>
+                                </Border.Height>
+
+                                <Border Background="White"
+                                    BorderBrush="#FFE5E7EB"
+                                    SnapsToDevicePixels="True"
+                                    ClipToBounds="False">
+
+                                    <Border.BorderThickness>
+                                        <Binding Source="{StaticResource UiScaleState}"
+                                             Path="FontScale"
+                                             Converter="{StaticResource LayoutScaleConverter}"
+                                             ConverterParameter="1"/>
+                                    </Border.BorderThickness>
+
+                                    <Border.CornerRadius>
+                                        <Binding Source="{StaticResource UiScaleState}"
+                                             Path="FontScale"
+                                             Converter="{StaticResource LayoutScaleConverter}"
+                                             ConverterParameter="12"/>
+                                    </Border.CornerRadius>
+
+                                    <Grid RenderTransformOrigin="0,0">
+
+                                        <Grid.RenderTransform>
+                                            <ScaleTransform ScaleX="2" ScaleY="2"/>
+                                        </Grid.RenderTransform>
+
+                                        <Calendar x:Name="PART_Calendar"/>
+
+                                    </Grid>
+
+                                </Border>
+
+                            </Border>
+
+                        </Popup>
+
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="SelectedDate" Value="{x:Null}"/>
+                                <Condition Property="IsKeyboardFocusWithin" Value="False"/>
+                                <Condition Property="IsDropDownOpen" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="WatermarkText" Property="Visibility" Value="Visible"/>
+                        </MultiTrigger>
+
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="WatermarkText" Property="Visibility" Value="Hidden"/>
+                        </Trigger>
+
+                        <Trigger Property="IsDropDownOpen" Value="True">
+                            <Setter TargetName="WatermarkText" Property="Visibility" Value="Hidden"/>
+                        </Trigger>
+
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsKeyboardFocusWithin" Value="True"/>
+                                <Condition Property="Validation.HasError" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="FocusOuter" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="FocusInner" Property="Visibility" Value="Visible"/>
+                        </MultiTrigger>
+
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsDropDownOpen" Value="True"/>
+                                <Condition Property="Validation.HasError" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="FocusOuter" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="FocusInner" Property="Visibility" Value="Visible"/>
+                        </MultiTrigger>
+
+                        <Trigger Property="Validation.HasError" Value="True">
+                            <Setter TargetName="FocusOuter" Property="Visibility" Value="Collapsed"/>
+                            <Setter TargetName="FocusInner" Property="Visibility" Value="Collapsed"/>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#E53E3E"/>
+                            <Setter TargetName="Chrome" Property="BorderThickness">
+                                <Setter.Value>
+                                    <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource LayoutScaleConverter}"
+                                         ConverterParameter="1"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.65"/>
+                        </Trigger>
+
+                    </ControlTemplate.Triggers>
+
                 </ControlTemplate>
 
             </Setter.Value>
@@ -4231,6 +4585,75 @@ ConverterParameter="32" />
                                 Value="#9CA3AF" />
                             <Setter Property="Cursor"
                                 Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Same chrome as VcSecondaryButtonStyle; for RepeatButton (numeric steppers, etc.). -->
+    <Style x:Key="VcSecondaryRepeatButtonStyle"
+           TargetType="RepeatButton">
+        <Setter Property="FontSize">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource FontScaleConverter}"
+                         ConverterParameter="14" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Height">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource LayoutScaleConverter}"
+                         ConverterParameter="34" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource ThicknessScaleConverter}"
+                         ConverterParameter="18,6" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.TextDark}" />
+        <Setter Property="Background" Value="{StaticResource Brush.SurfaceGrey}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderGrey}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border x:Name="ButtonBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                                   Path=FontScale,
+                                                   Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                   ConverterParameter=10}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonBorder"
+                                    Property="Background"
+                                    Value="{StaticResource Brush.SurfaceGreySoft}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="ButtonBorder"
+                                    Property="Background"
+                                    Value="{StaticResource Brush.SurfaceGrey}" />
+                            <Setter Property="Foreground" Value="#9CA3AF" />
+                            <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

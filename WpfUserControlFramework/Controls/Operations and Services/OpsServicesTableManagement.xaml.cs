@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace RestaurantPosWpf;
 
@@ -16,19 +17,24 @@ public partial class OpsServicesTableManagement : UserControl
     }
 
     private readonly Action _navigateToShiftScheduling;
+    private readonly Action _navigateToFloorPlan;
     private readonly Action _openAddTableDialog;
     private readonly Action _openManageFloorsDialog;
     private OpsFloorTable? _selected;
     private OpsFloorTable? _editSnapshot;
     private bool _editing;
     private Guid? _pendingDeleteTableId;
+    private bool _storeRefreshPosted;
+    private bool _tableMgmtUnloaded;
 
     public OpsServicesTableManagement(
         Action navigateToShiftScheduling,
+        Action navigateToFloorPlan,
         Action openAddTableDialog,
         Action openManageFloorsDialog)
     {
         _navigateToShiftScheduling = navigateToShiftScheduling ?? throw new ArgumentNullException(nameof(navigateToShiftScheduling));
+        _navigateToFloorPlan = navigateToFloorPlan ?? throw new ArgumentNullException(nameof(navigateToFloorPlan));
         _openAddTableDialog = openAddTableDialog ?? throw new ArgumentNullException(nameof(openAddTableDialog));
         _openManageFloorsDialog = openManageFloorsDialog ?? throw new ArgumentNullException(nameof(openManageFloorsDialog));
         InitializeComponent();
@@ -114,6 +120,7 @@ public partial class OpsServicesTableManagement : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        _tableMgmtUnloaded = false;
         OpsServicesStore.EnsureSeeded();
         OpsServicesStore.DataChanged += OnDataChanged;
         HighlightTablePill(true);
@@ -126,12 +133,24 @@ public partial class OpsServicesTableManagement : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        _tableMgmtUnloaded = true;
         TableMgmtBodyScroll.SizeChanged -= TableMgmtBodyScroll_SizeChanged;
         OpsServicesStore.DataChanged -= OnDataChanged;
     }
 
-    private void OnDataChanged(object? sender, EventArgs e) =>
-        Dispatcher.Invoke(RefreshAll);
+    private void OnDataChanged(object? sender, EventArgs e)
+    {
+        if (_tableMgmtUnloaded || _storeRefreshPosted)
+            return;
+        _storeRefreshPosted = true;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _storeRefreshPosted = false;
+            if (_tableMgmtUnloaded)
+                return;
+            RefreshAll();
+        }), DispatcherPriority.DataBind);
+    }
 
     private static List<string> BuildDistinctSortedFloorsFromTables() =>
         OpsServicesStore.GetDistinctFloorNamesForFilter().ToList();
@@ -153,7 +172,7 @@ public partial class OpsServicesTableManagement : UserControl
             return;
         var item = TablesListBox.SelectedItem;
         Dispatcher.BeginInvoke(new Action(() => TablesListBox.ScrollIntoView(item)),
-            System.Windows.Threading.DispatcherPriority.Loaded);
+            DispatcherPriority.Loaded);
     }
 
     /// <summary>Rebuilds floor filter from current tables. Call after <see cref="RefreshAll"/> data changes so new floors appear.</summary>
@@ -552,6 +571,12 @@ public partial class OpsServicesTableManagement : UserControl
     {
         HighlightTablePill(false);
         _navigateToShiftScheduling();
+    }
+
+    private void PillFloor_Click(object sender, RoutedEventArgs e)
+    {
+        HighlightTablePill(false);
+        _navigateToFloorPlan();
     }
 
     private void HighlightTablePill(bool tableSelected)

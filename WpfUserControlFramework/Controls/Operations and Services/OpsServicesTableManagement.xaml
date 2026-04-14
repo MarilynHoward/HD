@@ -167,9 +167,7 @@
                     </StackPanel>
                 </Button>
                 <Button x:Name="PillFloor"
-                        IsEnabled="False"
-                        ToolTipService.ShowDuration="60000"
-                        ToolTip="Coming soon"
+                        Click="PillFloor_Click"
                         Style="{StaticResource OpsSubNavPillButtonStyle}"
                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">

@@ -286,6 +286,7 @@ namespace RestaurantPosWpf
         {
             return new OpsServicesShiftScheduling(
                 navigateToTableManagement: NavigateToOpsTableManagement,
+                navigateToFloorPlan: NavigateToOpsFloorPlan,
                 openAddShiftDialog: ShowOpsAddShiftDialog);
         }
 
@@ -295,8 +296,56 @@ namespace RestaurantPosWpf
                 navigateToShiftScheduling: () =>
                     NavigateTo(_navItems.First(i =>
                         i.Category == "Operations and Services" && i.Label == "Shift Scheduling")),
+                navigateToFloorPlan: NavigateToOpsFloorPlan,
                 openAddTableDialog: ShowOpsAddTableDialog,
                 openManageFloorsDialog: ShowOpsManageFloorsDialog);
+        }
+
+        private OpsServicesFloorPlanDesign BuildOpsFloorPlanDesign()
+        {
+            return new OpsServicesFloorPlanDesign(
+                navigateToShiftScheduling: () =>
+                    NavigateTo(_navItems.First(i =>
+                        i.Category == "Operations and Services" && i.Label == "Shift Scheduling")),
+                navigateToTableManagement: NavigateToOpsTableManagement,
+                openReservationsManagement: ShowOpsReservationsManagementDialog);
+        }
+
+        private void ShowOpsReservationsManagementDialog(
+            string? floorName,
+            DateOnly date,
+            OpsReservationListFilter listFilter,
+            string? reservationSearchTrimmed,
+            Guid? focusReservationId = null)
+        {
+            if (string.IsNullOrWhiteSpace(floorName))
+                return;
+            App.OpsTrace($"ShowOpsReservationsManagementDialog: enter floor={floorName} date={date:yyyy-MM-dd}");
+            Window? w = null;
+            App.OpsTrace("ShowOpsReservationsManagementDialog: before new OpsServicesReservationsManagement");
+            var dlg = new OpsServicesReservationsManagement(
+                () => w?.Close(),
+                floorName,
+                date,
+                listFilter,
+                reservationSearchTrimmed,
+                focusReservationId);
+            App.OpsTrace("ShowOpsReservationsManagementDialog: after ctor, CreateOpsModalWindow");
+            w = CreateOpsModalWindow(dlg);
+            var wa = SystemParameters.WorkArea;
+            w.SizeToContent = SizeToContent.Manual;
+            w.Width = Math.Min(wa.Width * 0.52, 720);
+            // Taller window so the inline add/edit form is mostly visible without scrolling; stays within work area.
+            w.Height = Math.Min(Math.Max(620, wa.Height * 0.90), wa.Height * 0.94);
+            w.MinWidth = 480;
+            w.MinHeight = 560;
+            w.MaxWidth = Math.Min(wa.Width * 0.58, 880);
+            w.MaxHeight = wa.Height * 0.94;
+            ScrimOverlay.Visibility = Visibility.Visible;
+            App.OpsTrace("ShowOpsReservationsManagementDialog: before ShowDialog");
+            w.ShowDialog();
+            App.OpsTrace("ShowOpsReservationsManagementDialog: after ShowDialog");
+            ScrimOverlay.Visibility = Visibility.Collapsed;
         }
 
         private void NavigateToOpsTableManagement()
@@ -304,6 +353,19 @@ namespace RestaurantPosWpf
             var opsNav = _navItems.First(i =>
                 i.Category == "Operations and Services" && i.Label == "Shift Scheduling");
             ContentArea.Content = BuildOpsTableManagement();
+            _selectedNavItem = opsNav;
+            foreach (var child in NavButtonPanel.Children.OfType<Button>())
+            {
+                var navTag = child.DataContext as NavItem;
+                child.Tag = navTag == _selectedNavItem ? "Selected" : navTag;
+            }
+        }
+
+        private void NavigateToOpsFloorPlan()
+        {
+            var opsNav = _navItems.First(i =>
+                i.Category == "Operations and Services" && i.Label == "Shift Scheduling");
+            ContentArea.Content = BuildOpsFloorPlanDesign();
             _selectedNavItem = opsNav;
             foreach (var child in NavButtonPanel.Children.OfType<Button>())
             {

@@ -20,6 +20,7 @@ public partial class OpsServicesShiftScheduling : UserControl
     }
 
     private readonly Action _navigateToTableManagement;
+    private readonly Action _navigateToFloorPlan;
     private readonly Action _openAddShiftDialog;
     private readonly DispatcherTimer _staffSearchDebounce;
     private string _staffSearchQuery = "";
@@ -28,12 +29,16 @@ public partial class OpsServicesShiftScheduling : UserControl
     private HwndSource? _monthScrollHwndSource;
     /// <summary>Month only: horizontal scroll for day columns; staff column stays in the sibling grid cell.</summary>
     private ScrollViewer? _monthDaysHorizontalScroll;
+    private bool _storeRefreshPosted;
+    private bool _shiftSchedulingUnloaded;
 
     public OpsServicesShiftScheduling(
         Action navigateToTableManagement,
+        Action navigateToFloorPlan,
         Action openAddShiftDialog)
     {
         _navigateToTableManagement = navigateToTableManagement ?? throw new ArgumentNullException(nameof(navigateToTableManagement));
+        _navigateToFloorPlan = navigateToFloorPlan ?? throw new ArgumentNullException(nameof(navigateToFloorPlan));
         _openAddShiftDialog = openAddShiftDialog ?? throw new ArgumentNullException(nameof(openAddShiftDialog));
         _staffSearchDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _staffSearchDebounce.Tick += StaffSearchDebounce_Tick;
@@ -44,6 +49,7 @@ public partial class OpsServicesShiftScheduling : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        _shiftSchedulingUnloaded = false;
         OpsServicesStore.EnsureSeeded();
         OpsServicesStore.DataChanged += OnStoreChanged;
         foreach (ComboBoxItem item in CmbViewMode.Items)
@@ -62,6 +68,7 @@ public partial class OpsServicesShiftScheduling : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        _shiftSchedulingUnloaded = true;
         DetachMonthScrollHwndHook();
         OpsServicesStore.DataChanged -= OnStoreChanged;
         _staffSearchDebounce.Stop();
@@ -252,7 +259,19 @@ public partial class OpsServicesShiftScheduling : UserControl
         }
     }
 
-    private void OnStoreChanged(object? sender, EventArgs e) => Dispatcher.Invoke(RebuildAll);
+    private void OnStoreChanged(object? sender, EventArgs e)
+    {
+        if (_shiftSchedulingUnloaded || _storeRefreshPosted)
+            return;
+        _storeRefreshPosted = true;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _storeRefreshPosted = false;
+            if (_shiftSchedulingUnloaded)
+                return;
+            RebuildAll();
+        }), DispatcherPriority.DataBind);
+    }
 
     private void HighlightShiftPill(bool shiftSelected)
     {
@@ -1011,6 +1030,9 @@ public partial class OpsServicesShiftScheduling : UserControl
     private void PillTableManagement_Click(object sender, RoutedEventArgs e) =>
         _navigateToTableManagement();
 
+    private void PillFloorPlan_Click(object sender, RoutedEventArgs e) =>
+        _navigateToFloorPlan();
+
     private void BtnExport_Click(object sender, RoutedEventArgs e)
     {
         MessageBox.Show(Window.GetWindow(this), "Export schedule is not wired in this demo build.",
@@ -1079,7 +1101,7 @@ public sealed class OpsScheduledShift
 }
 
 /// <summary>Static demo store and conflict checks for Operations and Services.</summary>
-public static class OpsServicesStore
+public static partial class OpsServicesStore
 {
     public static event EventHandler? DataChanged;
 
@@ -1174,6 +1196,8 @@ public static class OpsServicesStore
         }
 
         RebuildCanonicalFloorsFromTables();
+
+        SeedReservationsAndLayouts();
 
         // Demo shifts: previous week through current week + 6 weeks (8 weeks total)
         var week0 = DateOnly.FromDateTime(StartOfWeekMonday(today.AddDays(-7)));
@@ -1297,6 +1321,9 @@ public static class OpsServicesStore
         var t = (s ?? "").Trim();
         return string.IsNullOrEmpty(t) ? "Main Floor" : t;
     }
+
+    /// <summary>Public wrapper for floor name normalization (used by floor plan and reservation dialog).</summary>
+    public static string NormalizeFloorNamePublic(string? s) => NormalizeFloorName(s);
 
     private static void SortCanonicalFloors() =>
         CanonicalFloors.Sort(StringComparer.OrdinalIgnoreCase);
@@ -1528,4 +1555,6 @@ public static class OpsServicesStore
 
         return Math.Round(h, 1);
     }
+
+    static partial void SeedReservationsAndLayouts();
 }
