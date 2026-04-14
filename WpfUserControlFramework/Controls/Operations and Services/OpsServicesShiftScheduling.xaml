@@ -364,6 +364,14 @@
                             <Button x:Name="BtnAddShift"
                                     Click="BtnAddShift_Click"
                                     Style="{StaticResource VcPrimaryButtonStyle}"
+                                    Height="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource LayoutScaleConverter},
+                                                      ConverterParameter=25}"
+                                    Padding="{Binding Source={StaticResource UiScaleState},
+                                                       Path=FontScale,
+                                                       Converter={StaticResource ThicknessScaleConverter},
+                                                       ConverterParameter='9,3,10,3'}"
                                     Margin="{Binding Source={StaticResource UiScaleState},
                                                      Path=FontScale,
                                                      Converter={StaticResource ThicknessScaleConverter},

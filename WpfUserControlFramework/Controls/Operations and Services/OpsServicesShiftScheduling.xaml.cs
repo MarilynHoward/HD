@@ -1222,6 +1222,10 @@ public static class OpsServicesStore
 
     public static IReadOnlyList<OpsScheduledShift> GetShifts() => Shifts;
 
+    /// <summary>Shifts that reference this table in their assigned tables list (blocks hard delete).</summary>
+    public static int GetBookedShiftCountForTable(Guid tableId) =>
+        Shifts.Count(s => s.TableIds.Contains(tableId));
+
     /// <summary>Monday of current week through Sunday of (current week + 4 weeks) — 5 weeks.</summary>
     public static (DateOnly Start, DateOnly End) GetDefaultWeeklyRecurrenceRange(DateTime today)
     {

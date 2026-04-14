@@ -3149,6 +3149,146 @@ ConverterParameter="32" />
         </Setter>
     </Style>
 
+    <!-- iOS-style pill switch for on/off settings (scaled track + thumb). -->
+    <Style x:Key="IcPillSwitchToggleStyle" TargetType="ToggleButton">
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="UseLayoutRounding" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid SnapsToDevicePixels="True" UseLayoutRounding="True"
+                          Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=39}"
+                          Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=21}">
+                        <Border x:Name="Track"
+                                Background="#E5E7EB"
+                                SnapsToDevicePixels="True"
+                                VerticalAlignment="Stretch"
+                                HorizontalAlignment="Stretch"
+                                ClipToBounds="True">
+                            <!-- Large desired radius → converter uses ~(height/2)-1 for a stadium / pill track. -->
+                            <Border.CornerRadius>
+                                <Binding RelativeSource="{RelativeSource Self}"
+                                         Path="ActualHeight"
+                                         Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                         ConverterParameter="999" />
+                            </Border.CornerRadius>
+                            <Border x:Name="Thumb"
+                                    Background="{StaticResource Brush.White}"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Left"
+                                    SnapsToDevicePixels="True"
+                                    Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
+                                    Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}">
+                                <Border.CornerRadius>
+                                    <Binding RelativeSource="{RelativeSource Self}"
+                                             Path="ActualHeight"
+                                             Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                             ConverterParameter="999" />
+                                </Border.CornerRadius>
+                                <Border.Margin>
+                                    <Binding Source="{StaticResource UiScaleState}"
+                                             Path="FontScale"
+                                             Converter="{StaticResource ThicknessScaleConverter}"
+                                             ConverterParameter="2,0,0,0" />
+                                </Border.Margin>
+                            </Border>
+                        </Border>
+                        <Border x:Name="FocusOuter"
+                                Panel.ZIndex="1"
+                                Visibility="Collapsed"
+                                IsHitTestVisible="False"
+                                Background="Transparent"
+                                BorderBrush="{StaticResource FocusOuter}"
+                                SnapsToDevicePixels="True"
+                                RenderOptions.EdgeMode="Aliased"
+                                VerticalAlignment="Stretch"
+                                HorizontalAlignment="Stretch"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='-3,-3,-3,-3'}">
+                            <Border.CornerRadius>
+                                <Binding RelativeSource="{RelativeSource Self}"
+                                         Path="ActualHeight"
+                                         Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                         ConverterParameter="999" />
+                            </Border.CornerRadius>
+                            <Border.BorderThickness>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource ThicknessScaleConverter}"
+                                         ConverterParameter="2,2,2,2" />
+                            </Border.BorderThickness>
+                        </Border>
+                        <Border x:Name="FocusInner"
+                                Panel.ZIndex="2"
+                                Visibility="Collapsed"
+                                IsHitTestVisible="False"
+                                Background="Transparent"
+                                BorderBrush="{StaticResource FocusInner}"
+                                SnapsToDevicePixels="True"
+                                RenderOptions.EdgeMode="Aliased"
+                                VerticalAlignment="Stretch"
+                                HorizontalAlignment="Stretch"
+                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='-1,-1,-1,-1'}">
+                            <Border.CornerRadius>
+                                <Binding RelativeSource="{RelativeSource Self}"
+                                         Path="ActualHeight"
+                                         Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                         ConverterParameter="999" />
+                            </Border.CornerRadius>
+                            <Border.BorderThickness>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource ThicknessScaleConverter}"
+                                         ConverterParameter="1,1,1,1" />
+                            </Border.BorderThickness>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{StaticResource Brush.PrimaryBlue}" />
+                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
+                            <Setter TargetName="Thumb" Property="Margin">
+                                <Setter.Value>
+                                    <Binding Source="{StaticResource UiScaleState}"
+                                             Path="FontScale"
+                                             Converter="{StaticResource ThicknessScaleConverter}"
+                                             ConverterParameter="0,0,2,0" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsChecked" Value="False" />
+                                <Condition Property="IsMouseOver" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Track" Property="Background" Value="#D1D5DB" />
+                        </MultiTrigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsChecked" Value="True" />
+                                <Condition Property="IsMouseOver" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Track" Property="Background" Value="{StaticResource Brush.PrimaryBlueHover}" />
+                        </MultiTrigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="FocusOuter" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="FocusInner" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.55" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 
     <Style x:Key="FormTextBox" TargetType="TextBox">
         <Setter Property="FontSize" Value="14"/>

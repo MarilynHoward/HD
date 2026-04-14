@@ -21,6 +21,7 @@ public partial class OpsServicesTableManagement : UserControl
     private OpsFloorTable? _selected;
     private OpsFloorTable? _editSnapshot;
     private bool _editing;
+    private Guid? _pendingDeleteTableId;
 
     public OpsServicesTableManagement(
         Action navigateToShiftScheduling,
@@ -290,6 +291,7 @@ public partial class OpsServicesTableManagement : UserControl
 
     private void TablesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        HideTableDeleteInlinePanels();
         if (_editing)
             return;
         _selected = TablesListBox.SelectedItem as OpsFloorTable;
@@ -395,10 +397,13 @@ public partial class OpsServicesTableManagement : UserControl
             _selected.OpsStatus = "Inactive";
     }
 
-    private void BtnEdit_Click(object sender, RoutedEventArgs e)
+    private void BtnEdit_Click(object sender, RoutedEventArgs e) => BeginTableDetailsEdit();
+
+    private void BeginTableDetailsEdit()
     {
         if (_selected == null)
             return;
+        HideTableDeleteInlinePanels();
         _editSnapshot = OpsServicesStore.CloneTable(_selected);
         _editing = true;
         DetFloorPillBorder.Visibility = Visibility.Collapsed;
@@ -410,7 +415,8 @@ public partial class OpsServicesTableManagement : UserControl
         DetWaiterReadOnly.Visibility = Visibility.Collapsed;
         DetWaiter.Visibility = Visibility.Visible;
         DetActiveReadOnlyRow.Visibility = Visibility.Collapsed;
-        DetActive.Visibility = Visibility.Visible;
+        DetActiveEditPanel.Visibility = Visibility.Visible;
+        TxtActiveStatusSectionLabel.Visibility = Visibility.Collapsed;
         DetName.IsReadOnly = false;
         DetFloor.IsEnabled = true;
         DetSeats.IsReadOnly = false;
@@ -433,6 +439,11 @@ public partial class OpsServicesTableManagement : UserControl
         _editSnapshot = null;
         ExitEditUi();
         OpsServicesStore.NotifyDataChanged();
+        if (_selected != null)
+        {
+            TablesListBox.SelectedItem = _selected;
+            ScrollSelectedTableIntoView();
+        }
     }
 
     private void BtnCancelEdit_Click(object sender, RoutedEventArgs e)
@@ -445,6 +456,7 @@ public partial class OpsServicesTableManagement : UserControl
 
     private void ExitEditUi()
     {
+        HideTableDeleteInlinePanels();
         _editing = false;
         DetName.IsReadOnly = true;
         DetFloor.IsEnabled = false;
@@ -460,8 +472,9 @@ public partial class OpsServicesTableManagement : UserControl
         DetSeatsReadOnly.Visibility = Visibility.Visible;
         DetWaiter.Visibility = Visibility.Collapsed;
         DetWaiterReadOnly.Visibility = Visibility.Visible;
-        DetActive.Visibility = Visibility.Collapsed;
+        DetActiveEditPanel.Visibility = Visibility.Collapsed;
         DetActiveReadOnlyRow.Visibility = Visibility.Visible;
+        TxtActiveStatusSectionLabel.Visibility = Visibility.Visible;
         BtnEdit.Visibility = Visibility.Visible;
         BtnSave.Visibility = Visibility.Collapsed;
         BtnCancelEdit.Visibility = Visibility.Collapsed;
@@ -470,20 +483,65 @@ public partial class OpsServicesTableManagement : UserControl
             PushDetailFromModel();
     }
 
+    private void HideTableDeleteInlinePanels()
+    {
+        DeleteTableBlockedByShiftsPanel.Visibility = Visibility.Collapsed;
+        DeleteTableConfirmPanel.Visibility = Visibility.Collapsed;
+        _pendingDeleteTableId = null;
+    }
+
     private void BtnDelete_Click(object sender, RoutedEventArgs e)
     {
-        if (_selected == null)
+        if (_selected == null || _editing)
             return;
-        if (MessageBox.Show(Window.GetWindow(this),
-                $"Delete {_selected.Name}?",
-                "Delete Table",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning) != MessageBoxResult.Yes)
-            return;
+        HideTableDeleteInlinePanels();
+        var tableName = _selected.Name;
         var id = _selected.Id;
+        var shiftCount = OpsServicesStore.GetBookedShiftCountForTable(id);
+        if (shiftCount > 0)
+        {
+            TxtDeleteTableBlockedTitle.Text = shiftCount == 1
+                ? $"\"{tableName}\" has a shift booked against it. This table cannot be deleted."
+                : $"\"{tableName}\" has {shiftCount} shifts booked against it. This table cannot be deleted.";
+            DeleteTableBlockedByShiftsPanel.Visibility = Visibility.Visible;
+            return;
+        }
+
+        _pendingDeleteTableId = id;
+        TxtDeleteTableConfirmMessage.Text = $"Delete \"{tableName}\"?";
+        DeleteTableConfirmPanel.Visibility = Visibility.Visible;
+    }
+
+    private void BtnCancelDeleteTableConfirm_Click(object sender, RoutedEventArgs e) =>
+        HideTableDeleteInlinePanels();
+
+    private void BtnConfirmDeleteTable_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pendingDeleteTableId is not { } id)
+        {
+            HideTableDeleteInlinePanels();
+            return;
+        }
+
+        if (_selected == null || _selected.Id != id)
+        {
+            HideTableDeleteInlinePanels();
+            return;
+        }
+
+        HideTableDeleteInlinePanels();
         OpsServicesStore.RemoveTable(id);
         _selected = null;
         TablesListBox.SelectedItem = null;
+    }
+
+    private void BtnDismissDeleteBlockedByShifts_Click(object sender, RoutedEventArgs e) =>
+        HideTableDeleteInlinePanels();
+
+    private void BtnEditTableFromDeleteBlocked_Click(object sender, RoutedEventArgs e)
+    {
+        HideTableDeleteInlinePanels();
+        BeginTableDetailsEdit();
     }
 
     private void BtnAddFloor_Click(object sender, RoutedEventArgs e) => _openManageFloorsDialog();

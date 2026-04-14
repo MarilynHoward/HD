@@ -53,6 +53,67 @@
                     Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,4,4,4'}" />
         </Style>
 
+        <!-- String Content on detail buttons: avoids stretched AccessText so labels stay visually centered. -->
+        <DataTemplate x:Key="OpsTableMgmtDetailButtonStringContentTemplate">
+            <TextBlock Text="{Binding}"
+                       TextAlignment="Center"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center" />
+        </DataTemplate>
+
+        <Style x:Key="OpsTableMgmtDetailPrimaryButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource VcPrimaryButtonStyle}">
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Height">
+                <Setter.Value>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource LayoutScaleConverter}"
+                             ConverterParameter="28" />
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Padding">
+                <Setter.Value>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource ThicknessScaleConverter}"
+                             ConverterParameter="10,4,10,4" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- Primary + plain text Content only (composite Content must use OpsTableMgmtDetailPrimaryButtonStyle without this template). -->
+        <Style x:Key="OpsTableMgmtDetailPrimaryTextButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource OpsTableMgmtDetailPrimaryButtonStyle}">
+            <Setter Property="ContentTemplate" Value="{StaticResource OpsTableMgmtDetailButtonStringContentTemplate}" />
+        </Style>
+        <Style x:Key="OpsTableMgmtDetailSecondaryButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource VcSecondaryButtonStyle}">
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="ContentTemplate" Value="{StaticResource OpsTableMgmtDetailButtonStringContentTemplate}" />
+            <Setter Property="Height">
+                <Setter.Value>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource LayoutScaleConverter}"
+                             ConverterParameter="28" />
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Padding">
+                <Setter.Value>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource ThicknessScaleConverter}"
+                             ConverterParameter="12,4,12,4" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- VcSecondaryButtonStyle fixes Height; strip row needs auto height to match Active Status border. -->
         <Style x:Key="OpsTableMgmtHistoryStripButtonStyle"
                TargetType="Button"
@@ -665,15 +726,35 @@
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                         <Button x:Name="BtnAddFloor"
                                                 Click="BtnAddFloor_Click"
-                                                Style="{StaticResource VcPrimaryButtonStyle}"
+                                                Style="{StaticResource OpsTableMgmtDetailPrimaryButtonStyle}"
                                                 Margin="0,0,8,0"
                                                 FocusVisualStyle="{x:Null}">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="+"
-                                                           VerticalAlignment="Center"
-                                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}"/>
-                                                <TextBlock Text=" Add Floor"
+                                            <StackPanel Orientation="Horizontal"
+                                                        VerticalAlignment="Center"
+                                                        HorizontalAlignment="Center">
+                                                <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource LayoutScaleConverter},
+                                                                  ConverterParameter=18}"
+                                                         Height="{Binding Source={StaticResource UiScaleState},
+                                                                   Path=FontScale,
+                                                                   Converter={StaticResource LayoutScaleConverter},
+                                                                   ConverterParameter=18}"
+                                                         Margin="{Binding Source={StaticResource UiScaleState},
+                                                                   Path=FontScale,
+                                                                   Converter={StaticResource ThicknessScaleConverter},
+                                                                   ConverterParameter='0,0,6,0'}"
+                                                         VerticalAlignment="Center">
+                                                    <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                                        <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                              Data="M12.83 2.18a2 2 0 0 0 -1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58 -3.9a1 1 0 0 0 0 -1.83z" />
+                                                        <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                              Data="M2 12a1 1 0 0 0 .58 .91l8.6 3.91a2 2 0 0 0 1.65 0l8.58 -3.9A1 1 0 0 0 22 12" />
+                                                        <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                              Data="M2 17a1 1 0 0 0 .58 .91l8.6 3.91a2 2 0 0 0 1.65 0l8.58 -3.9A1 1 0 0 0 22 17" />
+                                                    </Canvas>
+                                                </Viewbox>
+                                                <TextBlock Text="Add Floor"
                                                            VerticalAlignment="Center"
                                                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
@@ -681,10 +762,12 @@
                                         </Button>
                                         <Button x:Name="BtnAddTable"
                                                 Click="BtnAddTable_Click"
-                                                Style="{StaticResource VcPrimaryButtonStyle}"
+                                                Style="{StaticResource OpsTableMgmtDetailPrimaryButtonStyle}"
                                                 Margin="0,0,8,0"
                                                 FocusVisualStyle="{x:Null}">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal"
+                                                        VerticalAlignment="Center"
+                                                        HorizontalAlignment="Center">
                                                 <TextBlock Text="+"
                                                            VerticalAlignment="Center"
                                                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
@@ -698,14 +781,14 @@
                                         <Button x:Name="BtnEdit"
                                                 Content="Edit"
                                                 Click="BtnEdit_Click"
-                                                Style="{StaticResource VcSecondaryButtonStyle}"
+                                                Style="{StaticResource OpsTableMgmtDetailSecondaryButtonStyle}"
                                                 FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                                                 Margin="0,0,8,0"
                                                 FocusVisualStyle="{x:Null}"/>
                                         <Button x:Name="BtnSave"
                                                 Content="Save"
                                                 Click="BtnSave_Click"
-                                                Style="{StaticResource VcPrimaryButtonStyle}"
+                                                Style="{StaticResource OpsTableMgmtDetailPrimaryTextButtonStyle}"
                                                 FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                                                 Margin="0,0,8,0"
                                                 Visibility="Collapsed"
@@ -713,7 +796,7 @@
                                         <Button x:Name="BtnCancelEdit"
                                                 Content="Cancel"
                                                 Click="BtnCancelEdit_Click"
-                                                Style="{StaticResource VcSecondaryButtonStyle}"
+                                                Style="{StaticResource OpsTableMgmtDetailSecondaryButtonStyle}"
                                                 FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                                                 Margin="0,0,8,0"
                                                 Visibility="Collapsed"
@@ -721,13 +804,101 @@
                                         <Button x:Name="BtnDelete"
                                                 Content="Delete"
                                                 Click="BtnDelete_Click"
-                                                Style="{StaticResource VcSecondaryButtonStyle}"
+                                                Style="{StaticResource OpsTableMgmtDetailSecondaryButtonStyle}"
                                                 FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                                                 Foreground="{StaticResource Brush.DangerRed}"
                                                 BorderBrush="{StaticResource Brush.DangerButtonBorderSoft}"
                                                 FocusVisualStyle="{x:Null}"/>
                                     </StackPanel>
                                 </DockPanel>
+
+                                <Border x:Name="DeleteTableBlockedByShiftsPanel"
+                                        Visibility="Collapsed"
+                                        Background="{StaticResource Brush.SurfaceGreySoft}"
+                                        BorderBrush="{StaticResource Brush.BorderSoft}"
+                                        BorderThickness="1"
+                                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,10,12,10'}"
+                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,12,0,0'}"
+                                        HorizontalAlignment="Stretch"
+                                        SnapsToDevicePixels="True">
+                                    <Border.CornerRadius>
+                                        <Binding Path="ActualHeight"
+                                                 RelativeSource="{RelativeSource Self}"
+                                                 Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                                 ConverterParameter="8"/>
+                                    </Border.CornerRadius>
+                                    <StackPanel>
+                                        <TextBlock x:Name="TxtDeleteTableBlockedTitle"
+                                                   Foreground="{StaticResource MainForeground}"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
+                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,8'}"/>
+                                        <TextBlock Text="You can keep it in the list but unavailable by editing the table and turning Active Status off."
+                                                   Foreground="{StaticResource DimmedForeground}"
+                                                   TextWrapping="Wrap"
+                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,10'}"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Content="Dismiss"
+                                                    Click="BtnDismissDeleteBlockedByShifts_Click"
+                                                    Style="{StaticResource OpsTableMgmtDetailSecondaryButtonStyle}"
+                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
+                                                    FocusVisualStyle="{x:Null}"/>
+                                            <Button Content="Edit table"
+                                                    Click="BtnEditTableFromDeleteBlocked_Click"
+                                                    Style="{StaticResource OpsTableMgmtDetailPrimaryTextButtonStyle}"
+                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                                    FocusVisualStyle="{x:Null}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border x:Name="DeleteTableConfirmPanel"
+                                        Visibility="Collapsed"
+                                        Background="{StaticResource Brush.SurfaceGreySoft}"
+                                        BorderBrush="{StaticResource Brush.BorderSoft}"
+                                        BorderThickness="1"
+                                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,10,12,10'}"
+                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,12,0,0'}"
+                                        HorizontalAlignment="Stretch"
+                                        SnapsToDevicePixels="True">
+                                    <Border.CornerRadius>
+                                        <Binding Path="ActualHeight"
+                                                 RelativeSource="{RelativeSource Self}"
+                                                 Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                                 ConverterParameter="8"/>
+                                    </Border.CornerRadius>
+                                    <StackPanel>
+                                        <TextBlock x:Name="TxtDeleteTableConfirmMessage"
+                                                   Foreground="{StaticResource MainForeground}"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
+                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,8'}"/>
+                                        <TextBlock Text="This action cannot be undone."
+                                                   Foreground="{StaticResource DimmedForeground}"
+                                                   TextWrapping="Wrap"
+                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
+                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,10'}"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Content="Cancel"
+                                                    Click="BtnCancelDeleteTableConfirm_Click"
+                                                    Style="{StaticResource OpsTableMgmtDetailSecondaryButtonStyle}"
+                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
+                                                    FocusVisualStyle="{x:Null}"/>
+                                            <Button Content="Delete table"
+                                                    Click="BtnConfirmDeleteTable_Click"
+                                                    Style="{StaticResource OpsTableMgmtDetailSecondaryButtonStyle}"
+                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                                    Foreground="{StaticResource Brush.DangerRed}"
+                                                    BorderBrush="{StaticResource Brush.DangerButtonBorderSoft}"
+                                                    FocusVisualStyle="{x:Null}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
 
                                 <Border Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=1}"
                                         Background="{StaticResource Brush.BorderSoft}"
@@ -807,7 +978,8 @@
                                                           IsEnabled="False"
                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
                                             </Grid>
-                                            <TextBlock Text="Active Status"
+                                            <TextBlock x:Name="TxtActiveStatusSectionLabel"
+                                                       Text="Active Status"
                                                        Foreground="{StaticResource DimmedForeground}"
                                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,12,0,10'}"/>
@@ -950,11 +1122,30 @@
                                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
                                                     </Border>
                                                 </DockPanel>
-                                                <ToggleButton x:Name="DetActive"
-                                                              Visibility="Collapsed"
-                                                              HorizontalAlignment="Right"
-                                                              VerticalAlignment="Center"
-                                                              IsEnabled="False"/>
+                                                <Grid x:Name="DetActiveEditPanel"
+                                                      Visibility="Collapsed">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0"
+                                                                VerticalAlignment="Center"
+                                                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}">
+                                                        <TextBlock Text="Active Status"
+                                                                   Foreground="{StaticResource MainForeground}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
+                                                        <TextBlock Text="Toggle table availability"
+                                                                   Foreground="{StaticResource DimmedForeground}"
+                                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,0'}"/>
+                                                    </StackPanel>
+                                                    <ToggleButton x:Name="DetActive"
+                                                                  Grid.Column="1"
+                                                                  Style="{StaticResource IcPillSwitchToggleStyle}"
+                                                                  VerticalAlignment="Center"
+                                                                  IsEnabled="False"/>
+                                                </Grid>
                                             </Grid>
                                         </Border>
                                         <Button x:Name="BtnHistory"
