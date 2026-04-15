@@ -1,18 +1,15 @@
 <UserControl x:Class="RestaurantPosWpf.OpsServicesManageFloors"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             VerticalAlignment="Stretch"
-             HorizontalAlignment="Stretch">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Border Background="White"
+    <Border Background="{StaticResource Brush.White}"
             BorderBrush="{StaticResource Brush.BorderSoft}"
             BorderThickness="1"
-            VerticalAlignment="Stretch"
-            HorizontalAlignment="Stretch"
+            SnapsToDevicePixels="True"
             Padding="{Binding Source={StaticResource UiScaleState},
                              Path=FontScale,
                              Converter={StaticResource ThicknessScaleConverter},
-                             ConverterParameter='28,20,28,32'}">
+                             ConverterParameter='28,20,28,24'}">
         <Border.CornerRadius>
             <Binding RelativeSource="{RelativeSource Self}"
                      Path="ActualHeight"
@@ -20,13 +17,16 @@
                      ConverterParameter="14"/>
         </Border.CornerRadius>
 
-        <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Grid MaxWidth="{Binding Source={StaticResource UiScaleState},
+                                 Path=FontScale,
+                                 Converter={StaticResource LayoutScaleConverter},
+                                 ConverterParameter=560}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -61,22 +61,31 @@
                 <Button Grid.Column="1"
                         Click="CloseButton_Click"
                         Background="Transparent"
+                        BorderBrush="Transparent"
                         BorderThickness="0"
                         Foreground="{StaticResource DimmedForeground}"
                         Content="✕"
+                        Padding="0"
                         VerticalAlignment="Top"
+                        Cursor="Hand"
                         FocusVisualStyle="{x:Null}"
                         FontSize="{Binding Source={StaticResource UiScaleState},
                                            Path=FontScale,
                                            Converter={StaticResource FontScaleConverter},
-                                           ConverterParameter=16}"/>
+                                           ConverterParameter=16}"
+                        ToolTip="Close"/>
             </Grid>
 
-            <Rectangle Grid.Row="1" Height="1" Fill="{StaticResource Brush.BorderSoft}"
-                       Margin="{Binding Source={StaticResource UiScaleState},
-                                        Path=FontScale,
-                                        Converter={StaticResource ThicknessScaleConverter},
-                                        ConverterParameter='0,14,0,14'}"/>
+            <Border Grid.Row="1"
+                    Height="{Binding Source={StaticResource UiScaleState},
+                                    Path=FontScale,
+                                    Converter={StaticResource LayoutScaleConverter},
+                                    ConverterParameter=1}"
+                    Background="{StaticResource Brush.BorderSoft}"
+                    Margin="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource ThicknessScaleConverter},
+                                     ConverterParameter='0,14,0,14'}"/>
 
             <StackPanel Grid.Row="2" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
                 <TextBlock Text="Add Floor Location"
@@ -110,15 +119,12 @@
                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,8'}"/>
 
-            <ScrollViewer Grid.Row="4"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled"
-                          FocusVisualStyle="{x:Null}"
-                          Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,24'}"
-                          MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=200}"
+            <ScrollViewer x:Name="FloorsListScrollViewer"
+                          Grid.Row="4"
+                          Style="{StaticResource IcPopupShellBodyScrollViewerStyle}"
                           MaxHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=360}">
                 <ItemsControl x:Name="FloorsList"
-                              Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,8'}">
+                              Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,24'}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border Background="{StaticResource Brush.White}"
@@ -270,11 +276,16 @@
                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,4'}"/>
 
-            <Rectangle Grid.Row="7" Height="1" Fill="{StaticResource Brush.BorderSoft}"
-                       Margin="{Binding Source={StaticResource UiScaleState},
-                                        Path=FontScale,
-                                        Converter={StaticResource ThicknessScaleConverter},
-                                        ConverterParameter='0,12,0,12'}"/>
+            <Border Grid.Row="7"
+                    Height="{Binding Source={StaticResource UiScaleState},
+                                    Path=FontScale,
+                                    Converter={StaticResource LayoutScaleConverter},
+                                    ConverterParameter=1}"
+                    Background="{StaticResource Brush.BorderSoft}"
+                    Margin="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource ThicknessScaleConverter},
+                                     ConverterParameter='0,12,0,12'}"/>
 
             <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right"
                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,4'}">

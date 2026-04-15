@@ -242,7 +242,8 @@ public partial class OpsServicesShiftScheduling : UserControl
 
         if (Keyboard.Modifiers == ModifierKeys.Shift && inner.ScrollableWidth > 0)
         {
-            var delta = e.Delta > 0 ? -48.0 : 48.0;
+            var step = S(48);
+            var delta = e.Delta > 0 ? -step : step;
             inner.ScrollToHorizontalOffset(Math.Max(0, Math.Min(inner.ScrollableWidth, inner.HorizontalOffset + delta)));
             e.Handled = true;
             return;

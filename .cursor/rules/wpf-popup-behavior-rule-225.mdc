@@ -1,0 +1,75 @@
+---
+description: Rule #225 — Popup behavior standard (modal shells, scroll, viewport, scrollbar compensation)
+alwaysApply: true
+---
+
+# Rule #225 — Popup behavior standard
+
+**Required unless explicitly overridden** for the task at hand. If a design intentionally deviates, state that deviation in the work (what, why, and what was verified).
+
+## Defaults (all future popups)
+
+### Frameless
+
+- No window chrome, no standard title bar, and no OS frame styling.
+
+### Rounded corners
+
+- The popup/card surface uses rounded corners as part of the standard popup shell (theme converters / shared styles as elsewhere in the framework).
+
+### Vertical space
+
+- Popups **grow** to use the available body viewport (reference: current **Add Shift** popup behavior).
+- They **must not** over-grow in ways that create:
+  - white dead space above the footer
+  - white edges at the top or bottom
+  - fake empty space from forced stretch
+
+### Scrollbar compensation (vertical)
+
+Where a vertical scrollbar appears, compensate in XAML so left/right visual buffer stays balanced:
+
+- on page/body content
+- on `DataGrid` (or equivalent) content
+- or **both**, depending on where the scrollbar exists
+
+Prefer **one reusable root wrapper** and **triggers** on `ComputedVerticalScrollBarVisibility` rather than ad hoc patches on many children. **Balance the opposite side** instead of making the scrollbar side cramped.
+
+## Standard popup anatomy (default shell)
+
+Structure by default:
+
+**outer card** → **header** → **divider** → **optional top tools** → **optional inline subpanel zone** → **single body scroller** → **inline error band** → **divider** → **footer**
+
+- **Inline** confirmation, rename, delete, or similar sections inside a popup are **inline subpanels**, not second modals.
+
+## Built-in implementation rules (part of #225)
+
+1. **Content-driven height first**, **max-height second**, **scrolling only** as overflow fallback.
+2. **Header** and **footer** stay **auto-sized** and **outside** the main body scroller.
+3. **Default to one primary vertical body `ScrollViewer`** only.
+4. **Do not** use unconditional body stretch that creates white dead space.
+5. **Default to content-driven body sizing**, not `*` body expansion.
+6. **Do not** let a `*` body row absorb spare height unless that behavior is **explicitly intended** and verified **not** to create dead space, fake stretch, or a **detached footer**.
+7. The popup grows naturally until it hits the **viewport cap**; only then should the **body** region scroll.
+8. The **footer** must stay **visually attached** to content when content is short.
+9. **Footer** and **error band** must stay **outside** the main body scroller.
+10. Use the **verified popup host surface** for viewport clamps such as `MaxHeight` — **do not guess ancestors** and **do not replace** a known-good host binding without direct evidence.
+11. **Modal** behavior remains: scrim, **centered horizontally** in the available viewport, proper **max-height** behavior, and **no fake gutter growth** around the popup.
+
+## Scope (what this affects)
+
+- Modal popups
+- Overlay dialogs
+- Framed popup-like controls
+- Popup pages with internal scroll regions
+- `DataGrid` (or table) popup layouts where scrollbar imbalance hurts visual centering
+
+## Core intent (summary)
+
+- Define popup anatomy explicitly.
+- **One body `ScrollViewer`** is the default.
+- **`*` body rows** are the **exception**, not the norm.
+- Require **verified host-surface binding** for `MaxHeight` and viewport caps.
+- Separate **inline subpanels** from true modal popups.
+- Standardize **root-level** scrollbar compensation.

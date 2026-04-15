@@ -3361,6 +3361,38 @@ ConverterParameter="32" />
        TargetType="ScrollBar"
        BasedOn="{StaticResource ScrollBarAutoHide}" />
 
+    <!-- Rule #225: single primary body ScrollViewer for modal Ops / similar popups — scrollbar + left padding balance when bar visible -->
+    <Style x:Key="IcPopupShellBodyScrollViewerStyle" TargetType="ScrollViewer">
+        <Style.Resources>
+            <Style TargetType="ScrollBar" BasedOn="{StaticResource ScrollBarAutoHide}" />
+        </Style.Resources>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="CanContentScroll" Value="False" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource ThicknessScaleConverter}"
+                         ConverterParameter="0,0,0,0" />
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="ComputedVerticalScrollBarVisibility" Value="Visible">
+                <Setter Property="Padding">
+                    <Setter.Value>
+                        <Binding Source="{StaticResource UiScaleState}"
+                                 Path="FontScale"
+                                 Converter="{StaticResource ThicknessScaleConverter}"
+                                 ConverterParameter="8,0,0,0" />
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="ChipToggle" TargetType="ToggleButton">
         <Setter Property="Foreground" Value="#333" />
         <Setter Property="Background" Value="{StaticResource Brush.White}" />

@@ -14,7 +14,7 @@ Follow these standards when editing this project:
 - Keep one root `Border` as the direct child of each `UserControl`; for main pages use the content-root pattern, and for dialogs use scalable padding/corner radius converters.
 - Apply focus ring behavior to keyboard-focusable interactive controls and keep focus colors consistent with shared `FocusOuter`/`FocusInner` brushes.
 - Keep parent-child data flow explicit: constructor injection in, `Action` callbacks out, and null-guard required constructor parameters with `ArgumentNullException`.
-- For popup/dialog controls, preserve the standard five-row layout (header, divider, form, divider, footer) with scalable dimensions.
+- For popup/dialog controls, follow **Rule #225** (`wpf-popup-behavior-rule-225.mdc`): frameless rounded shell, defined anatomy (header/footer and error band outside the single body scroller), content-driven height with verified host `MaxHeight`, and root-level scrollbar compensation. Keep scalable dimensions via theme converters.
 - Keep control-specific resources in `<UserControl.Resources>` only when they are local to one control; promote reused styles to shared theme resources.
 - Keep control implementation self-contained in the control code-behind (`.xaml.cs`) for models/constants/demo data unless a broader refactor is explicitly requested.
 

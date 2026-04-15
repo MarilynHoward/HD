@@ -408,11 +408,7 @@ namespace RestaurantPosWpf
             var dlg = new OpsServicesManageFloors(() => w?.Close());
             w = CreateOpsModalWindow(dlg);
             var wa = SystemParameters.WorkArea;
-            w.SizeToContent = SizeToContent.Manual;
-            w.Width = Math.Min(wa.Width * 0.42, 560);
-            w.Height = Math.Min(Math.Max(520, wa.Height * 0.72), wa.Height * 0.9);
             w.MinWidth = 400;
-            w.MinHeight = 440;
             w.MaxWidth = Math.Min(wa.Width * 0.5, 640);
             w.MaxHeight = wa.Height * 0.92;
             ScrimOverlay.Visibility = Visibility.Visible;
@@ -426,12 +422,7 @@ namespace RestaurantPosWpf
             var dlg = new OpsServicesAddTable(() => w?.Close());
             w = CreateOpsModalWindow(dlg);
             var wa = SystemParameters.WorkArea;
-            // Tall, narrow modal (client layout); explicit size so the form ScrollViewer (* row) gets a real height.
-            w.SizeToContent = SizeToContent.Manual;
-            w.Width = Math.Min(wa.Width * 0.40, 520);
-            w.Height = Math.Min(Math.Max(560, wa.Height * 0.82), wa.Height * 0.92);
             w.MinWidth = 400;
-            w.MinHeight = 480;
             w.MaxWidth = Math.Min(wa.Width * 0.48, 600);
             w.MaxHeight = wa.Height * 0.92;
             ScrimOverlay.Visibility = Visibility.Visible;
