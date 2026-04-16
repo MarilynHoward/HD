@@ -1,0 +1,169 @@
+<UserControl x:Class="RestaurantPosWpf.StaffAccessDocuments"
+
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
+             HorizontalAlignment="Stretch">
+
+
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Stretch"
+                  VerticalContentAlignment="Top"
+                  ClipToBounds="False">
+
+    <Grid HorizontalAlignment="Stretch" MinWidth="0">
+
+        <Grid.RowDefinitions>
+
+            <RowDefinition Height="Auto" />
+
+            <RowDefinition Height="Auto" />
+
+            <RowDefinition Height="Auto" />
+
+            <RowDefinition Height="Auto" />
+
+        </Grid.RowDefinitions>
+
+
+
+        <TextBlock Grid.Row="0"
+
+                   Text="Government-issued ID (PDF)"
+
+                   FontWeight="SemiBold"
+
+                   Foreground="{StaticResource MainForeground}"
+
+                   FontSize="{Binding Source={StaticResource UiScaleState},
+
+                                      Path=FontScale,
+
+                                      Converter={StaticResource FontScaleConverter},
+
+                                      ConverterParameter=16}"
+
+                   Margin="{Binding Source={StaticResource UiScaleState},
+
+                                    Path=FontScale,
+
+                                    Converter={StaticResource ThicknessScaleConverter},
+
+                                    ConverterParameter='0,0,0,8'}" />
+
+        <TextBlock Grid.Row="1"
+
+                   Text="Upload a single PDF file. After upload you can open it or replace it."
+
+                   TextWrapping="Wrap"
+
+                   HorizontalAlignment="Stretch"
+
+                   Foreground="{StaticResource DimmedForeground}"
+
+                   FontSize="{Binding Source={StaticResource UiScaleState},
+
+                                      Path=FontScale,
+
+                                      Converter={StaticResource FontScaleConverter},
+
+                                      ConverterParameter=14}"
+
+                   Margin="{Binding Source={StaticResource UiScaleState},
+
+                                    Path=FontScale,
+
+                                    Converter={StaticResource ThicknessScaleConverter},
+
+                                    ConverterParameter='0,0,0,16'}" />
+
+
+
+        <TextBlock x:Name="TxtFileName"
+
+                   Grid.Row="2"
+
+                   Text="No document uploaded"
+
+                   Foreground="{StaticResource MainForeground}"
+
+                   FontSize="{Binding Source={StaticResource UiScaleState},
+
+                                      Path=FontScale,
+
+                                      Converter={StaticResource FontScaleConverter},
+
+                                      ConverterParameter=14}"
+
+                   Margin="{Binding Source={StaticResource UiScaleState},
+
+                                    Path=FontScale,
+
+                                    Converter={StaticResource ThicknessScaleConverter},
+
+                                    ConverterParameter='0,0,0,12'}" />
+
+
+
+        <StackPanel Grid.Row="3"
+
+                    Orientation="Horizontal"
+
+                    HorizontalAlignment="Stretch">
+
+            <Button x:Name="BtnUploadId"
+
+                    Content="Upload PDF"
+
+                    Style="{StaticResource VcSecondaryButtonStyle}"
+
+                    Click="BtnUploadId_OnClick"
+
+                    Margin="{Binding Source={StaticResource UiScaleState},
+
+                                     Path=FontScale,
+
+                                     Converter={StaticResource ThicknessScaleConverter},
+
+                                     ConverterParameter='0,0,8,0'}" />
+
+            <Button x:Name="BtnViewId"
+
+                    Content="View"
+
+                    Style="{StaticResource VcSecondaryButtonStyle}"
+
+                    Click="BtnViewId_OnClick"
+
+                    Margin="{Binding Source={StaticResource UiScaleState},
+
+                                     Path=FontScale,
+
+                                     Converter={StaticResource ThicknessScaleConverter},
+
+                                     ConverterParameter='0,0,8,0'}"
+
+                    Visibility="Collapsed" />
+
+            <Button x:Name="BtnReuploadId"
+
+                    Content="Re-upload"
+
+                    Style="{StaticResource VcSecondaryButtonStyle}"
+
+                    Click="BtnReuploadId_OnClick"
+
+                    Visibility="Collapsed" />
+
+        </StackPanel>
+
+    </Grid>
+
+    </ScrollViewer>
+
+</UserControl>
+

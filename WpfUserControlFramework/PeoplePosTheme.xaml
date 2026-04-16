@@ -9,6 +9,7 @@
     <local:LayoutScaleConverter x:Key="LayoutScaleConverter" />
     <local:ThicknessScaleConverter x:Key="ThicknessScaleConverter" />
     <local:CornerRadiusFromHeightConverter x:Key="CornerRadiusFromHeightConverter" />
+    <local:ScaledCornerRadiusConverter x:Key="ScaledCornerRadiusConverter" />
     <local:ScaledDoubleConverter x:Key="ScaledDoubleConverter" />
     <local:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
     <local:StatusToBorderConverter x:Key="StatusToBorderConverter"/>
@@ -1154,6 +1155,7 @@
         <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="UseLayoutRounding" Value="True" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="FontWeight" Value="Normal" />
 
         <Setter Property="Background" Value="#FFF3F3F5" />
         <Setter Property="BorderThickness" Value="0" />
@@ -2678,6 +2680,8 @@
                  ConverterParameter="14" />
             </Setter.Value>
         </Setter>
+        <!-- Do not inherit bold from surrounding headers; field values stay regular weight. -->
+        <Setter Property="FontWeight" Value="Normal" />
 
         <!-- Scaled padding -->
         <Setter Property="Padding">
@@ -2930,6 +2934,99 @@
        BasedOn="{StaticResource IcBaseTextBoxStyle}">
         <Setter Property="IsReadOnly" Value="False" />
         <Setter Property="IsHitTestVisible" Value="True" />
+    </Style>
+
+    <!-- Password field: same surface + focus rings as IcBaseTextBoxStyle (Add Table / Ops forms). -->
+    <Style x:Key="IcEnabledPasswordBoxStyle"
+           TargetType="PasswordBox">
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="UseLayoutRounding" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{StaticResource MainForeground}" />
+        <Setter Property="CaretBrush" Value="{StaticResource MainForeground}" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="FontSize">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource FontScaleConverter}"
+                         ConverterParameter="14" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Padding">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource ThicknessScaleConverter}"
+                         ConverterParameter="12,8,12,8" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="MinHeight">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource FontScaleConverter}"
+                         ConverterParameter="35" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="PasswordBox">
+                    <Grid SnapsToDevicePixels="True" UseLayoutRounding="True">
+                        <Border x:Name="BaseBorder"
+                                Background="#FFF3F3F5"
+                                CornerRadius="9"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                SnapsToDevicePixels="True" />
+                        <Border x:Name="FocusOuter"
+                                Visibility="Collapsed"
+                                Margin="-3"
+                                CornerRadius="9"
+                                BorderThickness="3"
+                                BorderBrush="#C1DEFE"
+                                Background="Transparent"
+                                SnapsToDevicePixels="True"
+                                RenderOptions.EdgeMode="Aliased" />
+                        <Border x:Name="FocusInner"
+                                Visibility="Collapsed"
+                                Margin="-1"
+                                CornerRadius="8"
+                                BorderThickness="1"
+                                BorderBrush="#93C5FD"
+                                Background="Transparent"
+                                SnapsToDevicePixels="True"
+                                RenderOptions.EdgeMode="Aliased" />
+                        <ScrollViewer x:Name="PART_ContentHost"
+                                      Margin="0"
+                                      SnapsToDevicePixels="True"
+                                      Focusable="False" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="BaseBorder" Property="Background" Value="#FFEFEFF2" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="FocusOuter" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="FocusInner" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter TargetName="FocusOuter" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="FocusInner" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="BaseBorder" Property="Background" Value="#FFE5E7EB" />
+                            <Setter TargetName="FocusOuter" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="FocusInner" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
 
@@ -4593,7 +4690,7 @@ ConverterParameter="32" />
                         CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent},
                           Path=ActualHeight,
                           Converter={StaticResource CornerRadiusFromHeightConverter},
-                          ConverterParameter=10}"
+                          ConverterParameter=6}"
                         Padding="{TemplateBinding Padding}"
                         SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -4668,7 +4765,7 @@ ConverterParameter="32" />
                             CornerRadius="{Binding Source={StaticResource UiScaleState},
                                                    Path=FontScale,
                                                    Converter={StaticResource CornerRadiusFromHeightConverter},
-                                                   ConverterParameter=10}"
+                                                   ConverterParameter=6}"
                             Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -5002,7 +5099,7 @@ ConverterParameter="32" />
                         CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent},
                           Path=ActualHeight,
                           Converter={StaticResource CornerRadiusFromHeightConverter},
-                          ConverterParameter=10}"
+                          ConverterParameter=6}"
                         Padding="{TemplateBinding Padding}"
                         SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"

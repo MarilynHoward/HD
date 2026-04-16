@@ -279,10 +279,12 @@
             </DockPanel>
         </Border>
 
-        <!-- Content Area: bounded height so child ScrollViewers can scroll -->
+        <!-- Content Area: stretch host + stretch content (default HorizontalContentAlignment=Left shrinks pages with small desired width). -->
         <ContentControl x:Name="ContentArea"
                         Grid.Column="1"
+                        HorizontalAlignment="Stretch"
                         VerticalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
                         VerticalContentAlignment="Stretch" />
 
         <!-- Scrim Overlay: semi-transparent dark overlay for modal dialogs -->

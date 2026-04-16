@@ -14,7 +14,7 @@ public partial class OpsServicesFloorPlanDesign : UserControl
     private readonly Action _navigateToShiftScheduling;
     private readonly Action _navigateToTableManagement;
     private readonly Action<string?, DateOnly, OpsReservationListFilter, string?, Guid?> _openReservationsManagement;
-    private readonly DispatcherTimer _searchDebounce = new() { Interval = TimeSpan.FromMilliseconds(300) };
+    private readonly DispatcherTimer _searchDebounce = new() { Interval = TimeSpan.FromMilliseconds(200) };
 
     private DateOnly _selectedDate = DateOnly.FromDateTime(DateTime.Today);
     private OpsReservationListFilter _listFilter = OpsReservationListFilter.All;
@@ -215,6 +215,20 @@ public partial class OpsServicesFloorPlanDesign : UserControl
         }
     }
 
+    //private void RebuildReservationList()
+    //{
+    //    var floor = SelectedFloor;
+    //    if (floor == null)
+    //    {
+    //        ReservationsItems.ItemsSource = Array.Empty<OpsReservation>();
+    //        return;
+    //    }
+
+    //    var rows = OpsServicesStore.GetReservationsForList(_selectedDate, floor, _listFilter,
+    //        string.IsNullOrWhiteSpace(_searchQuery) ? null : _searchQuery.Trim()).ToList();
+    //    ReservationsItems.ItemsSource = rows;
+    //}
+
     private void RebuildReservationList()
     {
         var floor = SelectedFloor;
@@ -224,10 +238,18 @@ public partial class OpsServicesFloorPlanDesign : UserControl
             return;
         }
 
-        var rows = OpsServicesStore.GetReservationsForList(_selectedDate, floor, _listFilter,
+        var effectiveFilter = _listFilter switch
+        {
+            OpsReservationListFilter.Reserved => OpsReservationListFilter.Occupied,
+            OpsReservationListFilter.Occupied => OpsReservationListFilter.Reserved,
+            _ => _listFilter
+        };
+
+        var rows = OpsServicesStore.GetReservationsForList(_selectedDate, floor, effectiveFilter,
             string.IsNullOrWhiteSpace(_searchQuery) ? null : _searchQuery.Trim()).ToList();
         ReservationsItems.ItemsSource = rows;
     }
+
 
     private IReadOnlyList<OpsFloorTable> ActiveTablesOnFloor(string floor)
     {
@@ -239,17 +261,26 @@ public partial class OpsServicesFloorPlanDesign : UserControl
             .ToList();
     }
 
-    /// <summary>
-    /// Reservation list pills (All / Reserved / Occupied) also limit which table cards are drawn on the canvas.
-    /// </summary>
+    //private IEnumerable<OpsFloorTable> TablesForFloorCanvas(IReadOnlyList<OpsFloorTable> tablesOnFloor)
+    //{
+    //    return _listFilter switch
+    //    {
+    //        OpsReservationListFilter.Reserved => tablesOnFloor.Where(t =>
+    //            OpsServicesStore.GetFloorPlanTableVisualKind(_selectedDate, t.Id) == OpsFloorPlanTableVisualKind.Reserved),
+    //        OpsReservationListFilter.Occupied => tablesOnFloor.Where(t =>
+    //            OpsServicesStore.GetFloorPlanTableVisualKind(_selectedDate, t.Id) == OpsFloorPlanTableVisualKind.Occupied),
+    //        _ => tablesOnFloor
+    //    };
+    //}
+
     private IEnumerable<OpsFloorTable> TablesForFloorCanvas(IReadOnlyList<OpsFloorTable> tablesOnFloor)
     {
         return _listFilter switch
         {
             OpsReservationListFilter.Reserved => tablesOnFloor.Where(t =>
-                OpsServicesStore.GetFloorPlanTableVisualKind(_selectedDate, t.Id) == OpsFloorPlanTableVisualKind.Reserved),
-            OpsReservationListFilter.Occupied => tablesOnFloor.Where(t =>
                 OpsServicesStore.GetFloorPlanTableVisualKind(_selectedDate, t.Id) == OpsFloorPlanTableVisualKind.Occupied),
+            OpsReservationListFilter.Occupied => tablesOnFloor.Where(t =>
+                OpsServicesStore.GetFloorPlanTableVisualKind(_selectedDate, t.Id) == OpsFloorPlanTableVisualKind.Reserved),
             _ => tablesOnFloor
         };
     }
@@ -709,8 +740,8 @@ public partial class OpsServicesFloorPlanDesign : UserControl
         }
 
         TxtLegendAvailable.Text = av.ToString(CultureInfo.CurrentCulture);
-        TxtLegendReserved.Text = res.ToString(CultureInfo.CurrentCulture);
-        TxtLegendOccupied.Text = occ.ToString(CultureInfo.CurrentCulture);
+        TxtLegendOccupied.Text = res.ToString(CultureInfo.CurrentCulture);
+        TxtLegendReserved.Text = occ.ToString(CultureInfo.CurrentCulture);
         TxtTotalTables.Text = tables.Count.ToString(CultureInfo.CurrentCulture);
     }
 
@@ -790,17 +821,38 @@ public partial class OpsServicesFloorPlanDesign : UserControl
     private void BtnManageReservations_Click(object sender, RoutedEventArgs e) =>
         OpenManageReservations(null);
 
-    /// <summary>Opens manage reservations for the current floor/date/nav filter; optional <paramref name="focusReservationId"/> shows a single row.</summary>
+    //private void OpenManageReservations(Guid? focusReservationId)
+    //{
+    //    var floor = SelectedFloor;
+    //    if (string.IsNullOrWhiteSpace(floor))
+    //        return;
+    //    //App.OpsTrace($"OpenManageReservations: floor={floor} focus={focusReservationId}");
+    //    _openReservationsManagement(
+    //        floor,
+    //        _selectedDate,
+    //        _listFilter,
+    //        string.IsNullOrWhiteSpace(_searchQuery) ? null : _searchQuery.Trim(),
+    //        focusReservationId);
+    //}
+
     private void OpenManageReservations(Guid? focusReservationId)
     {
         var floor = SelectedFloor;
         if (string.IsNullOrWhiteSpace(floor))
             return;
-        App.OpsTrace($"OpenManageReservations: floor={floor} focus={focusReservationId}");
+
+        var effectiveFilter = _listFilter switch
+        {
+            OpsReservationListFilter.Reserved => OpsReservationListFilter.Occupied,
+            OpsReservationListFilter.Occupied => OpsReservationListFilter.Reserved,
+            _ => _listFilter
+        };
+
+        //App.OpsTrace($"OpenManageReservations: floor={floor} focus={focusReservationId}");
         _openReservationsManagement(
             floor,
             _selectedDate,
-            _listFilter,
+            effectiveFilter,
             string.IsNullOrWhiteSpace(_searchQuery) ? null : _searchQuery.Trim(),
             focusReservationId);
     }
@@ -819,6 +871,30 @@ public partial class OpsServicesFloorPlanDesign : UserControl
             TxtReservationSearch.Focus();
             Keyboard.Focus(TxtReservationSearch);
         }), System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    private void TxtReservationSearch_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (SearchFocusOuter != null)
+            SearchFocusOuter.Visibility = Visibility.Visible;
+
+        if (SearchFocusInner != null)
+            SearchFocusInner.Visibility = Visibility.Visible;
+
+        if (ReservationSearchHostBorder != null)
+            ReservationSearchHostBorder.BorderBrush = Brushes.Transparent;
+    }
+
+    private void TxtReservationSearch_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (SearchFocusOuter != null)
+            SearchFocusOuter.Visibility = Visibility.Collapsed;
+
+        if (SearchFocusInner != null)
+            SearchFocusInner.Visibility = Visibility.Collapsed;
+
+        if (ReservationSearchHostBorder != null)
+            ReservationSearchHostBorder.BorderBrush = (Brush)new BrushConverter().ConvertFrom("#CCC");
     }
 
     private void TxtReservationSearch_TextChanged(object sender, TextChangedEventArgs e)

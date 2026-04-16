@@ -1,0 +1,1655 @@
+<UserControl x:Class="RestaurantPosWpf.StaffAccessUserDetails"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:RestaurantPosWpf"
+             Loaded="StaffAccessUserDetails_OnLoaded"
+             VerticalAlignment="Stretch"
+             HorizontalAlignment="Stretch">
+
+    <UserControl.Resources>
+        <!-- Card shadow (same weight as Operations shift scheduling) -->
+        <DropShadowEffect x:Key="StaffAccessCardShadow"
+                          BlurRadius="14"
+                          Direction="270"
+                          Opacity="0.08"
+                          ShadowDepth="2"
+                          Color="#000000" />
+
+        <!-- User list row elevation (match OpsServicesTableManagement TablesListBox cards). -->
+        <DropShadowEffect x:Key="StaffAccessUserRowSelectedShadow"
+                          BlurRadius="12"
+                          Direction="270"
+                          Opacity="0.16"
+                          ShadowDepth="3"
+                          Color="#000000" />
+        <DropShadowEffect x:Key="StaffAccessUserRowHoverShadow"
+                          BlurRadius="16"
+                          Direction="270"
+                          Opacity="0.2"
+                          ShadowDepth="4"
+                          Color="#000000" />
+
+        <!-- Stat tiles on purple header: solid fill + white type (client #7B7EF1) -->
+        <SolidColorBrush x:Key="StaffStatHeaderTileBg" Color="#7B7EF1" />
+        <SolidColorBrush x:Key="StaffStatHeaderTileBorder" Color="#99FFFFFF" />
+        <SolidColorBrush x:Key="StaffStatTotalIconSquircleBg" Color="#9799F8" />
+        <SolidColorBrush x:Key="StaffStatActiveIconSquircleBg" Color="#649BD8" />
+
+        <SolidColorBrush x:Key="StaffAccessPurple" Color="#676BF0" />
+        <SolidColorBrush x:Key="StaffAccessPurpleSubtitle" Color="#DDE4FF" />
+
+        <Style x:Key="StaffFormLabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource DimmedForeground}" />
+            <Setter Property="FontSize"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                    Path=FontScale,
+                                    Converter={StaticResource FontScaleConverter},
+                                    ConverterParameter=14}" />
+            <Setter Property="Margin"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource ThicknessScaleConverter},
+                                     ConverterParameter='0,0,0,4'}" />
+        </Style>
+
+        <!-- Read-only ID: regular weight + muted value (matches client reference). -->
+        <Style x:Key="StaffAccessReadOnlyIdTextBoxStyle"
+               TargetType="TextBox"
+               BasedOn="{StaticResource IcEnabledTextBoxStyle}">
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+        </Style>
+
+        <!-- User details tab strip: Lucide strokes follow RadioButton Foreground (#111827). -->
+        <Style x:Key="StaffTabLucidePathStyle"
+               TargetType="Path">
+            <Setter Property="Fill" Value="Transparent" />
+            <Setter Property="Stroke"
+                    Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+            <Setter Property="StrokeThickness" Value="2" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+        </Style>
+
+        <!-- Segmented radio strip (same pattern as system config tabs): pill radius + white segment when checked. -->
+        <Style x:Key="StaffDetailTabRadioStyle"
+               TargetType="RadioButton">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="#111827" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="SegmentBorder"
+                                Background="Transparent"
+                                SnapsToDevicePixels="True">
+                            <Border.CornerRadius>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource ScaledDoubleConverter}"
+                                         ConverterParameter="20" />
+                            </Border.CornerRadius>
+                            <Border.Padding>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource ThicknessScaleConverter}"
+                                         ConverterParameter="0,8" />
+                            </Border.Padding>
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              Content="{TemplateBinding Content}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="SegmentBorder" Property="Background" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="False">
+                                <Setter TargetName="SegmentBorder" Property="Background" Value="Transparent" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Chrome on item card (RowBorder in template); host matches OpsTableMgmtListBoxItemStyle. -->
+        <Style x:Key="StaffListItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemChrome"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                Padding="0"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Padding is applied in code so right edge matches left when vertical scrollbar shows/hides (Procurement list pattern). -->
+        <Style x:Key="StaffUsersListBoxStyle" TargetType="ListBox">
+            <Setter Property="ScrollViewer.CanContentScroll" Value="False" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource StaffListItemStyle}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <!-- Narrow list column: VcSecondary default (34×, 18,6 pad) reads huge; keep theme chrome, tighten via converters. -->
+        <Style x:Key="StaffAccessHeaderAddUserButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource VcSecondaryButtonStyle}">
+            <Setter Property="FontSize">
+                <Setter.Value>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource FontScaleConverter}"
+                             ConverterParameter="14" />
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Height">
+                <Setter.Value>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource LayoutScaleConverter}"
+                             ConverterParameter="28" />
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Padding">
+                <Setter.Value>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource ThicknessScaleConverter}"
+                             ConverterParameter="8,2" />
+                </Setter.Value>
+            </Setter>
+            <Setter Property="MinWidth" Value="0" />
+        </Style>
+
+        <!-- Same chrome as OpsServicesReservationsManagement ReservationCardIconButtonStyle; corner from height (not FontScale). -->
+        <Style x:Key="StaffAccessUserCardIconButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource ThicknessScaleConverter},
+                                     ConverterParameter='8,6,8,6'}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="MinWidth"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource LayoutScaleConverter},
+                                     ConverterParameter=36}" />
+            <Setter Property="MinHeight"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource LayoutScaleConverter},
+                                     ConverterParameter=36}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                       Path=ActualHeight,
+                                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                       ConverterParameter=8}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F3F4F6" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E5E7EB" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource FocusOuter}" />
+                                <Setter TargetName="Bd" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="{StaticResource Brush.SurfaceOffWhite}"
+            SnapsToDevicePixels="True"
+            VerticalAlignment="Stretch">
+        <!-- Bounded height (no whole-page vertical scroll): list scrolls inside left card; header + details stay put. -->
+        <!-- Same width behavior as Operations (e.g. Shift Scheduling): stretch with outer margin only — no MaxWidth + Center. -->
+        <Grid x:Name="PageScroll"
+              VerticalAlignment="Stretch"
+              HorizontalAlignment="Stretch"
+              MinHeight="0"
+              Margin="{Binding Source={StaticResource UiScaleState},
+                               Path=FontScale,
+                               Converter={StaticResource ThicknessScaleConverter},
+                               ConverterParameter='24,24,24,24'}">
+            <Grid VerticalAlignment="Stretch"
+                  HorizontalAlignment="Stretch"
+                  MinHeight="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition
+                        Width="{Binding Source={StaticResource UiScaleState},
+                                        Path=FontScale,
+                                        Converter={StaticResource LayoutScaleConverter},
+                                        ConverterParameter=340}" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: user list (Operations-style white card) -->
+                <Border x:Name="StaffAccessListCard"
+                        Grid.Column="0"
+                        Margin="{Binding Source={StaticResource UiScaleState},
+                                         Path=FontScale,
+                                         Converter={StaticResource ThicknessScaleConverter},
+                                         ConverterParameter='0,0,16,0'}"
+                        VerticalAlignment="Stretch"
+                        MinHeight="0"
+                        Background="{StaticResource Brush.White}"
+                        BorderBrush="{StaticResource Brush.BorderSoft}"
+                        BorderThickness="1"
+                        ClipToBounds="True"
+                        CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                               Path=ActualHeight,
+                                               Converter={StaticResource CornerRadiusFromHeightConverter},
+                                               ConverterParameter=12}"
+                        Effect="{StaticResource StaffAccessCardShadow}">
+                    <Grid MinHeight="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" MinHeight="0" />
+                        </Grid.RowDefinitions>
+                        <!-- Brand header: icon + titles, Add User (secondary), stat cards on #676BF0 -->
+                        <Border Grid.Row="0"
+                                Background="{StaticResource StaffAccessPurple}"
+                                CornerRadius="{Binding Source={StaticResource UiScaleState},
+                                                       Path=FontScale,
+                                                       Converter={StaticResource ScaledCornerRadiusConverter},
+                                                       ConverterParameter='12,12,0,0'}"
+                                Padding="{Binding Source={StaticResource UiScaleState},
+                                                   Path=FontScale,
+                                                   Converter={StaticResource ThicknessScaleConverter},
+                                                   ConverterParameter='16,16,16,14'}">
+                            <StackPanel>
+                                <!-- Header row: *+Auto with MinWidth=0 so titles ellipsize instead of drawing over the button (narrow list column). -->
+                                <Grid Margin="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                      ConverterParameter='0,0,0,14'}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"
+                                                          MinWidth="0" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid Grid.Column="0"
+                                          MinWidth="0"
+                                          Margin="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='0,0,16,0'}"
+                                          VerticalAlignment="Center">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*"
+                                                              MinWidth="0" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0"
+                                                Background="#33FFFFFF"
+                                                CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                                       Path=ActualHeight,
+                                                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                       ConverterParameter=8}"
+                                                Padding="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                                 ConverterParameter='8,8,8,8'}"
+                                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                                 ConverterParameter='0,0,12,0'}"
+                                                VerticalAlignment="Center">
+                                            <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource LayoutScaleConverter},
+                                                             ConverterParameter=26.6}"
+                                                     Height="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource LayoutScaleConverter},
+                                                                      ConverterParameter=26.6}">
+                                                <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                                    <Path Stroke="White"
+                                                          StrokeThickness="2"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          StrokeLineJoin="Round"
+                                                          Fill="Transparent"
+                                                          Data="M 16 21 v -2 a 4 4 0 0 0 -4 -4 H 6 a 4 4 0 0 0 -4 4 v 2" />
+                                                    <Ellipse Canvas.Left="5"
+                                                             Canvas.Top="3"
+                                                             Width="8"
+                                                             Height="8"
+                                                             Stroke="White"
+                                                             StrokeThickness="2"
+                                                             Fill="Transparent" />
+                                                    <Path Stroke="White"
+                                                          StrokeThickness="2"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          StrokeLineJoin="Round"
+                                                          Fill="Transparent"
+                                                          Data="M 22 21 v -2 a 4 4 0 0 0 -3 -3.87" />
+                                                    <Path Stroke="White"
+                                                          StrokeThickness="2"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          StrokeLineJoin="Round"
+                                                          Fill="Transparent"
+                                                          Data="M 16 3.13 a 4 4 0 0 1 0 7.75" />
+                                                </Canvas>
+                                            </Viewbox>
+                                        </Border>
+                                        <StackPanel Grid.Column="1"
+                                                    VerticalAlignment="Center"
+                                                    MinWidth="0">
+                                            <TextBlock Text="User Access"
+                                                       Foreground="White"
+                                                       FontWeight="Bold"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=15}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       TextWrapping="NoWrap" />
+                                            <TextBlock Text="Manage staff members"
+                                                       Foreground="{StaticResource StaffAccessPurpleSubtitle}"
+                                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                                        Path=FontScale,
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='0,3,0,0'}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Button Grid.Column="1"
+                                            Click="BtnAddUser_OnClick"
+                                            Style="{StaticResource StaffAccessHeaderAddUserButtonStyle}"
+                                            VerticalAlignment="Center"
+                                            FocusVisualStyle="{x:Null}">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource LayoutScaleConverter},
+                                                                     ConverterParameter=14}"
+                                                     Height="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource LayoutScaleConverter},
+                                                                      ConverterParameter=14}"
+                                                     Margin="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                                      ConverterParameter='0,0,5,0'}">
+                                                <Canvas Width="24"
+                                                        Height="24"
+                                                        SnapsToDevicePixels="True">
+                                                    <!-- Lucide user-plus @ 24 -->
+                                                    <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                          Data="M 16,21 L 16,19 A 4,4 0 0 0 12,15 L 6,15 A 4,4 0 0 0 2,19 L 2,21" />
+                                                    <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                          Data="M 13,7 A 4,4 0 1 1 5,7 A 4,4 0 1 1 13,7" />
+                                                    <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                          Data="M 19,8 L 19,14" />
+                                                    <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                          Data="M 22,11 L 16,11" />
+                                                </Canvas>
+                                            </Viewbox>
+                                            <TextBlock Text="Add User"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <UniformGrid Columns="2"
+                                             Margin="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                              ConverterParameter='0,0,0,0'}">
+                                    <Border Background="{StaticResource StaffStatHeaderTileBg}"
+                                            BorderBrush="{StaticResource StaffStatHeaderTileBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                                   Path=ActualHeight,
+                                                                   Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                   ConverterParameter=8}"
+                                            Padding="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                              ConverterParameter='12,10,12,10'}"
+                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                             ConverterParameter='0,0,8,0'}">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Row="0"
+                                                       Grid.Column="0"
+                                                       Text="Total Users"
+                                                       Foreground="White"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}"
+                                                       VerticalAlignment="Center" />
+                                            <Border Grid.Row="0"
+                                                    Grid.Column="1"
+                                                    Background="{StaticResource StaffStatTotalIconSquircleBg}"
+                                                    CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                                           Path=ActualHeight,
+                                                                           Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                           ConverterParameter=8}"
+                                                    Padding="{Binding Source={StaticResource UiScaleState},
+                                                                       Path=FontScale,
+                                                                       Converter={StaticResource ThicknessScaleConverter},
+                                                                       ConverterParameter='5,5,5,5'}"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Top"
+                                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                                     ConverterParameter='0,0,0,2'}">
+                                                <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                         Path=FontScale,
+                                                                         Converter={StaticResource LayoutScaleConverter},
+                                                                         ConverterParameter=20}"
+                                                         Height="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource LayoutScaleConverter},
+                                                                          ConverterParameter=20}">
+                                                    <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                                        <Path Stroke="White"
+                                                              StrokeThickness="2"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M 16 21 v -2 a 4 4 0 0 0 -4 -4 H 6 a 4 4 0 0 0 -4 4 v 2" />
+                                                        <Ellipse Canvas.Left="5"
+                                                                 Canvas.Top="3"
+                                                                 Width="8"
+                                                                 Height="8"
+                                                                 Stroke="White"
+                                                                 StrokeThickness="2"
+                                                                 Fill="Transparent" />
+                                                        <Path Stroke="White"
+                                                              StrokeThickness="2"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M 22 21 v -2 a 4 4 0 0 0 -3 -3.87" />
+                                                        <Path Stroke="White"
+                                                              StrokeThickness="2"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M 16 3.13 a 4 4 0 0 1 0 7.75" />
+                                                    </Canvas>
+                                                </Viewbox>
+                                            </Border>
+                                            <TextBlock x:Name="TxtStatTotal"
+                                                       Grid.Row="1"
+                                                       Grid.Column="0"
+                                                       Grid.ColumnSpan="2"
+                                                       FontWeight="Bold"
+                                                       Foreground="White"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=22}"
+                                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                                        Path=FontScale,
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='0,4,0,0'}" />
+                                        </Grid>
+                                    </Border>
+                                    <Border Background="{StaticResource StaffStatHeaderTileBg}"
+                                            BorderBrush="{StaticResource StaffStatHeaderTileBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                                   Path=ActualHeight,
+                                                                   Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                   ConverterParameter=8}"
+                                            Padding="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                              ConverterParameter='12,10,12,10'}">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Row="0"
+                                                       Grid.Column="0"
+                                                       Text="Active"
+                                                       Foreground="White"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}"
+                                                       VerticalAlignment="Center" />
+                                            <Border Grid.Row="0"
+                                                    Grid.Column="1"
+                                                    Background="{StaticResource StaffStatActiveIconSquircleBg}"
+                                                    CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                                           Path=ActualHeight,
+                                                                           Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                           ConverterParameter=8}"
+                                                    Padding="{Binding Source={StaticResource UiScaleState},
+                                                                       Path=FontScale,
+                                                                       Converter={StaticResource ThicknessScaleConverter},
+                                                                       ConverterParameter='5,5,5,5'}"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Top"
+                                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                                     ConverterParameter='0,0,0,2'}">
+                                                <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                         Path=FontScale,
+                                                                         Converter={StaticResource LayoutScaleConverter},
+                                                                         ConverterParameter=20}"
+                                                         Height="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource LayoutScaleConverter},
+                                                                          ConverterParameter=20}">
+                                                    <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                                        <Path Stroke="White"
+                                                              StrokeThickness="2"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M 16 21 v -2 a 4 4 0 0 0 -4 -4 H 6 a 4 4 0 0 0 -4 4 v 2" />
+                                                        <Ellipse Canvas.Left="5"
+                                                                 Canvas.Top="3"
+                                                                 Width="8"
+                                                                 Height="8"
+                                                                 Stroke="White"
+                                                                 StrokeThickness="2"
+                                                                 Fill="Transparent" />
+                                                        <Path Stroke="White"
+                                                              StrokeThickness="2"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M 22 21 v -2 a 4 4 0 0 0 -3 -3.87" />
+                                                        <Path Stroke="White"
+                                                              StrokeThickness="2"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M 16 3.13 a 4 4 0 0 1 0 7.75" />
+                                                    </Canvas>
+                                                </Viewbox>
+                                            </Border>
+                                            <TextBlock x:Name="TxtStatActive"
+                                                       Grid.Row="1"
+                                                       Grid.Column="0"
+                                                       Grid.ColumnSpan="2"
+                                                       FontWeight="Bold"
+                                                       Foreground="White"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=22}"
+                                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                                        Path=FontScale,
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='0,4,0,0'}" />
+                                        </Grid>
+                                    </Border>
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Search (white body below header) -->
+                        <StackPanel Grid.Row="1"
+                                    Background="{StaticResource Brush.White}"
+                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                     Path=FontScale,
+                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                     ConverterParameter='14,14,14,0'}">
+                            <!-- Search host (no separate label — field sits in the prior heading row). -->
+                            <Border x:Name="SearchBoxBorder"
+                                    PreviewMouseLeftButtonDown="SearchBoxBorder_OnPreviewMouseLeftButtonDown"
+                                    Background="White"
+                                    BorderBrush="#CCC"
+                                    SnapsToDevicePixels="True"
+                                    ClipToBounds="False"
+                                    BorderThickness="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource LayoutScaleConverter},
+                                                              ConverterParameter=1}"
+                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                     Path=FontScale,
+                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                     ConverterParameter='0,0,0,12'}">
+                                <Border.CornerRadius>
+                                    <Binding RelativeSource="{RelativeSource Self}"
+                                             Path="ActualHeight"
+                                             Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                             ConverterParameter="8" />
+                                </Border.CornerRadius>
+                                <Grid>
+                                    <!-- Focus rings: visibility toggled in code (same as OpsServicesFloorPlanDesign — DataTriggers lose to local Visibility). -->
+                                    <Border x:Name="SearchFocusOuter"
+                                            Panel.ZIndex="10"
+                                            Visibility="Collapsed"
+                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                             ConverterParameter='-3'}"
+                                            CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                                   Path=ActualHeight,
+                                                                   Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                   ConverterParameter='9'}"
+                                            BorderThickness="3"
+                                            BorderBrush="#C1DEFE"
+                                            Background="Transparent"
+                                            SnapsToDevicePixels="True"
+                                            RenderOptions.EdgeMode="Aliased"
+                                            IsHitTestVisible="False" />
+                                    <Border x:Name="SearchFocusInner"
+                                            Panel.ZIndex="11"
+                                            Visibility="Collapsed"
+                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                             ConverterParameter='-1'}"
+                                            CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                                   Path=ActualHeight,
+                                                                   Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                   ConverterParameter='8'}"
+                                            BorderThickness="1"
+                                            BorderBrush="#93C5FD"
+                                            Background="Transparent"
+                                            SnapsToDevicePixels="True"
+                                            RenderOptions.EdgeMode="Aliased"
+                                            IsHitTestVisible="False" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource LayoutScaleConverter},
+                                                                 ConverterParameter=16}"
+                                                 Height="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource LayoutScaleConverter},
+                                                                  ConverterParameter=16}"
+                                                 Margin="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource ThicknessScaleConverter},
+                                                                  ConverterParameter='10,0,6,0'}"
+                                                 VerticalAlignment="Center">
+                                            <Canvas Width="16" Height="16" SnapsToDevicePixels="True">
+                                                <Ellipse Canvas.Left="2"
+                                                         Canvas.Top="2"
+                                                         Width="10"
+                                                         Height="10"
+                                                         Stroke="#9CA3AF"
+                                                         StrokeThickness="1.6"
+                                                         Fill="Transparent" />
+                                                <Line X1="10.5"
+                                                      Y1="10.5"
+                                                      X2="15"
+                                                      Y2="15"
+                                                      Stroke="#9CA3AF"
+                                                      StrokeThickness="1.6"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round" />
+                                            </Canvas>
+                                        </Viewbox>
+                                        <TextBox Grid.Column="1"
+                                                 x:Name="SearchTextBox"
+                                                 Height="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource LayoutScaleConverter},
+                                                                  ConverterParameter=40}"
+                                                 TextChanged="SearchTextBox_OnTextChanged"
+                                                 GotKeyboardFocus="SearchTextBox_OnGotKeyboardFocus"
+                                                 LostKeyboardFocus="SearchTextBox_OnLostKeyboardFocus"
+                                                 BorderThickness="0"
+                                                 Background="Transparent"
+                                                 Padding="0"
+                                                 FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                    Path=FontScale,
+                                                                    Converter={StaticResource FontScaleConverter},
+                                                                    ConverterParameter=14}"
+                                                 VerticalAlignment="Center"
+                                                 Style="{StaticResource SearchWatermarkTextBox}"
+                                                 Tag="Search users by name or ID…"
+                                                 ToolTip="Filter by user name, display name, or numeric ID." />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+
+                        <ListBox x:Name="UsersList"
+                                 Grid.Row="2"
+                                 VerticalAlignment="Stretch"
+                                 MinHeight="0"
+                                 Style="{StaticResource StaffUsersListBoxStyle}"
+                                 SelectionChanged="UsersList_OnSelectionChanged"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 PreviewMouseWheel="UsersList_OnPreviewMouseWheel">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type local:StaffAccessListItemVm}">
+                                    <Border x:Name="RowBorder"
+                                            Padding="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                              ConverterParameter='8,11,8,11'}"
+                                            BorderThickness="1"
+                                            SnapsToDevicePixels="True"
+                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                             ConverterParameter='0,0,0,4'}">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{StaticResource Brush.White}" />
+                                                <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderSoft}" />
+                                                <Setter Property="Effect" Value="{x:Null}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}"
+                                                                 Value="True">
+                                                        <Setter Property="Background" Value="#EFF6FF" />
+                                                        <Setter Property="BorderBrush" Value="#93C5FD" />
+                                                        <Setter Property="Effect" Value="{StaticResource StaffAccessUserRowSelectedShadow}" />
+                                                    </DataTrigger>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsMouseOver}"
+                                                                       Value="True" />
+                                                            <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}"
+                                                                       Value="False" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Background" Value="{StaticResource Brush.SurfaceGreySoft}" />
+                                                        <Setter Property="BorderBrush" Value="{StaticResource Brush.SurfaceGrey}" />
+                                                        <Setter Property="Effect" Value="{StaticResource StaffAccessUserRowHoverShadow}" />
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Border.CornerRadius>
+                                            <Binding RelativeSource="{RelativeSource Self}"
+                                                     Path="ActualHeight"
+                                                     Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                                     ConverterParameter="8" />
+                                        </Border.CornerRadius>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding UserName}"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{StaticResource MainForeground}"
+                                                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                                  Path=FontScale,
+                                                                                  Converter={StaticResource FontScaleConverter},
+                                                                                  ConverterParameter=14}" />
+                                                    <Border Margin="{Binding Source={StaticResource UiScaleState},
+                                                                              Path=FontScale,
+                                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                                              ConverterParameter='8,0,0,0'}"
+                                                            BorderThickness="1"
+                                                            BorderBrush="{Binding StatusPillBorderBrush}"
+                                                            Padding="{Binding Source={StaticResource UiScaleState},
+                                                                              Path=FontScale,
+                                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                                              ConverterParameter='8,2,8,2'}"
+                                                            Background="{Binding StatusPillBackground}">
+                                                        <Border.CornerRadius>
+                                                            <Binding RelativeSource="{RelativeSource Self}"
+                                                                     Path="ActualHeight"
+                                                                     Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                                                     ConverterParameter="8" />
+                                                        </Border.CornerRadius>
+                                                        <TextBlock Text="{Binding StatusLabel}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                                      Path=FontScale,
+                                                                                      Converter={StaticResource FontScaleConverter},
+                                                                                      ConverterParameter=12}"
+                                                                   Foreground="{Binding StatusPillForeground}" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal"
+                                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                                             Path=FontScale,
+                                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                                             ConverterParameter='0,6,0,0'}">
+                                                    <TextBlock Text="{Binding IdLine}"
+                                                               Foreground="{StaticResource DimmedForeground}"
+                                                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                                  Path=FontScale,
+                                                                                  Converter={StaticResource FontScaleConverter},
+                                                                                  ConverterParameter=13}" />
+                                                    <Border Margin="{Binding Source={StaticResource UiScaleState},
+                                                                              Path=FontScale,
+                                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                                              ConverterParameter='8,0,0,0'}"
+                                                            BorderThickness="1"
+                                                            BorderBrush="{Binding RoleBadgeBorderBrush}"
+                                                            Padding="{Binding Source={StaticResource UiScaleState},
+                                                                              Path=FontScale,
+                                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                                              ConverterParameter='8,2,8,2'}"
+                                                            Background="{Binding RoleBadgeBackground}">
+                                                        <Border.CornerRadius>
+                                                            <Binding RelativeSource="{RelativeSource Self}"
+                                                                     Path="ActualHeight"
+                                                                     Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                                                     ConverterParameter="8" />
+                                                        </Border.CornerRadius>
+                                                        <TextBlock Text="{Binding RoleBadge}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                                      Path=FontScale,
+                                                                                      Converter={StaticResource FontScaleConverter},
+                                                                                      ConverterParameter=12}"
+                                                                   Foreground="{Binding RoleBadgeForeground}" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <!-- Stay enabled so Click runs and error toast explains Operations linkage (IsEnabled=false swallowed clicks). -->
+                                            <Button Grid.Column="1"
+                                                    AutomationProperties.Name="Remove user"
+                                                    Style="{StaticResource StaffAccessUserCardIconButtonStyle}"
+                                                    ToolTip="{Binding DeleteToolTip}"
+                                                    VerticalAlignment="Center"
+                                                    Tag="{Binding User.Id}"
+                                                    Click="BtnDeleteUser_OnClick">
+                                                <Viewbox Stretch="Uniform"
+                                                         Width="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource LayoutScaleConverter},
+                                                                          ConverterParameter=14.58}"
+                                                         Height="{Binding Source={StaticResource UiScaleState},
+                                                                           Path=FontScale,
+                                                                           Converter={StaticResource LayoutScaleConverter},
+                                                                           ConverterParameter=14.58}">
+                                                    <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                                        <Path Stroke="#DC2626"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M10 11v6">
+                                                            <Path.StrokeThickness>
+                                                                <Binding Source="{StaticResource UiScaleState}"
+                                                                         Path="FontScale"
+                                                                         Converter="{StaticResource LayoutScaleConverter}"
+                                                                         ConverterParameter="2" />
+                                                            </Path.StrokeThickness>
+                                                        </Path>
+                                                        <Path Stroke="#DC2626"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M14 11v6">
+                                                            <Path.StrokeThickness>
+                                                                <Binding Source="{StaticResource UiScaleState}"
+                                                                         Path="FontScale"
+                                                                         Converter="{StaticResource LayoutScaleConverter}"
+                                                                         ConverterParameter="2" />
+                                                            </Path.StrokeThickness>
+                                                        </Path>
+                                                        <Path Stroke="#DC2626"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6">
+                                                            <Path.StrokeThickness>
+                                                                <Binding Source="{StaticResource UiScaleState}"
+                                                                         Path="FontScale"
+                                                                         Converter="{StaticResource LayoutScaleConverter}"
+                                                                         ConverterParameter="2" />
+                                                            </Path.StrokeThickness>
+                                                        </Path>
+                                                        <Path Stroke="#DC2626"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M3 6h18">
+                                                            <Path.StrokeThickness>
+                                                                <Binding Source="{StaticResource UiScaleState}"
+                                                                         Path="FontScale"
+                                                                         Converter="{StaticResource LayoutScaleConverter}"
+                                                                         ConverterParameter="2" />
+                                                            </Path.StrokeThickness>
+                                                        </Path>
+                                                        <Path Stroke="#DC2626"
+                                                              StrokeStartLineCap="Round"
+                                                              StrokeEndLineCap="Round"
+                                                              StrokeLineJoin="Round"
+                                                              Fill="Transparent"
+                                                              Data="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                                            <Path.StrokeThickness>
+                                                                <Binding Source="{StaticResource UiScaleState}"
+                                                                         Path="FontScale"
+                                                                         Converter="{StaticResource LayoutScaleConverter}"
+                                                                         ConverterParameter="2" />
+                                                            </Path.StrokeThickness>
+                                                        </Path>
+                                                    </Canvas>
+                                                </Viewbox>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+
+                <!-- Right: details card -->
+                <Border Grid.Column="1"
+                        VerticalAlignment="Stretch"
+                        MinHeight="0"
+                        Background="{StaticResource Brush.White}"
+                        BorderBrush="{StaticResource Brush.BorderSoft}"
+                        BorderThickness="1"
+                        ClipToBounds="False"
+                        CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                               Path=ActualHeight,
+                                               Converter={StaticResource CornerRadiusFromHeightConverter},
+                                               ConverterParameter=12}"
+                        Padding="{Binding Source={StaticResource UiScaleState},
+                                         Path=FontScale,
+                                         Converter={StaticResource ThicknessScaleConverter},
+                                         ConverterParameter='24,14,24,16'}"
+                        Effect="{StaticResource StaffAccessCardShadow}">
+                    <DockPanel x:Name="DetailsBodyDock"
+                               LastChildFill="True"
+                               MinHeight="0"
+                               HorizontalAlignment="Stretch">
+                        <DockPanel DockPanel.Dock="Top" LastChildFill="False">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Style="{StaticResource VcSecondaryButtonStyle}"
+                                        Click="BtnAuditTrail_OnClick"
+                                        Margin="{Binding Source={StaticResource UiScaleState},
+                                                         Path=FontScale,
+                                                         Converter={StaticResource ThicknessScaleConverter},
+                                                         ConverterParameter='0,0,8,0'}">
+                                    <StackPanel Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource LayoutScaleConverter},
+                                                                 ConverterParameter=16}"
+                                                 Height="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource LayoutScaleConverter},
+                                                                  ConverterParameter=16}"
+                                                 Margin="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource ThicknessScaleConverter},
+                                                                  ConverterParameter='0,0,6,0'}">
+                                            <Canvas Width="24"
+                                                    Height="24"
+                                                    SnapsToDevicePixels="True">
+                                                <!-- Lucide history @ 24 -->
+                                                <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                      Data="M 3,12 a 9,9 0 1 0 9,-9 a 9.75,9.75 0 0 0 -6.74,2.74 L 3,8" />
+                                                <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                      Data="M 3,3 v 5 h 5" />
+                                                <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                      Data="M 12,7 v 5 l 4,2" />
+                                            </Canvas>
+                                        </Viewbox>
+                                        <TextBlock Text="Audit trail"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource VcPrimaryButtonStyle}"
+                                        Click="BtnSave_OnClick">
+                                    <StackPanel Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource LayoutScaleConverter},
+                                                                 ConverterParameter=16}"
+                                                 Height="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource LayoutScaleConverter},
+                                                                  ConverterParameter=16}"
+                                                 Margin="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource ThicknessScaleConverter},
+                                                                  ConverterParameter='0,0,6,0'}">
+                                            <Canvas Width="24"
+                                                    Height="24"
+                                                    SnapsToDevicePixels="True">
+                                                <!-- Lucide save @ 24 (stroke follows primary button Foreground) -->
+                                                <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                      Data="M 15.2,3 a 2,2 0 0 1 1.4,0.6 l 3.8,3.8 a 2,2 0 0 1 0.6,1.4 V 19 a 2,2 0 0 1 -2,2 H 5 a 2,2 0 0 1 -2,-2 V 5 a 2,2 0 0 1 2,-2 z" />
+                                                <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                      Data="M 17,21 v -7 a 1,1 0 0 0 -1,-1 H 8 a 1,1 0 0 0 -1,1 v 7" />
+                                                <Path Style="{StaticResource OpsLucideNavIconPathStyle}"
+                                                      Data="M 7,3 v 4 a 1,1 0 0 0 1,1 h 7" />
+                                            </Canvas>
+                                        </Viewbox>
+                                        <TextBlock Text="Save changes"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                            <StackPanel x:Name="StaffHeaderTitleArea"
+                                        Orientation="Horizontal"
+                                        Visibility="Collapsed">
+                                <Grid Width="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource LayoutScaleConverter},
+                                                      ConverterParameter=52}"
+                                      Height="{Binding Source={StaticResource UiScaleState},
+                                                       Path=FontScale,
+                                                       Converter={StaticResource LayoutScaleConverter},
+                                                       ConverterParameter=52}"
+                                      Margin="{Binding Source={StaticResource UiScaleState},
+                                                       Path=FontScale,
+                                                       Converter={StaticResource ThicknessScaleConverter},
+                                                       ConverterParameter='0,0,14,0'}">
+                                    <Border x:Name="ProfilePlaceholder"
+                                            Background="{StaticResource Brush.PrimaryBlue}"
+                                            BorderBrush="Transparent"
+                                            BorderThickness="0"
+                                            CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                                   Path=ActualHeight,
+                                                                   Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                   ConverterParameter=8}"
+                                            ClipToBounds="True">
+                                        <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource LayoutScaleConverter},
+                                                                 ConverterParameter=28}"
+                                                 Height="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource LayoutScaleConverter},
+                                                                  ConverterParameter=28}"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center">
+                                            <Canvas Width="24"
+                                                    Height="24"
+                                                    SnapsToDevicePixels="True">
+                                                <!-- Lucide circle-user @ 24 (white on primary blue, matches Save changes) -->
+                                                <Path Stroke="{StaticResource Brush.White}"
+                                                      StrokeThickness="2"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round"
+                                                      Fill="Transparent"
+                                                      Data="M 22,12 A 10,10 0 1 1 2,12 A 10,10 0 1 1 22,12" />
+                                                <Path Stroke="{StaticResource Brush.White}"
+                                                      StrokeThickness="2"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round"
+                                                      Fill="Transparent"
+                                                      Data="M 15,10 A 3,3 0 1 1 9,10 A 3,3 0 1 1 15,10" />
+                                                <Path Stroke="{StaticResource Brush.White}"
+                                                      StrokeThickness="2"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round"
+                                                      Fill="Transparent"
+                                                      Data="M 7,20.662 L 7,19 A 2,2 0 0 1 9,17 L 15,17 A 2,2 0 0 1 17,19 L 17,20.662" />
+                                            </Canvas>
+                                        </Viewbox>
+                                    </Border>
+                                    <Border x:Name="ProfileImageHost"
+                                            Background="{StaticResource Brush.White}"
+                                            BorderBrush="{StaticResource Brush.BorderSoft}"
+                                            BorderThickness="1"
+                                            CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                                   Path=ActualHeight,
+                                                                   Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                   ConverterParameter=8}"
+                                            ClipToBounds="True"
+                                            SnapsToDevicePixels="True"
+                                            SizeChanged="ProfileImageHost_OnSizeChanged"
+                                            Visibility="Collapsed">
+                                        <!-- CornerRadius does not clip children; clip is applied in code (same circle as placeholder). -->
+                                        <Image x:Name="ProfileImage"
+                                               Stretch="UniformToFill"
+                                               SnapsToDevicePixels="True"
+                                               SizeChanged="ProfileImage_OnSizeChanged" />
+                                    </Border>
+                                </Grid>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="User details"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource MainForeground}"
+                                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource FontScaleConverter},
+                                                                  ConverterParameter=18}" />
+                                    <TextBlock Text="Manage user information and permissions."
+                                               Foreground="{StaticResource DimmedForeground}"
+                                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                                Path=FontScale,
+                                                                Converter={StaticResource ThicknessScaleConverter},
+                                                                ConverterParameter='0,4,0,0'}"
+                                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource FontScaleConverter},
+                                                                  ConverterParameter=15}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- HorizontalContentAlignment: tab body uses full details width (default Left leaves a dead band). -->
+                        <!-- TabControl selected-content host breaks horizontal stretch; use strip + panes instead. -->
+                        <Grid x:Name="StaffDetailNavHost"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Stretch"
+                              Margin="{Binding Source={StaticResource UiScaleState},
+                                               Path=FontScale,
+                                               Converter={StaticResource ThicknessScaleConverter},
+                                               ConverterParameter='0,12,0,0'}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <!-- Corner radius must match StaffDetailTabRadioStyle SegmentBorder (ScaledDoubleConverter 20). -->
+                            <Border Grid.Row="0"
+                                    HorizontalAlignment="Stretch"
+                                    Background="#E5E7EB"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="0"
+                                    Padding="4"
+                                    SnapsToDevicePixels="True">
+                                <Border.CornerRadius>
+                                    <Binding Source="{StaticResource UiScaleState}"
+                                             Path="FontScale"
+                                             Converter="{StaticResource ScaledDoubleConverter}"
+                                             ConverterParameter="20" />
+                                </Border.CornerRadius>
+                                <Grid HorizontalAlignment="Stretch">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <RadioButton x:Name="RadStaffTabBasic"
+                                                 Grid.Column="0"
+                                                 GroupName="StaffUserDetailTabs"
+                                                 Style="{StaticResource StaffDetailTabRadioStyle}"
+                                                 Tag="0"
+                                                 Checked="StaffDetailTabRadio_OnChecked">
+                                        <StackPanel Orientation="Horizontal"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center">
+                                            <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource LayoutScaleConverter},
+                                                                     ConverterParameter=20}"
+                                                     Height="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource LayoutScaleConverter},
+                                                                      ConverterParameter=20}"
+                                                     Margin="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                                      ConverterParameter='0,0,6,0'}"
+                                                     Stretch="Uniform">
+                                                <Canvas Width="24"
+                                                        Height="24"
+                                                        SnapsToDevicePixels="True">
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 22,12 A 10,10 0 1 1 2,12 A 10,10 0 1 1 22,12" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 15,10 A 3,3 0 1 1 9,10 A 3,3 0 1 1 15,10" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 7,20.662 L 7,19 A 2,2 0 0 1 9,17 L 15,17 A 2,2 0 0 1 17,19 L 17,20.662" />
+                                                </Canvas>
+                                            </Viewbox>
+                                            <TextBlock x:Name="TxtStaffTabBasic"
+                                                       Text="Basic info"
+                                                       Foreground="#111827"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=14}" />
+                                        </StackPanel>
+                                    </RadioButton>
+
+                                    <RadioButton x:Name="RadStaffTabSecurity"
+                                                 Grid.Column="1"
+                                                 GroupName="StaffUserDetailTabs"
+                                                 Style="{StaticResource StaffDetailTabRadioStyle}"
+                                                 Tag="1"
+                                                 Checked="StaffDetailTabRadio_OnChecked">
+                                        <StackPanel Orientation="Horizontal"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center">
+                                            <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource LayoutScaleConverter},
+                                                                     ConverterParameter=20}"
+                                                     Height="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource LayoutScaleConverter},
+                                                                      ConverterParameter=20}"
+                                                     Margin="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                                      ConverterParameter='0,0,6,0'}"
+                                                     Stretch="Uniform">
+                                                <Canvas Width="24"
+                                                        Height="24"
+                                                        SnapsToDevicePixels="True">
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 3,20 L 3,13 A 2,2 0 0 1 5,11 L 19,11 A 2,2 0 0 1 21,13 L 21,20 A 2,2 0 0 1 19,22 L 5,22 A 2,2 0 0 1 3,20 Z" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 7,11 L 7,7 A 5,5 0 0 1 17,7 L 17,11" />
+                                                </Canvas>
+                                            </Viewbox>
+                                            <TextBlock x:Name="TxtStaffTabSecurity"
+                                                       Text="Security"
+                                                       Foreground="#111827"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=14}" />
+                                        </StackPanel>
+                                    </RadioButton>
+
+                                    <RadioButton x:Name="RadStaffTabBio"
+                                                 Grid.Column="2"
+                                                 GroupName="StaffUserDetailTabs"
+                                                 Style="{StaticResource StaffDetailTabRadioStyle}"
+                                                 Tag="2"
+                                                 Checked="StaffDetailTabRadio_OnChecked">
+                                        <StackPanel Orientation="Horizontal"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center">
+                                            <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource LayoutScaleConverter},
+                                                                     ConverterParameter=20}"
+                                                     Height="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource LayoutScaleConverter},
+                                                                      ConverterParameter=20}"
+                                                     Margin="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                                      ConverterParameter='0,0,6,0'}"
+                                                     Stretch="Uniform">
+                                                <Canvas Width="24"
+                                                        Height="24"
+                                                        SnapsToDevicePixels="True">
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 12,10 A 2,2 0 0 0 10,12 C 10,13.02 9.9,14.51 9.74,16" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 14,13.12 C 14,15.5 14,19.5 13,22" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 17.29,21.02 C 17.41,20.42 17.72,18.72 17.79,18" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 2,12 A 10,10 0 0 1 20,6" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 2,16 L 2.01,16" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 21.8,16 C 22,14 21.931,10.646 21.8,10" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 5,19.5 C 5.5,18 6,15 6,12 A 6,6 0 0 1 6.34,10" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 8.65,22 C 8.86,21.34 9.1,20.68 9.22,20" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 9,6.8 A 6,6 0 0 1 18,12 L 18,14" />
+                                                </Canvas>
+                                            </Viewbox>
+                                            <TextBlock x:Name="TxtStaffTabBio"
+                                                       Text="Biometric"
+                                                       Foreground="#111827"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=14}" />
+                                        </StackPanel>
+                                    </RadioButton>
+
+                                    <RadioButton x:Name="RadStaffTabDocs"
+                                                 Grid.Column="3"
+                                                 GroupName="StaffUserDetailTabs"
+                                                 Style="{StaticResource StaffDetailTabRadioStyle}"
+                                                 Tag="3"
+                                                 Checked="StaffDetailTabRadio_OnChecked">
+                                        <StackPanel Orientation="Horizontal"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center">
+                                            <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource LayoutScaleConverter},
+                                                                     ConverterParameter=20}"
+                                                     Height="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource LayoutScaleConverter},
+                                                                      ConverterParameter=20}"
+                                                     Margin="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                                      ConverterParameter='0,0,6,0'}"
+                                                     Stretch="Uniform">
+                                                <Canvas Width="24"
+                                                        Height="24"
+                                                        SnapsToDevicePixels="True">
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 15,2 H 6 A 2,2 0 0 0 4,4 V 20 A 2,2 0 0 0 6,22 H 18 A 2,2 0 0 0 20,20 V 7 Z" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 14,2 L 14,6 A 2,2 0 0 0 16,8 L 20,8" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 10,9 L 8,9" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 16,13 L 8,13" />
+                                                    <Path Style="{StaticResource StaffTabLucidePathStyle}"
+                                                          Data="M 16,17 L 8,17" />
+                                                </Canvas>
+                                            </Viewbox>
+                                            <TextBlock x:Name="TxtStaffTabDocs"
+                                                       Text="Documents"
+                                                       Foreground="#111827"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=14}" />
+                                        </StackPanel>
+                                    </RadioButton>
+                                </Grid>
+                            </Border>
+                            <Grid Grid.Row="1"
+                                  Margin="0,8,0,0"
+                                  MinHeight="0"
+                                  HorizontalAlignment="Stretch">
+                                <Grid x:Name="StaffPaneBasic"
+                                      HorizontalAlignment="Stretch"
+                                      Visibility="Visible">
+                                    <Border ClipToBounds="False"
+                                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,12,10,12'}">
+                                        <Grid x:Name="BasicInfoFieldsGrid"
+                                              HorizontalAlignment="Stretch"
+                                              MinWidth="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel Grid.Row="0"
+                                                    Grid.Column="0"
+                                                    HorizontalAlignment="Stretch"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,12'}">
+                                            <TextBlock Text="User ID" Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBox x:Name="TxtNumericId"
+                                                     HorizontalAlignment="Stretch"
+                                                     Style="{StaticResource StaffAccessReadOnlyIdTextBoxStyle}"
+                                                     IsReadOnly="True" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="0"
+                                                    Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
+                                            <TextBlock Text="User name" Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBox x:Name="TxtUserName"
+                                                     HorizontalAlignment="Stretch"
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="1"
+                                                    Grid.Column="0"
+                                                    HorizontalAlignment="Stretch"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,12'}">
+                                            <TextBlock Text="First name" Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBox x:Name="TxtFirstName"
+                                                     HorizontalAlignment="Stretch"
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1"
+                                                    Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
+                                            <TextBlock Text="Middle name" Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBox x:Name="TxtMiddleName"
+                                                     HorizontalAlignment="Stretch"
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="2"
+                                                    Grid.Column="0"
+                                                    HorizontalAlignment="Stretch"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,12'}">
+                                            <TextBlock Text="Surname" Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBox x:Name="TxtSurname"
+                                                     HorizontalAlignment="Stretch"
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                        </StackPanel>
+                                        <local:StaffAccessRoles x:Name="RolePicker"
+                                                                Grid.Row="2"
+                                                                Grid.Column="1"
+                                                                HorizontalAlignment="Stretch"
+                                                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}" />
+
+                                        <StackPanel Grid.Row="3"
+                                                    Grid.Column="0"
+                                                    HorizontalAlignment="Stretch"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,12'}">
+                                            <TextBlock Text="Card number" Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBox x:Name="TxtCardNumber"
+                                                     HorizontalAlignment="Stretch"
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="3"
+                                                    Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
+                                            <TextBlock Text="Job title (operations)"
+                                                       Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBox x:Name="TxtJobTitle"
+                                                     HorizontalAlignment="Stretch"
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                        </StackPanel>
+
+                                        <!-- Same boolean row pattern as Table Management → Active Status. -->
+                                        <Border Grid.Row="4"
+                                                Grid.Column="0"
+                                                Grid.ColumnSpan="2"
+                                                HorizontalAlignment="Stretch"
+                                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,0'}"
+                                                Background="{StaticResource Brush.SurfaceGreySoft}"
+                                                BorderBrush="{StaticResource Brush.BorderSoft}"
+                                                BorderThickness="1"
+                                                Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,8,10,8'}"
+                                                CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}">
+                                            <Grid HorizontalAlignment="Stretch">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0"
+                                                            VerticalAlignment="Center"
+                                                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}">
+                                                    <TextBlock Text="Active user"
+                                                               Foreground="{StaticResource MainForeground}"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}" />
+                                                    <TextBlock Text="Allow this account to sign in"
+                                                               Foreground="{StaticResource DimmedForeground}"
+                                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,0'}" />
+                                                </StackPanel>
+                                                <ToggleButton x:Name="TglActiveUser"
+                                                              Grid.Column="1"
+                                                              Style="{StaticResource IcPillSwitchToggleStyle}"
+                                                              VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+
+                                        <StackPanel Grid.Row="5"
+                                                    Grid.Column="0"
+                                                    Grid.ColumnSpan="2"
+                                                    HorizontalAlignment="Stretch"
+                                                    Orientation="Horizontal"
+                                                    VerticalAlignment="Center"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,10,0,0'}">
+                                            <Button Content="Upload profile image"
+                                                    Style="{StaticResource VcSecondaryButtonStyle}"
+                                                    Click="BtnUploadProfile_OnClick" />
+                                            <Button x:Name="BtnViewProfileImage"
+                                                    Content="View image"
+                                                    Style="{StaticResource VcSecondaryButtonStyle}"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,0'}"
+                                                    Visibility="Collapsed"
+                                                    Click="BtnViewProfileImage_OnClick" />
+                                            <Button x:Name="BtnReuploadProfileImage"
+                                                    Content="Re-upload image"
+                                                    Style="{StaticResource VcSecondaryButtonStyle}"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,0'}"
+                                                    Visibility="Collapsed"
+                                                    Click="BtnUploadProfile_OnClick" />
+                                        </StackPanel>
+                                    </Grid>
+                                    </Border>
+                                </Grid>
+                                <Grid x:Name="StaffPaneSecurity"
+                                      HorizontalAlignment="Stretch"
+                                      Visibility="Collapsed">
+                                    <local:StaffAccessSecurity x:Name="SecurityPanel"
+                                                               HorizontalAlignment="Stretch" />
+                                </Grid>
+                                <Grid x:Name="StaffPaneBio"
+                                      HorizontalAlignment="Stretch"
+                                      Visibility="Collapsed">
+                                    <local:StaffAccessBioMetric x:Name="BioPanel"
+                                                                HorizontalAlignment="Stretch" />
+                                </Grid>
+                                <Grid x:Name="StaffPaneDocs"
+                                      HorizontalAlignment="Stretch"
+                                      Visibility="Collapsed">
+                                    <local:StaffAccessDocuments x:Name="DocsPanel"
+                                                               HorizontalAlignment="Stretch" />
+                                </Grid>
+                            </Grid>
+                        </Grid>
+
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <!-- Non-modal save confirmation (replaces success MessageBox). -->
+            <Border x:Name="StaffSaveToast"
+                    Panel.ZIndex="100"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,0,36"
+                    Visibility="Collapsed"
+                    Background="{StaticResource Brush.White}"
+                    BorderBrush="#E5E7EB"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    SnapsToDevicePixels="True"
+                    Effect="{StaticResource StaffAccessCardShadow}">
+                <Border.Padding>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource ThicknessScaleConverter}"
+                             ConverterParameter="14,10,18,10" />
+                </Border.Padding>
+                <StackPanel Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <Border x:Name="StaffSaveToastAccent"
+                            Width="3"
+                            Height="22"
+                            VerticalAlignment="Center"
+                            CornerRadius="2"
+                            Background="{StaticResource Brush.PrimaryBlue}" />
+                    <TextBlock x:Name="StaffSaveToastText"
+                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                Path=FontScale,
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='10,0,0,0'}"
+                               VerticalAlignment="Center"
+                               Text="Changes saved."
+                               Foreground="{StaticResource MainForeground}"
+                               FontWeight="SemiBold"
+                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource FontScaleConverter},
+                                                  ConverterParameter=15}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

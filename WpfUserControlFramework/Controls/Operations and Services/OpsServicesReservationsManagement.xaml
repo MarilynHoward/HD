@@ -123,28 +123,45 @@
     </UserControl.Resources>
     <!-- Same shell pattern as OpsServicesAddTable: one card, stretch to modal window, header title + ✕ (never clipped). -->
     <Border Background="White"
-            BorderBrush="{StaticResource Brush.BorderSoft}"
-            BorderThickness="1"
-            VerticalAlignment="Stretch"
-            HorizontalAlignment="Stretch"
-            Padding="{Binding Source={StaticResource UiScaleState},
-                             Path=FontScale,
-                             Converter={StaticResource ThicknessScaleConverter},
-                             ConverterParameter='28,20,28,20'}">
+        BorderBrush="{StaticResource Brush.BorderSoft}"
+        BorderThickness="1"
+        VerticalAlignment="Center"
+        HorizontalAlignment="Center"
+        MaxWidth="{Binding RelativeSource={RelativeSource AncestorType=Window},
+                           Path=ActualWidth}"
+        MaxHeight="{Binding RelativeSource={RelativeSource AncestorType=Window},
+                            Path=ActualHeight}"
+        Margin="{Binding Source={StaticResource UiScaleState},
+                         Path=FontScale,
+                         Converter={StaticResource ThicknessScaleConverter},
+                         ConverterParameter='24,24,24,24'}"
+        Padding="{Binding Source={StaticResource UiScaleState},
+                         Path=FontScale,
+                         Converter={StaticResource ThicknessScaleConverter},
+                         ConverterParameter='8,20,8,20'}">
+
         <!-- Do not bind CornerRadius to this Border's ActualHeight (layout feedback can hang measure). -->
         <Border.CornerRadius>
-            <Binding Source="{StaticResource UiScaleState}"
-                     Path="FontScale"
-                     Converter="{StaticResource CornerRadiusFromHeightConverter}"
-                     ConverterParameter="14" />
+            <Binding RelativeSource="{RelativeSource Self}"
+             Path="ActualHeight"
+             Converter="{StaticResource CornerRadiusFromHeightConverter}"
+             ConverterParameter="14" />
         </Border.CornerRadius>
+        
+        
         <Grid HorizontalAlignment="Stretch"
-              VerticalAlignment="Stretch">
+                  VerticalAlignment="Stretch"
+                  MaxHeight="{Binding RelativeSource={RelativeSource AncestorType=Window},
+                          Path=ActualHeight}">
+
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" MinHeight="0" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0">
@@ -159,7 +176,7 @@
                         <Viewbox Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=24}"
                                  Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=24}"
                                  VerticalAlignment="Center"
-                                 Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}">
+                                 Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='28,0,10,0'}">
                             <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
                                 <Line X1="8" Y1="2" X2="8" Y2="6"
                                       Stroke="#5865F2"
@@ -212,12 +229,12 @@
                     </StackPanel>
                     <TextBlock Text="View and manage table reservations."
                                Foreground="{StaticResource DimmedForeground}"
-                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}"
+                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='28,4,0,0'}"
                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"
                                TextWrapping="Wrap" />
                     <TextBlock x:Name="TxtContextLine"
                                Foreground="{StaticResource DimmedForeground}"
-                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,6,0,0'}"
+                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='28,6,0,0'}"
                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                TextWrapping="Wrap" />
                 </StackPanel>
@@ -232,187 +249,217 @@
                         HorizontalAlignment="Right"
                         FocusVisualStyle="{x:Null}"
                         Cursor="Hand"
+                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,18,0'}"
                         FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                         MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=40}"
                         MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=40}" />
             </Grid>
 
-                <Rectangle Grid.Row="1"
+            <Rectangle Grid.Row="1"
                            Height="1"
                            Fill="{StaticResource Brush.BorderSoft}"
                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,14,0,14'}" />
 
-                <!-- Stats -->
-                <UniformGrid Grid.Row="2"
+            <!-- Stats -->
+            <UniformGrid Grid.Row="2"
                              Rows="1"
                              Columns="4"
-                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
-                    <Border x:Name="StatConfirmedHost"
+                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='28,0,28,12'}">
+                <Border x:Name="StatConfirmedHost"
                             Background="#F0FDF4"
                             BorderBrush="#D1FAE5"
                             BorderThickness="1"
                             CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=10}"
                             Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,10,10,10'}"
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,6,0'}">
-                        <StackPanel HorizontalAlignment="Center"
+                    <StackPanel HorizontalAlignment="Center"
                                     VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtStatConfirmed"
+                        <TextBlock x:Name="TxtStatConfirmed"
                                        Text="0"
                                        Foreground="#0D9F4C"
                                        FontWeight="SemiBold"
                                        HorizontalAlignment="Center"
                                        TextAlignment="Center"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=20}" />
-                            <TextBlock Text="Confirmed"
+                        <TextBlock Text="Confirmed"
                                        Foreground="#64748B"
                                        HorizontalAlignment="Center"
                                        TextAlignment="Center"
                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,0'}"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}" />
-                        </StackPanel>
-                    </Border>
-                    <Border Background="#FEFBE8"
+                    </StackPanel>
+                </Border>
+                <Border Background="#FEFBE8"
                             BorderBrush="#FDE68A"
                             BorderThickness="1"
                             CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=10}"
                             Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,10,10,10'}"
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,6,0'}">
-                        <StackPanel HorizontalAlignment="Center"
+                    <StackPanel HorizontalAlignment="Center"
                                     VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtStatPending"
+                        <TextBlock x:Name="TxtStatPending"
                                        Text="0"
                                        Foreground="#BD8C26"
                                        FontWeight="SemiBold"
                                        HorizontalAlignment="Center"
                                        TextAlignment="Center"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=20}" />
-                            <TextBlock Text="Pending"
+                        <TextBlock Text="Pending"
                                        Foreground="#64748B"
                                        HorizontalAlignment="Center"
                                        TextAlignment="Center"
                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,0'}"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}" />
-                        </StackPanel>
-                    </Border>
-                    <Border Background="#EFF6FF"
+                    </StackPanel>
+                </Border>
+                <Border Background="#EFF6FF"
                             BorderBrush="#BFDBFE"
                             BorderThickness="1"
                             CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=10}"
                             Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,10,10,10'}"
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,6,0'}">
-                        <StackPanel HorizontalAlignment="Center"
+                    <StackPanel HorizontalAlignment="Center"
                                     VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtStatSeated"
+                        <TextBlock x:Name="TxtStatSeated"
                                        Text="0"
                                        Foreground="#195DEC"
                                        FontWeight="SemiBold"
                                        HorizontalAlignment="Center"
                                        TextAlignment="Center"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=20}" />
-                            <TextBlock Text="Seated"
+                        <TextBlock Text="Seated"
                                        Foreground="#64748B"
                                        HorizontalAlignment="Center"
                                        TextAlignment="Center"
                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,0'}"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}" />
-                        </StackPanel>
-                    </Border>
-                    <Border Background="#F9FAFC"
+                    </StackPanel>
+                </Border>
+                <Border Background="#F9FAFC"
                             BorderBrush="#E5E7EB"
                             BorderThickness="1"
                             CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=10}"
                             Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,10,10,10'}">
-                        <StackPanel HorizontalAlignment="Center"
+                    <StackPanel HorizontalAlignment="Center"
                                     VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtStatTotal"
+                        <TextBlock x:Name="TxtStatTotal"
                                        Text="0"
                                        Foreground="#4B515F"
                                        FontWeight="SemiBold"
                                        HorizontalAlignment="Center"
                                        TextAlignment="Center"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=20}" />
-                            <TextBlock Text="Total"
+                        <TextBlock Text="Total"
                                        Foreground="#64748B"
                                        HorizontalAlignment="Center"
                                        TextAlignment="Center"
                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,0'}"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}" />
-                        </StackPanel>
-                    </Border>
-                </UniformGrid>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
 
-                <!-- Single scroll: inline editor + list + add (avoids clipped Save / nested scroll traps). -->
-                <ScrollViewer x:Name="ReservationsBodyScrollViewer"
-                              Grid.Row="3"
-                              VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled"
-                              CanContentScroll="False"
-                              HorizontalContentAlignment="Stretch"
-                              VerticalContentAlignment="Top"
-                              FocusVisualStyle="{x:Null}"
-                              Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,8'}">
-                    <ScrollViewer.Resources>
-                        <Style TargetType="ScrollBar" BasedOn="{StaticResource ScrollBarAutoHide}" />
-                    </ScrollViewer.Resources>
+
+
+            <ScrollViewer x:Name="ReservationsBodyScrollViewer"
+              Grid.Row="4"
+              VerticalAlignment="Stretch"
+              MinHeight="0"
+              VerticalScrollBarVisibility="Auto"
+              HorizontalScrollBarVisibility="Disabled"
+              CanContentScroll="False"
+              HorizontalContentAlignment="Stretch"
+              VerticalContentAlignment="Top"
+              FocusVisualStyle="{x:Null}"
+              Padding="0">
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar" BasedOn="{StaticResource ScrollBarAutoHide}" />
+                </ScrollViewer.Resources>
+
+                <Border HorizontalAlignment="Stretch">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Margin" Value="0" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ComputedVerticalScrollBarVisibility, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"
+                                 Value="Visible">
+                                    <Setter Property="Margin">
+                                        <Setter.Value>
+                                            <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource ThicknessScaleConverter}"
+                                         ConverterParameter="20,0,0,0" />
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+
                     <StackPanel HorizontalAlignment="Stretch">
-                <!-- Inline add/edit (same fields as former edit popup). -->
-                <Border x:Name="InlineReservationEditorPanel"
-                        Visibility="Collapsed"
-                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}"
-                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,16,16,16'}"
-                        Background="#F9FAFB"
-                        BorderBrush="{StaticResource Brush.BorderSoft}"
-                        BorderThickness="1"
-                        CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=10}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0">
-                            <TextBlock x:Name="TxtInlineEditorTitle"
+
+                        <Border x:Name="InlineReservationEditorPanel"
+    MinWidth="{Binding Source={StaticResource UiScaleState},
+                       Path=FontScale,
+                       Converter={StaticResource LayoutScaleConverter},
+                       ConverterParameter=880}"
+    Visibility="Collapsed"
+    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}"
+    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,16,16,16'}"
+    Background="#F9FAFB"
+    BorderBrush="{StaticResource Brush.BorderSoft}"
+    BorderThickness="1"
+    CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=10}">
+                            
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0">
+                                <TextBlock x:Name="TxtInlineEditorTitle"
                                        Text="Edit Reservation"
                                        Foreground="{StaticResource MainForeground}"
                                        FontWeight="Bold"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}" />
-                            <TextBlock x:Name="TxtInlineEditorSubtitle"
-                                       Text="Update reservation details."
-                                       Foreground="{StaticResource DimmedForeground}"
-                                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}"
-                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"
-                                       TextWrapping="Wrap" />
-                        </StackPanel>
-                        <StackPanel Grid.Row="1"
-                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,12,0,0'}">
+                                <TextBlock x:Name="TxtInlineEditorSubtitle"
+               Text="Update reservation details."
+               Foreground="{StaticResource DimmedForeground}"
+               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}"
+               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"
+               TextWrapping="Wrap" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1"
+            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,12,0,0'}">
                                 <TextBlock Text="Customer Information"
-                                           Foreground="{StaticResource MainForeground}"
-                                           FontWeight="SemiBold"
-                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
-                                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,10'}" />
+                   Foreground="{StaticResource MainForeground}"
+                   FontWeight="SemiBold"
+                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,10'}" />
                                 <StackPanel Orientation="Horizontal"
-                                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
+                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
                                     <TextBlock Text="Customer Name "
-                                               Foreground="{StaticResource DimmedForeground}"
-                                               VerticalAlignment="Center"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                       Foreground="{StaticResource DimmedForeground}"
+                       VerticalAlignment="Center"
+                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                     <TextBlock Text="*"
-                                               Foreground="{StaticResource Brush.DangerRed}"
-                                               VerticalAlignment="Center"
-                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                       Foreground="{StaticResource Brush.DangerRed}"
+                       VerticalAlignment="Center"
+                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                 </StackPanel>
                                 <TextBox x:Name="TxtInlineCustomerName"
-                                         TextChanged="InlineEditorField_Changed"
-                                         Style="{StaticResource IcEnabledTextBoxStyle}"
-                                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
-                                         FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                 TextChanged="InlineEditorField_Changed"
+                 Style="{StaticResource IcEnabledTextBoxStyle}"
+                 Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
+                 FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                 <TextBlock x:Name="TxtInlineCustomerNameError"
-                                           Foreground="{StaticResource Brush.DangerTextStrong}"
-                                           TextWrapping="Wrap"
-                                           Visibility="Collapsed"
-                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
-                                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,8'}" />
+                   Foreground="{StaticResource Brush.DangerTextStrong}"
+                   TextWrapping="Wrap"
+                   Visibility="Collapsed"
+                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
+                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,8'}" />
                                 <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -421,52 +468,52 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <StackPanel Orientation="Horizontal"
-                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
+                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
                                             <TextBlock Text="Phone Number "
-                                                       Foreground="{StaticResource DimmedForeground}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                               Foreground="{StaticResource DimmedForeground}"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                             <TextBlock Text="*"
-                                                       Foreground="{StaticResource Brush.DangerRed}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                               Foreground="{StaticResource Brush.DangerRed}"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                         </StackPanel>
                                         <TextBox x:Name="TxtInlinePhone"
-                                                 PreviewTextInput="TxtInlinePhone_PreviewTextInput"
-                                                 TextChanged="InlineEditorField_Changed"
-                                                 Style="{StaticResource IcEnabledTextBoxStyle}"
-                                                 Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
-                                                 FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                         PreviewTextInput="TxtInlinePhone_PreviewTextInput"
+                         TextChanged="InlineEditorField_Changed"
+                         Style="{StaticResource IcEnabledTextBoxStyle}"
+                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
+                         FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                         <TextBlock x:Name="TxtInlinePhoneError"
-                                                   Foreground="{StaticResource Brush.DangerTextStrong}"
-                                                   TextWrapping="Wrap"
-                                                   Visibility="Collapsed"
-                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
-                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,0'}" />
+                           Foreground="{StaticResource Brush.DangerTextStrong}"
+                           TextWrapping="Wrap"
+                           Visibility="Collapsed"
+                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
+                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,0'}" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="Email (Optional)"
-                                                   Foreground="{StaticResource DimmedForeground}"
-                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}" />
+                           Foreground="{StaticResource DimmedForeground}"
+                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}" />
                                         <TextBox x:Name="TxtInlineEmail"
-                                                 TextChanged="InlineEditorField_Changed"
-                                                 Style="{StaticResource IcEnabledTextBoxStyle}"
-                                                 Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
-                                                 FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                         TextChanged="InlineEditorField_Changed"
+                         Style="{StaticResource IcEnabledTextBoxStyle}"
+                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
+                         FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                         <TextBlock x:Name="TxtInlineEmailError"
-                                                   Foreground="{StaticResource Brush.DangerTextStrong}"
-                                                   TextWrapping="Wrap"
-                                                   Visibility="Collapsed"
-                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
-                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,0'}" />
+                           Foreground="{StaticResource Brush.DangerTextStrong}"
+                           TextWrapping="Wrap"
+                           Visibility="Collapsed"
+                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
+                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,0'}" />
                                     </StackPanel>
                                 </Grid>
                                 <TextBlock Text="Reservation Details"
-                                           Foreground="{StaticResource MainForeground}"
-                                           FontWeight="SemiBold"
-                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
-                                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,10'}" />
+                   Foreground="{StaticResource MainForeground}"
+                   FontWeight="SemiBold"
+                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,10'}" />
                                 <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -475,38 +522,38 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <StackPanel Orientation="Horizontal"
-                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
+                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
                                             <TextBlock Text="Table "
-                                                       Foreground="{StaticResource DimmedForeground}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                               Foreground="{StaticResource DimmedForeground}"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                             <TextBlock Text="*"
-                                                       Foreground="{StaticResource Brush.DangerRed}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                               Foreground="{StaticResource Brush.DangerRed}"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                         </StackPanel>
                                         <ComboBox x:Name="CmbInlineTable"
-                                                  DisplayMemberPath="Label"
-                                                  SelectionChanged="InlineCombo_SelectionChanged"
-                                                  Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}" />
+                          DisplayMemberPath="Label"
+                          SelectionChanged="InlineCombo_SelectionChanged"
+                          Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}" />
                                         <TextBlock x:Name="TxtInlineTableError"
-                                                   Foreground="{StaticResource Brush.DangerTextStrong}"
-                                                   TextWrapping="Wrap"
-                                                   Visibility="Collapsed"
-                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
-                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}" />
+                           Foreground="{StaticResource Brush.DangerTextStrong}"
+                           TextWrapping="Wrap"
+                           Visibility="Collapsed"
+                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
+                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <StackPanel Orientation="Horizontal"
-                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
+                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
                                             <TextBlock Text="Number of Guests "
-                                                       Foreground="{StaticResource DimmedForeground}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                               Foreground="{StaticResource DimmedForeground}"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                             <TextBlock Text="*"
-                                                       Foreground="{StaticResource Brush.DangerRed}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                               Foreground="{StaticResource Brush.DangerRed}"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                         </StackPanel>
                                         <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
                                             <Grid.ColumnDefinitions>
@@ -515,44 +562,44 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <RepeatButton Grid.Column="0"
-                                                          Click="PartySizeDecrement_Click"
-                                                          Delay="400"
-                                                          Interval="120"
-                                                          Content="−"
-                                                          Style="{StaticResource VcSecondaryRepeatButtonStyle}"
-                                                          MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=44}"
-                                                          FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}"
-                                                          FocusVisualStyle="{x:Null}" />
+                                  Click="PartySizeDecrement_Click"
+                                  Delay="400"
+                                  Interval="120"
+                                  Content="−"
+                                  Style="{StaticResource VcSecondaryRepeatButtonStyle}"
+                                  MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=44}"
+                                  FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}"
+                                  FocusVisualStyle="{x:Null}" />
                                             <Border Grid.Column="1"
-                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,8,0'}"
-                                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,8,10,8'}"
-                                                    Background="White"
-                                                    BorderBrush="{StaticResource Brush.BorderSoft}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
-                                                    VerticalAlignment="Center">
+                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,8,0'}"
+                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,8,10,8'}"
+                            Background="White"
+                            BorderBrush="{StaticResource Brush.BorderSoft}"
+                            BorderThickness="1"
+                            CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
+                            VerticalAlignment="Center">
                                                 <TextBlock x:Name="TxtInlinePartyCount"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           Foreground="{StaticResource MainForeground}"
-                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource MainForeground}"
+                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                             </Border>
                                             <RepeatButton Grid.Column="2"
-                                                          Click="PartySizeIncrement_Click"
-                                                          Delay="400"
-                                                          Interval="120"
-                                                          Content="+"
-                                                          Style="{StaticResource VcSecondaryRepeatButtonStyle}"
-                                                          MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=44}"
-                                                          FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}"
-                                                          FocusVisualStyle="{x:Null}" />
+                                  Click="PartySizeIncrement_Click"
+                                  Delay="400"
+                                  Interval="120"
+                                  Content="+"
+                                  Style="{StaticResource VcSecondaryRepeatButtonStyle}"
+                                  MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=44}"
+                                  FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}"
+                                  FocusVisualStyle="{x:Null}" />
                                         </Grid>
                                         <TextBlock x:Name="TxtInlinePartyError"
-                                                   Foreground="{StaticResource Brush.DangerTextStrong}"
-                                                   TextWrapping="Wrap"
-                                                   Visibility="Collapsed"
-                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
-                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}" />
+                           Foreground="{StaticResource Brush.DangerTextStrong}"
+                           TextWrapping="Wrap"
+                           Visibility="Collapsed"
+                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
+                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}" />
                                     </StackPanel>
                                 </Grid>
                                 <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
@@ -563,116 +610,118 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <StackPanel Orientation="Horizontal"
-                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
+                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
                                             <TextBlock Text="Date "
-                                                       Foreground="{StaticResource DimmedForeground}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                               Foreground="{StaticResource DimmedForeground}"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                             <TextBlock Text="*"
-                                                       Foreground="{StaticResource Brush.DangerRed}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                               Foreground="{StaticResource Brush.DangerRed}"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                         </StackPanel>
                                         <DatePicker x:Name="DpInlineDate"
-                                                    SelectedDateChanged="DpInlineDate_SelectedDateChanged"
-                                                    Style="{StaticResource LocalIcDatePickerStyle}"
-                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
-                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                            SelectedDateChanged="DpInlineDate_SelectedDateChanged"
+                            Style="{StaticResource LocalIcDatePickerStyle}"
+                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
+                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                         <TextBlock x:Name="TxtInlineDateError"
-                                                   Foreground="{StaticResource Brush.DangerTextStrong}"
-                                                   TextWrapping="Wrap"
-                                                   Visibility="Collapsed"
-                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
-                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}" />
+                           Foreground="{StaticResource Brush.DangerTextStrong}"
+                           TextWrapping="Wrap"
+                           Visibility="Collapsed"
+                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
+                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <StackPanel Orientation="Horizontal"
-                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
+                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}">
                                             <TextBlock Text="Time "
-                                                       Foreground="{StaticResource DimmedForeground}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                               Foreground="{StaticResource DimmedForeground}"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                             <TextBlock Text="*"
-                                                       Foreground="{StaticResource Brush.DangerRed}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                               Foreground="{StaticResource Brush.DangerRed}"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                         </StackPanel>
                                         <ComboBox x:Name="CmbInlineTime"
-                                                  DisplayMemberPath="Display"
-                                                  SelectionChanged="InlineCombo_SelectionChanged"
-                                                  Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
-                                                  Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
-                                                  FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
+                          DisplayMemberPath="Display"
+                          SelectionChanged="InlineCombo_SelectionChanged"
+                          Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
+                          Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
+                          FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}" />
                                         <TextBlock x:Name="TxtInlineTimeError"
-                                                   Foreground="{StaticResource Brush.DangerTextStrong}"
-                                                   TextWrapping="Wrap"
-                                                   Visibility="Collapsed"
-                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
-                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}" />
+                           Foreground="{StaticResource Brush.DangerTextStrong}"
+                           TextWrapping="Wrap"
+                           Visibility="Collapsed"
+                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"
+                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}" />
                                     </StackPanel>
                                 </Grid>
                                 <TextBlock Text="Status"
-                                           Foreground="{StaticResource DimmedForeground}"
-                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}" />
+                   Foreground="{StaticResource DimmedForeground}"
+                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}" />
                                 <ComboBox x:Name="CmbInlineStatus"
-                                          SelectionChanged="InlineCombo_SelectionChanged"
-                                          Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
-                                          Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}" />
+                  SelectionChanged="InlineCombo_SelectionChanged"
+                  Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
+                  Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}" />
                                 <TextBlock Text="Special Notes (Optional)"
-                                           Foreground="{StaticResource DimmedForeground}"
-                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,6'}" />
+                   Foreground="{StaticResource DimmedForeground}"
+                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,6'}" />
                                 <!-- Match OpsServicesAddTable TxtNotes (Notes field). -->
                                 <TextBox x:Name="TxtInlineNotes"
-                                         TextChanged="InlineEditorField_Changed"
-                                         Style="{StaticResource IcEnabledTextBoxStyle}"
-                                         AcceptsReturn="True"
-                                         VerticalContentAlignment="Top"
-                                         VerticalScrollBarVisibility="Auto"
-                                         Foreground="{StaticResource MainForeground}"
-                                         MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=60}"
-                                         MaxHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=60}"
-                                         TextWrapping="Wrap" />
-                        </StackPanel>
-                        <TextBlock x:Name="TxtInlineValidation"
-                                   Grid.Row="2"
-                                   Foreground="{StaticResource Brush.DangerTextStrong}"
-                                   TextWrapping="Wrap"
-                                   Visibility="Collapsed"
-                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
-                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,0'}" />
-                        <StackPanel Grid.Row="3"
-                                    Orientation="Horizontal"
-                                    HorizontalAlignment="Right"
-                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,10,0,0'}">
-                            <Button Content="Cancel"
-                                    Click="BtnInlineCancel_Click"
-                                    Style="{StaticResource VcSecondaryButtonStyle}"
-                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
-                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"
-                                    FocusVisualStyle="{x:Null}" />
-                            <Button x:Name="BtnInlineSave"
-                                    Content="Save Changes"
-                                    IsEnabled="False"
-                                    Click="BtnInlineSave_Click"
-                                    Style="{StaticResource VcPrimaryButtonStyle}"
-                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
-                                    FocusVisualStyle="{x:Null}" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
+                 TextChanged="InlineEditorField_Changed"
+                 Style="{StaticResource IcEnabledTextBoxStyle}"
+                 AcceptsReturn="True"
+                 VerticalContentAlignment="Top"
+                 VerticalScrollBarVisibility="Auto"
+                 Foreground="{StaticResource MainForeground}"
+                 MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=60}"
+                 MaxHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=60}"
+                 TextWrapping="Wrap" />
+                            </StackPanel>
+                            <TextBlock x:Name="TxtInlineValidation"
+           Grid.Row="2"
+           Foreground="{StaticResource Brush.DangerTextStrong}"
+           TextWrapping="Wrap"
+           Visibility="Collapsed"
+           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
+           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,0'}" />
+                            <StackPanel Grid.Row="3"
+            Orientation="Horizontal"
+            HorizontalAlignment="Right"
+            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,10,0,0'}">
+                                <Button Content="Cancel"
+            Click="BtnInlineCancel_Click"
+            Style="{StaticResource VcSecondaryButtonStyle}"
+            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"
+            FocusVisualStyle="{x:Null}" />
+                                <Button x:Name="BtnInlineSave"
+            Content="Save Changes"
+            IsEnabled="False"
+            Click="BtnInlineSave_Click"
+            Style="{StaticResource VcPrimaryButtonStyle}"
+            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+            FocusVisualStyle="{x:Null}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
 
-                    <ItemsControl x:Name="ReservationsList"
-                                  HorizontalAlignment="Stretch"
-                                  FocusVisualStyle="{x:Null}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <VirtualizingStackPanel Orientation="Vertical"
-                                                        HorizontalAlignment="Stretch" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemContainerStyle>
+                        <ItemsControl x:Name="ReservationsList"
+                              HorizontalAlignment="Stretch"
+                              FocusVisualStyle="{x:Null}">
+
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Vertical"
+                                        HorizontalAlignment="Stretch" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            
+                            <ItemsControl.ItemContainerStyle>
                             <Style TargetType="ContentPresenter">
                                 <Setter Property="HorizontalAlignment" Value="Stretch" />
                             </Style>
@@ -1061,12 +1110,24 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                
+                </StackPanel>
+                </Border>
+            </ScrollViewer>
 
+            <Rectangle Grid.Row="5"
+                       Height="1"
+                       Fill="{StaticResource Brush.BorderSoft}"
+                       Margin="{Binding Source={StaticResource UiScaleState},
+                                        Path=FontScale,
+                                        Converter={StaticResource ThicknessScaleConverter},
+                                        ConverterParameter='0,12,0,12'}" />
+
+            <Grid Grid.Row="6">
                 <Button Click="AddNewReservation_Click"
                         Style="{StaticResource VcPrimaryButtonStyle}"
                         HorizontalAlignment="Stretch"
                         FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
-                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,0'}"
                         Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,10,12,10'}">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <TextBlock Text="+"
@@ -1080,8 +1141,7 @@
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}" />
                     </StackPanel>
                 </Button>
-                    </StackPanel>
-                </ScrollViewer>
+            </Grid>
         </Grid>
     </Border>
 </UserControl>

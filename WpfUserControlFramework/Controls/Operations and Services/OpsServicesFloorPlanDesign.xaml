@@ -79,7 +79,7 @@
             <Setter Property="ContentTemplate" Value="{StaticResource OpsFloorPlanFilterButtonContentTemplate}" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="Foreground" Value="{StaticResource Brush.TextDark}" />
+            <Setter Property="Foreground" Value="{StaticResource Brush.TextDarkAlt}" />
             <Setter Property="Background" Value="{StaticResource Brush.SurfaceGrey}" />
             <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderGrey}" />
             <Setter Property="BorderThickness">
@@ -95,7 +95,7 @@
                     <Binding Source="{StaticResource UiScaleState}"
                              Path="FontScale"
                              Converter="{StaticResource LayoutScaleConverter}"
-                             ConverterParameter="28" />
+                             ConverterParameter="30" />
                 </Setter.Value>
             </Setter>
             <Setter Property="Padding">
@@ -103,7 +103,7 @@
                     <Binding Source="{StaticResource UiScaleState}"
                              Path="FontScale"
                              Converter="{StaticResource ThicknessScaleConverter}"
-                             ConverterParameter="12,4,12,4" />
+                             ConverterParameter="12,4,12,7" />
                 </Setter.Value>
             </Setter>
             <Setter Property="Template">
@@ -113,10 +113,10 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent},
-                                                       Path=ActualHeight,
-                                                       Converter={StaticResource CornerRadiusFromHeightConverter},
-                                                       ConverterParameter=10}"
+                                CornerRadius="{Binding ActualHeight,
+                                               RelativeSource={RelativeSource Self},
+                                               Converter={StaticResource CornerRadiusFromHeightConverter},
+                                               ConverterParameter=6}"
                                 Padding="{TemplateBinding Padding}"
                                 Effect="{x:Null}"
                                 SnapsToDevicePixels="True">
@@ -134,7 +134,7 @@
                                 <Setter TargetName="ButtonBorder" Property="Background" Value="#D6E8FC" />
                                 <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource Brush.PrimaryBlue}" />
                                 <Setter TargetName="ButtonBorder" Property="Effect" Value="{StaticResource OpsFloorPlanFilterPillHoverShadow}" />
-                                <Setter Property="Foreground" Value="{StaticResource Brush.TextDark}" />
+                                <Setter Property="Foreground" Value="{StaticResource Brush.TextDarkAlt}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.55" />
@@ -161,7 +161,7 @@
                     <Binding Source="{StaticResource UiScaleState}"
                              Path="FontScale"
                              Converter="{StaticResource LayoutScaleConverter}"
-                             ConverterParameter="28" />
+                             ConverterParameter="30" />
                 </Setter.Value>
             </Setter>
             <Setter Property="Padding">
@@ -169,7 +169,7 @@
                     <Binding Source="{StaticResource UiScaleState}"
                              Path="FontScale"
                              Converter="{StaticResource ThicknessScaleConverter}"
-                             ConverterParameter="12,4,12,4" />
+                             ConverterParameter="12,4,12,7" />
                 </Setter.Value>
             </Setter>
             <Setter Property="Template">
@@ -182,7 +182,7 @@
                                 CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent},
                                                        Path=ActualHeight,
                                                        Converter={StaticResource CornerRadiusFromHeightConverter},
-                                                       ConverterParameter=10}"
+                                                       ConverterParameter=6}"
                                 Padding="{TemplateBinding Padding}"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -212,7 +212,7 @@
                     <Binding Source="{StaticResource UiScaleState}"
                              Path="FontScale"
                              Converter="{StaticResource LayoutScaleConverter}"
-                             ConverterParameter="28" />
+                             ConverterParameter="30" />
                 </Setter.Value>
             </Setter>
             <Setter Property="Padding">
@@ -220,7 +220,7 @@
                     <Binding Source="{StaticResource UiScaleState}"
                              Path="FontScale"
                              Converter="{StaticResource ThicknessScaleConverter}"
-                             ConverterParameter="12,4,12,4" />
+                             ConverterParameter="12,4,12,6" />
                 </Setter.Value>
             </Setter>
         </Style>
@@ -477,143 +477,120 @@
                             </DockPanel>
 
                             <!-- Search reservations: same host + icon + SearchWatermarkTextBox pattern as Table Management “Search tables”. -->
-                            <Border x:Name="ReservationSearchHostBorder"
-                                    DockPanel.Dock="Top"
-                                    PreviewMouseLeftButtonDown="ReservationSearchHost_PreviewMouseLeftButtonDown"
-                                    Background="White"
-                                    BorderBrush="#CCC"
-                                    SnapsToDevicePixels="True"
-                                    ClipToBounds="False"
-                                    Margin="0,0,0,8"
-                                    BorderThickness="{Binding Source={StaticResource UiScaleState},
-                                                              Path=FontScale,
-                                                              Converter={StaticResource LayoutScaleConverter},
-                                                              ConverterParameter=1}">
-                                <Border.CornerRadius>
-                                    <Binding RelativeSource="{RelativeSource Self}"
-                                             Path="ActualHeight"
-                                             Converter="{StaticResource CornerRadiusFromHeightConverter}"
-                                             ConverterParameter="8" />
-                                </Border.CornerRadius>
-                                <Grid>
-                                    <Border Panel.ZIndex="10"
-                                            Visibility="Collapsed"
-                                            Margin="{Binding Source={StaticResource UiScaleState},
-                                                             Path=FontScale,
-                                                             Converter={StaticResource ThicknessScaleConverter},
-                                                             ConverterParameter='-3'}"
-                                            CornerRadius="{Binding Source={StaticResource UiScaleState},
-                                                                    Path=FontScale,
-                                                                    Converter={StaticResource CornerRadiusFromHeightConverter},
-                                                                    ConverterParameter='9'}"
-                                            BorderThickness="3"
-                                            BorderBrush="#C1DEFE"
-                                            Background="Transparent"
-                                            SnapsToDevicePixels="True"
-                                            RenderOptions.EdgeMode="Aliased"
-                                            IsHitTestVisible="False">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Visibility" Value="Collapsed" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=TxtReservationSearch}" Value="True">
-                                                        <Setter Property="Visibility" Value="Visible" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                    </Border>
-                                    <Border Panel.ZIndex="11"
-                                            Visibility="Collapsed"
-                                            Margin="{Binding Source={StaticResource UiScaleState},
-                                                             Path=FontScale,
-                                                             Converter={StaticResource ThicknessScaleConverter},
-                                                             ConverterParameter='-1'}"
-                                            CornerRadius="{Binding Source={StaticResource UiScaleState},
-                                                                    Path=FontScale,
-                                                                    Converter={StaticResource CornerRadiusFromHeightConverter},
-                                                                    ConverterParameter='8'}"
-                                            BorderThickness="1"
-                                            BorderBrush="#93C5FD"
-                                            Background="Transparent"
-                                            SnapsToDevicePixels="True"
-                                            RenderOptions.EdgeMode="Aliased"
-                                            IsHitTestVisible="False">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Visibility" Value="Collapsed" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=TxtReservationSearch}" Value="True">
-                                                        <Setter Property="Visibility" Value="Visible" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                    </Border>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Viewbox Width="{Binding Source={StaticResource UiScaleState},
-                                                 Path=FontScale,
-                                                 Converter={StaticResource LayoutScaleConverter},
-                                                 ConverterParameter=16}"
-                                                 Height="{Binding Source={StaticResource UiScaleState},
-                                                  Path=FontScale,
-                                                  Converter={StaticResource LayoutScaleConverter},
-                                                  ConverterParameter=16}"
-                                                 Margin="{Binding Source={StaticResource UiScaleState},
-                                                  Path=FontScale,
-                                                  Converter={StaticResource ThicknessScaleConverter},
-                                                  ConverterParameter='10,0,6,0'}"
-                                                 VerticalAlignment="Center">
-                                            <Canvas Width="16" Height="16" SnapsToDevicePixels="True">
-                                                <Ellipse Canvas.Left="2"
-                                                         Canvas.Top="2"
-                                                         Width="10"
-                                                         Height="10"
-                                                         Stroke="#9CA3AF"
-                                                         StrokeThickness="1.6"
-                                                         Fill="Transparent" />
-                                                <Line X1="10.5"
-                                                      Y1="10.5"
-                                                      X2="15"
-                                                      Y2="15"
-                                                      Stroke="#9CA3AF"
-                                                      StrokeThickness="1.6"
-                                                      StrokeStartLineCap="Round"
-                                                      StrokeEndLineCap="Round" />
-                                            </Canvas>
-                                        </Viewbox>
-                                        <TextBox x:Name="TxtReservationSearch"
-                                                 Grid.Column="1"
-                                                 Height="{Binding Source={StaticResource UiScaleState},
-                                                                  Path=FontScale,
-                                                                  Converter={StaticResource LayoutScaleConverter},
-                                                                  ConverterParameter=40}"
-                                                 TextChanged="TxtReservationSearch_TextChanged"
-                                                 BorderThickness="0"
-                                                 Background="Transparent"
-                                                 Padding="0"
-                                                 VerticalAlignment="Center"
-                                                 Style="{StaticResource SearchWatermarkTextBox}"
-                                                 Tag="Search name, phone, reference..." />
-                                    </Grid>
-                                </Grid>
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Setter Property="BorderBrush" Value="#CCC" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=TxtReservationSearch}" Value="True">
-                                                <Setter Property="BorderBrush" Value="Transparent" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                            </Border>
+                                <Border x:Name="ReservationSearchHostBorder"
+        DockPanel.Dock="Top"
+        PreviewMouseLeftButtonDown="ReservationSearchHost_PreviewMouseLeftButtonDown"
+        Background="White"
+        BorderBrush="#CCC"
+        SnapsToDevicePixels="True"
+        ClipToBounds="False"
+        Margin="0,0,0,8"
+        BorderThickness="{Binding Source={StaticResource UiScaleState},
+                                  Path=FontScale,
+                                  Converter={StaticResource LayoutScaleConverter},
+                                  ConverterParameter=1}">
+                                    <Border.CornerRadius>
+                                        <Binding RelativeSource="{RelativeSource Self}"
+                 Path="ActualHeight"
+                 Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                 ConverterParameter="8" />
+                                    </Border.CornerRadius>
 
-                            <ScrollViewer x:Name="ReservationsScroll"
+                                    <Grid>
+                                        <Border x:Name="SearchFocusOuter"
+                Panel.ZIndex="10"
+                Visibility="Collapsed"
+                Margin="{Binding Source={StaticResource UiScaleState},
+                                 Path=FontScale,
+                                 Converter={StaticResource ThicknessScaleConverter},
+                                 ConverterParameter='-3'}"
+                CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                       Path=ActualHeight,
+                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                       ConverterParameter='9'}"
+                BorderThickness="3"
+                BorderBrush="#C1DEFE"
+                Background="Transparent"
+                SnapsToDevicePixels="True"
+                RenderOptions.EdgeMode="Aliased"
+                IsHitTestVisible="False" />
+
+                                        <Border x:Name="SearchFocusInner"
+                Panel.ZIndex="11"
+                Visibility="Collapsed"
+                Margin="{Binding Source={StaticResource UiScaleState},
+                                 Path=FontScale,
+                                 Converter={StaticResource ThicknessScaleConverter},
+                                 ConverterParameter='-1'}"
+                CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                       Path=ActualHeight,
+                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                       ConverterParameter='8'}"
+                BorderThickness="1"
+                BorderBrush="#93C5FD"
+                Background="Transparent"
+                SnapsToDevicePixels="True"
+                RenderOptions.EdgeMode="Aliased"
+                IsHitTestVisible="False" />
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                     Path=FontScale,
+                     Converter={StaticResource LayoutScaleConverter},
+                     ConverterParameter=16}"
+                     Height="{Binding Source={StaticResource UiScaleState},
+                      Path=FontScale,
+                      Converter={StaticResource LayoutScaleConverter},
+                      ConverterParameter=16}"
+                     Margin="{Binding Source={StaticResource UiScaleState},
+                      Path=FontScale,
+                      Converter={StaticResource ThicknessScaleConverter},
+                      ConverterParameter='10,0,6,0'}"
+                     VerticalAlignment="Center">
+                                                <Canvas Width="16" Height="16" SnapsToDevicePixels="True">
+                                                    <Ellipse Canvas.Left="2"
+                             Canvas.Top="2"
+                             Width="10"
+                             Height="10"
+                             Stroke="#9CA3AF"
+                             StrokeThickness="1.6"
+                             Fill="Transparent" />
+                                                    <Line X1="10.5"
+                          Y1="10.5"
+                          X2="15"
+                          Y2="15"
+                          Stroke="#9CA3AF"
+                          StrokeThickness="1.6"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round" />
+                                                </Canvas>
+                                            </Viewbox>
+
+                                            <TextBox x:Name="TxtReservationSearch"
+                     Grid.Column="1"
+                     Height="{Binding Source={StaticResource UiScaleState},
+                                      Path=FontScale,
+                                      Converter={StaticResource LayoutScaleConverter},
+                                      ConverterParameter=40}"
+                     TextChanged="TxtReservationSearch_TextChanged"
+                     GotKeyboardFocus="TxtReservationSearch_GotKeyboardFocus"
+                     LostKeyboardFocus="TxtReservationSearch_LostKeyboardFocus"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     Padding="0"
+                     VerticalAlignment="Center"
+                     Style="{StaticResource SearchWatermarkTextBox}"
+                     Tag="Search name, phone, reference..." />
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <ScrollViewer x:Name="ReservationsScroll"
                                           VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled"
                                           FocusVisualStyle="{x:Null}">
@@ -904,7 +881,7 @@
                             </DockPanel>
 
                             <!-- Clipped viewport: no scrollbars; pan by drag (see code-behind). -->
-                            <Border x:Name="FloorCanvasViewport"
+                            <!--<Border x:Name="FloorCanvasViewport"
                                     Grid.Row="1"
                                     Background="#F3F4F6"
                                     ClipToBounds="True"
@@ -918,8 +895,31 @@
                                     PreviewMouseLeftButtonUp="FloorCanvasViewport_PreviewMouseLeftButtonUp"
                                     PreviewMouseWheel="FloorCanvasViewport_PreviewMouseWheel"
                                     LostMouseCapture="FloorCanvasViewport_LostMouseCapture"
-                                    SizeChanged="FloorCanvasViewport_SizeChanged">
-                                <Grid Background="Transparent">
+                                    SizeChanged="FloorCanvasViewport_SizeChanged">-->
+
+                            <Border x:Name="FloorCanvasViewport"
+                                Grid.Row="1"
+                                Background="#F3F4F6"
+                                BorderBrush="{StaticResource Brush.BorderGrey}"
+                                BorderThickness="1"
+                                CornerRadius="{Binding ActualHeight,
+                                                        RelativeSource={RelativeSource Self},
+                                                        Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                        ConverterParameter=20}"
+                                ClipToBounds="True"
+                                SnapsToDevicePixels="False"
+                                Focusable="False"
+                                FocusVisualStyle="{x:Null}"
+                                Cursor="Hand"
+                                MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=280}"
+                                PreviewMouseLeftButtonDown="FloorCanvasViewport_PreviewMouseLeftButtonDown"
+                                PreviewMouseMove="FloorCanvasViewport_PreviewMouseMove"
+                                PreviewMouseLeftButtonUp="FloorCanvasViewport_PreviewMouseLeftButtonUp"
+                                PreviewMouseWheel="FloorCanvasViewport_PreviewMouseWheel"
+                                LostMouseCapture="FloorCanvasViewport_LostMouseCapture"
+                                SizeChanged="FloorCanvasViewport_SizeChanged">
+
+                                    <Grid Background="Transparent">
                                     <Canvas x:Name="FloorCanvasHostCanvas"
                                             Background="Transparent"
                                             ClipToBounds="False"

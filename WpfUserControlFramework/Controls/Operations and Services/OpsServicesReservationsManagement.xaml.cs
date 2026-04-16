@@ -69,9 +69,9 @@ public partial class OpsServicesReservationsManagement : UserControl
         _listFilter = listFilter;
         _reservationSearchTrimmed = reservationSearchTrimmed;
         _focusReservationId = focusReservationId;
-        App.OpsTrace("OpsServicesReservationsManagement: before InitializeComponent");
+        //App.OpsTrace("OpsServicesReservationsManagement: before InitializeComponent");
         InitializeComponent();
-        App.OpsTrace("OpsServicesReservationsManagement: after InitializeComponent");
+        //App.OpsTrace("OpsServicesReservationsManagement: after InitializeComponent");
         OpsServicesStore.DataChanged += OnStoreChanged;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
@@ -79,7 +79,7 @@ public partial class OpsServicesReservationsManagement : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        App.OpsTrace("OpsServicesReservationsManagement.OnLoaded: enter");
+        //App.OpsTrace("OpsServicesReservationsManagement.OnLoaded: enter");
         var dateLine = _date.ToString("dddd, d MMMM yyyy", CultureInfo.CurrentCulture);
         TxtContextLine.Text = _focusReservationId is { }
             ? $"{_floor} · {dateLine} · Selected reservation"
@@ -95,9 +95,9 @@ public partial class OpsServicesReservationsManagement : UserControl
             CmbInlineTime.SelectionChanged += InlineCombo_SelectionChanged;
         }
 
-        App.OpsTrace("OpsServicesReservationsManagement.OnLoaded: before Refresh");
+        //App.OpsTrace("OpsServicesReservationsManagement.OnLoaded: before Refresh");
         Refresh();
-        App.OpsTrace("OpsServicesReservationsManagement.OnLoaded: after Refresh");
+        //App.OpsTrace("OpsServicesReservationsManagement.OnLoaded: after Refresh");
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -260,12 +260,16 @@ public partial class OpsServicesReservationsManagement : UserControl
         TxtInlineEditorSubtitle.Text = isNew ? "Create a new table reservation." : "Update reservation details.";
         BtnInlineSave.Content = isNew ? "Add Reservation" : "Save Changes";
         TxtInlineValidation.Visibility = Visibility.Collapsed;
+
         LoadInlineFormFromDraft();
         InlineReservationEditorPanel.Visibility = Visibility.Visible;
-        ReservationsBodyScrollViewer.ScrollToVerticalOffset(0);
         UpdateInlineEditorValidation();
+
         Dispatcher.BeginInvoke(new Action(() =>
         {
+            ReservationsBodyScrollViewer.UpdateLayout();
+            ReservationsBodyScrollViewer.ScrollToVerticalOffset(0);
+
             TxtInlineCustomerName.Focus();
             Keyboard.Focus(TxtInlineCustomerName);
         }), DispatcherPriority.Loaded);

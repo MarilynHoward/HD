@@ -1106,12 +1106,16 @@ public static partial class OpsServicesStore
 {
     public static event EventHandler? DataChanged;
 
-    private static readonly List<OpsEmployee> Employees = new();
     private static readonly List<OpsFloorTable> Tables = new();
     private static readonly List<OpsScheduledShift> Shifts = new();
     /// <summary>Distinct floor names for filters, combos, and manage-floors UI (includes floors with zero tables).</summary>
     private static readonly List<string> CanonicalFloors = new();
     private static bool _seeded;
+
+    static OpsServicesStore()
+    {
+        StaffAccessStore.DataChanged += (_, _) => DataChanged?.Invoke(null, EventArgs.Empty);
+    }
 
     public static DateTime StartOfWeekMonday(DateTime d)
     {
@@ -1131,34 +1135,10 @@ public static partial class OpsServicesStore
     private static void Seed()
     {
         var today = DateTime.Today;
-        var palette = new[]
-        {
-            "#2563EB", "#16A34A", "#7C3AED", "#DB2777", "#EA580C", "#0D9488", "#CA8A04", "#4F46E5"
-        };
-
-        var names = new (string Name, string Role)[]
-        {
-            ("John Smith", "Server"),
-            ("Sarah Johnson", "Server"),
-            ("Mike Brown", "Bartender"),
-            ("Emily Davis", "Host"),
-            ("Alex Lee", "Server"),
-            ("Jordan Taylor", "Server"),
-            ("Casey Morgan", "Bartender"),
-            ("Riley Chen", "Host")
-        };
-
-        for (int i = 0; i < names.Length; i++)
-        {
-            Employees.Add(new OpsEmployee
-            {
-                Id = Guid.NewGuid(),
-                Name = names[i].Name,
-                Role = names[i].Role,
-                IsOnShift = true,
-                AccentColorHex = palette[i % palette.Length]
-            });
-        }
+        StaffAccessStore.EnsureSeeded();
+        var employeesForIds = StaffAccessStore.GetEmployeesForOperations().ToList();
+        if (employeesForIds.Count < 2)
+            return;
 
         void AddTable(string name, string floor, int seats, bool active = true, Guid? waiter = null)
         {
@@ -1178,8 +1158,8 @@ public static partial class OpsServicesStore
             });
         }
 
-        var john = Employees[0].Id;
-        var sarah = Employees[1].Id;
+        var john = employeesForIds[0].Id;
+        var sarah = employeesForIds[1].Id;
         AddTable("Table 1", "Main Floor", 4, true, john);
         AddTable("Table 2", "Main Floor", 6, true, sarah);
         AddTable("Table 3", "Main Floor", 4, true, null);
@@ -1206,18 +1186,18 @@ public static partial class OpsServicesStore
         {
             var monday = week0.AddDays(w * 7);
             // Scatter shifts across Mon–Sat
-            AddDemoShift(Employees[0].Id, monday.AddDays(0), new TimeOnly(9, 0), new TimeOnly(17, 0),
+            AddDemoShift(employeesForIds[0].Id, monday.AddDays(0), new TimeOnly(9, 0), new TimeOnly(17, 0),
                 new[] { Tables[0].Id, Tables[1].Id }, OpsShiftFrequencyKind.Weekly);
-            AddDemoShift(Employees[1].Id, monday.AddDays(1), new TimeOnly(10, 0), new TimeOnly(18, 0),
+            AddDemoShift(employeesForIds[1].Id, monday.AddDays(1), new TimeOnly(10, 0), new TimeOnly(18, 0),
                 new[] { Tables[1].Id }, OpsShiftFrequencyKind.Weekly);
-            AddDemoShift(Employees[2].Id, monday.AddDays(2), new TimeOnly(12, 0), new TimeOnly(20, 0),
+            AddDemoShift(employeesForIds[2].Id, monday.AddDays(2), new TimeOnly(12, 0), new TimeOnly(20, 0),
                 Array.Empty<Guid>(), OpsShiftFrequencyKind.Daily);
-            AddDemoShift(Employees[3].Id, monday.AddDays(3), new TimeOnly(9, 0), new TimeOnly(15, 0),
+            AddDemoShift(employeesForIds[3].Id, monday.AddDays(3), new TimeOnly(9, 0), new TimeOnly(15, 0),
                 new[] { Tables[2].Id, Tables[3].Id }, OpsShiftFrequencyKind.Daily);
             if (w % 2 == 0)
-                AddDemoShift(Employees[4].Id, monday.AddDays(4), new TimeOnly(9, 0), new TimeOnly(17, 0),
+                AddDemoShift(employeesForIds[4].Id, monday.AddDays(4), new TimeOnly(9, 0), new TimeOnly(17, 0),
                     new[] { Tables[5].Id }, OpsShiftFrequencyKind.Monthly);
-            AddDemoShift(Employees[5].Id, monday.AddDays(5), new TimeOnly(11, 0), new TimeOnly(19, 0),
+            AddDemoShift(employeesForIds[5].Id, monday.AddDays(5), new TimeOnly(11, 0), new TimeOnly(19, 0),
                 new[] { Tables[0].Id }, OpsShiftFrequencyKind.Weekly);
         }
     }
@@ -1237,11 +1217,11 @@ public static partial class OpsServicesStore
         });
     }
 
-    public static IReadOnlyList<OpsEmployee> GetEmployees() => Employees;
+    public static IReadOnlyList<OpsEmployee> GetEmployees() => StaffAccessStore.GetEmployeesForOperations();
 
     public static IReadOnlyList<OpsFloorTable> GetTables() => Tables;
 
-    public static OpsEmployee? GetEmployee(Guid id) => Employees.FirstOrDefault(e => e.Id == id);
+    public static OpsEmployee? GetEmployee(Guid id) => StaffAccessStore.GetOpsEmployee(id);
 
     public static OpsFloorTable? GetTable(Guid id) => Tables.FirstOrDefault(t => t.Id == id);
 

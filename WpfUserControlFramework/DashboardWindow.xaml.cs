@@ -17,6 +17,10 @@ namespace RestaurantPosWpf
         private bool _isInitializing = true;
         private bool _defaultScaleApplied;
 
+        private OpsServicesShiftScheduling _opsShiftSchedulingControl;
+        private OpsServicesTableManagement _opsTableManagementControl;
+        private OpsServicesFloorPlanDesign _opsFloorPlanDesignControl;
+
         public DashboardWindow()
         {
             InitializeComponent();
@@ -56,6 +60,7 @@ namespace RestaurantPosWpf
                     onRequestUploadDialog: ShowUploadDialog
                 )),
                 new NavItem("Operations and Services", "Shift Scheduling", () => BuildOpsShiftScheduling()),
+                new NavItem("Staff and Access", "User details", () => new StaffAccessUserDetails()),
             };
 
             // Build distinct category list preserving registration order
@@ -284,31 +289,34 @@ namespace RestaurantPosWpf
 
         private OpsServicesShiftScheduling BuildOpsShiftScheduling()
         {
-            return new OpsServicesShiftScheduling(
+            _opsShiftSchedulingControl ??= new OpsServicesShiftScheduling(
                 navigateToTableManagement: NavigateToOpsTableManagement,
                 navigateToFloorPlan: NavigateToOpsFloorPlan,
                 openAddShiftDialog: ShowOpsAddShiftDialog);
+            return _opsShiftSchedulingControl;
         }
 
         private OpsServicesTableManagement BuildOpsTableManagement()
         {
-            return new OpsServicesTableManagement(
+            _opsTableManagementControl ??= new OpsServicesTableManagement(
                 navigateToShiftScheduling: () =>
                     NavigateTo(_navItems.First(i =>
                         i.Category == "Operations and Services" && i.Label == "Shift Scheduling")),
                 navigateToFloorPlan: NavigateToOpsFloorPlan,
                 openAddTableDialog: ShowOpsAddTableDialog,
                 openManageFloorsDialog: ShowOpsManageFloorsDialog);
+            return _opsTableManagementControl;
         }
 
         private OpsServicesFloorPlanDesign BuildOpsFloorPlanDesign()
         {
-            return new OpsServicesFloorPlanDesign(
+            _opsFloorPlanDesignControl ??= new OpsServicesFloorPlanDesign(
                 navigateToShiftScheduling: () =>
                     NavigateTo(_navItems.First(i =>
                         i.Category == "Operations and Services" && i.Label == "Shift Scheduling")),
                 navigateToTableManagement: NavigateToOpsTableManagement,
                 openReservationsManagement: ShowOpsReservationsManagementDialog);
+            return _opsFloorPlanDesignControl;
         }
 
         private void ShowOpsReservationsManagementDialog(
@@ -320,9 +328,8 @@ namespace RestaurantPosWpf
         {
             if (string.IsNullOrWhiteSpace(floorName))
                 return;
-            App.OpsTrace($"ShowOpsReservationsManagementDialog: enter floor={floorName} date={date:yyyy-MM-dd}");
+
             Window? w = null;
-            App.OpsTrace("ShowOpsReservationsManagementDialog: before new OpsServicesReservationsManagement");
             var dlg = new OpsServicesReservationsManagement(
                 () => w?.Close(),
                 floorName,
@@ -330,21 +337,17 @@ namespace RestaurantPosWpf
                 listFilter,
                 reservationSearchTrimmed,
                 focusReservationId);
-            App.OpsTrace("ShowOpsReservationsManagementDialog: after ctor, CreateOpsModalWindow");
             w = CreateOpsModalWindow(dlg);
             var wa = SystemParameters.WorkArea;
             w.SizeToContent = SizeToContent.Manual;
             w.Width = Math.Min(wa.Width * 0.52, 720);
-            // Taller window so the inline add/edit form is mostly visible without scrolling; stays within work area.
             w.Height = Math.Min(Math.Max(620, wa.Height * 0.90), wa.Height * 0.94);
             w.MinWidth = 480;
             w.MinHeight = 560;
             w.MaxWidth = Math.Min(wa.Width * 0.58, 880);
             w.MaxHeight = wa.Height * 0.94;
             ScrimOverlay.Visibility = Visibility.Visible;
-            App.OpsTrace("ShowOpsReservationsManagementDialog: before ShowDialog");
             w.ShowDialog();
-            App.OpsTrace("ShowOpsReservationsManagementDialog: after ShowDialog");
             ScrimOverlay.Visibility = Visibility.Collapsed;
         }
 
