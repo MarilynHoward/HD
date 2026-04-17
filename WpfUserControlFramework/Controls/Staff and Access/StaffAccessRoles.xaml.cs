@@ -1,6 +1,8 @@
+using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 
 namespace RestaurantPosWpf;
 
@@ -20,6 +22,12 @@ public partial class StaffAccessRoles : UserControl
     }
 
     public event EventHandler<StaffAccessRole>? RoleChanged;
+
+    /// <summary>False only if the combo has no selection (should not happen in normal use).</summary>
+    public bool HasValidRoleSelection => RoleCombo.SelectedItem != null;
+
+    public void FocusRoleCombo() =>
+        Dispatcher.BeginInvoke(new Action(() => RoleCombo.Focus()), DispatcherPriority.Input);
 
     public StaffAccessRoles()
     {

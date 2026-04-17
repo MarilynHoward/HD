@@ -149,10 +149,9 @@
             <Setter Property="Padding" Value="0" />
         </Style>
 
-        <!-- Narrow list column: VcSecondary default (34×, 18,6 pad) reads huge; keep theme chrome, tighten via converters. -->
+        <!-- Add User: brand teal (#1DC9B6) + white label/icon (own template so hover is not VcSecondary grey). -->
         <Style x:Key="StaffAccessHeaderAddUserButtonStyle"
-               TargetType="Button"
-               BasedOn="{StaticResource VcSecondaryButtonStyle}">
+               TargetType="Button">
             <Setter Property="FontSize">
                 <Setter.Value>
                     <Binding Source="{StaticResource UiScaleState}"
@@ -178,6 +177,46 @@
                 </Setter.Value>
             </Setter>
             <Setter Property="MinWidth" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Foreground" Value="{StaticResource Brush.White}" />
+            <Setter Property="Background" Value="#1DC9B6" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent},
+                                                       Path=ActualHeight,
+                                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                       ConverterParameter=6}"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#19B5A3" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#159E8E" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#9CA3AF" />
+                                <Setter Property="Foreground" Value="#E5E7EB" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Same chrome as OpsServicesReservationsManagement ReservationCardIconButtonStyle; corner from height (not FontScale). -->
@@ -396,7 +435,8 @@
                                                        TextWrapping="Wrap" />
                                         </StackPanel>
                                     </Grid>
-                                    <Button Grid.Column="1"
+                                    <Button x:Name="BtnAddUser"
+                                            Grid.Column="1"
                                             Click="BtnAddUser_OnClick"
                                             Style="{StaticResource StaffAccessHeaderAddUserButtonStyle}"
                                             VerticalAlignment="Center"
@@ -428,8 +468,10 @@
                                                           Data="M 22,11 L 16,11" />
                                                 </Canvas>
                                             </Viewbox>
-                                            <TextBlock Text="Add User"
-                                                       VerticalAlignment="Center" />
+                                            <TextBlock x:Name="TxtAddUserButtonLabel"
+                                                       Text="Add User"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                                         </StackPanel>
                                     </Button>
                                 </Grid>
@@ -836,7 +878,7 @@
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
                                                 <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding UserName}"
+                                                    <TextBlock Text="{Binding ListPrimaryLine}"
                                                                FontWeight="SemiBold"
                                                                Foreground="{StaticResource MainForeground}"
                                                                FontSize="{Binding Source={StaticResource UiScaleState},
@@ -1024,7 +1066,8 @@
                                HorizontalAlignment="Stretch">
                         <DockPanel DockPanel.Dock="Top" LastChildFill="False">
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <Button Style="{StaticResource VcSecondaryButtonStyle}"
+                                <Button x:Name="BtnAuditTrail"
+                                        Style="{StaticResource VcSecondaryButtonStyle}"
                                         Click="BtnAuditTrail_OnClick"
                                         Margin="{Binding Source={StaticResource UiScaleState},
                                                          Path=FontScale,
@@ -1097,7 +1140,8 @@
                             <StackPanel x:Name="StaffHeaderTitleArea"
                                         Orientation="Horizontal"
                                         Visibility="Collapsed">
-                                <Grid Width="{Binding Source={StaticResource UiScaleState},
+                                <Grid x:Name="StaffHeaderAvatarHost"
+                                      Width="{Binding Source={StaticResource UiScaleState},
                                                       Path=FontScale,
                                                       Converter={StaticResource LayoutScaleConverter},
                                                       ConverterParameter=52}"
@@ -1108,7 +1152,11 @@
                                       Margin="{Binding Source={StaticResource UiScaleState},
                                                        Path=FontScale,
                                                        Converter={StaticResource ThicknessScaleConverter},
-                                                       ConverterParameter='0,0,14,0'}">
+                                                       ConverterParameter='0,0,14,0'}"
+                                      Background="Transparent"
+                                      Cursor="Hand"
+                                      ToolTip="Open Documents to attach or replace profile image"
+                                      PreviewMouseLeftButtonUp="StaffHeaderAvatarHost_OnMouseLeftButtonUp">
                                     <Border x:Name="ProfilePlaceholder"
                                             Background="{StaticResource Brush.PrimaryBlue}"
                                             BorderBrush="Transparent"
@@ -1445,7 +1493,6 @@
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
                                         <StackPanel Grid.Row="0"
@@ -1462,20 +1509,40 @@
                                                     Grid.Column="1"
                                                     HorizontalAlignment="Stretch"
                                                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
-                                            <TextBlock Text="User name" Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBlock Style="{StaticResource StaffFormLabelStyle}">
+                                                <Run Text="User name " />
+                                                <Run Text="*" Foreground="#DC2626" />
+                                            </TextBlock>
                                             <TextBox x:Name="TxtUserName"
                                                      HorizontalAlignment="Stretch"
-                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}"
+                                                     TextChanged="StaffDetailFields_OnTextChanged" />
+                                            <TextBlock x:Name="LblUserNameError"
+                                                       Visibility="Collapsed"
+                                                       Foreground="#DC2626"
+                                                       TextWrapping="Wrap"
+                                                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=11}" />
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="1"
                                                     Grid.Column="0"
                                                     HorizontalAlignment="Stretch"
                                                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,12'}">
-                                            <TextBlock Text="First name" Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBlock Style="{StaticResource StaffFormLabelStyle}">
+                                                <Run Text="First name " />
+                                                <Run Text="*" Foreground="#DC2626" />
+                                            </TextBlock>
                                             <TextBox x:Name="TxtFirstName"
                                                      HorizontalAlignment="Stretch"
-                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}"
+                                                     TextChanged="StaffDetailFields_OnTextChanged" />
+                                            <TextBlock x:Name="LblFirstNameError"
+                                                       Visibility="Collapsed"
+                                                       Foreground="#DC2626"
+                                                       TextWrapping="Wrap"
+                                                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=11}" />
                                         </StackPanel>
                                         <StackPanel Grid.Row="1"
                                                     Grid.Column="1"
@@ -1484,32 +1551,61 @@
                                             <TextBlock Text="Middle name" Style="{StaticResource StaffFormLabelStyle}" />
                                             <TextBox x:Name="TxtMiddleName"
                                                      HorizontalAlignment="Stretch"
-                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}"
+                                                     TextChanged="StaffDetailFields_OnTextChanged" />
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="2"
                                                     Grid.Column="0"
                                                     HorizontalAlignment="Stretch"
                                                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,12'}">
-                                            <TextBlock Text="Surname" Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBlock Style="{StaticResource StaffFormLabelStyle}">
+                                                <Run Text="Surname " />
+                                                <Run Text="*" Foreground="#DC2626" />
+                                            </TextBlock>
                                             <TextBox x:Name="TxtSurname"
                                                      HorizontalAlignment="Stretch"
-                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}"
+                                                     TextChanged="StaffDetailFields_OnTextChanged" />
+                                            <TextBlock x:Name="LblSurnameError"
+                                                       Visibility="Collapsed"
+                                                       Foreground="#DC2626"
+                                                       TextWrapping="Wrap"
+                                                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=11}" />
                                         </StackPanel>
-                                        <local:StaffAccessRoles x:Name="RolePicker"
-                                                                Grid.Row="2"
-                                                                Grid.Column="1"
-                                                                HorizontalAlignment="Stretch"
-                                                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}" />
+                                        <StackPanel Grid.Row="2"
+                                                    Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}">
+                                            <local:StaffAccessRoles x:Name="RolePicker"
+                                                                    HorizontalAlignment="Stretch" />
+                                            <TextBlock x:Name="LblRoleError"
+                                                       Visibility="Collapsed"
+                                                       Foreground="#DC2626"
+                                                       TextWrapping="Wrap"
+                                                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=11}" />
+                                        </StackPanel>
 
                                         <StackPanel Grid.Row="3"
                                                     Grid.Column="0"
                                                     HorizontalAlignment="Stretch"
                                                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,12'}">
-                                            <TextBlock Text="Card number" Style="{StaticResource StaffFormLabelStyle}" />
+                                            <TextBlock Style="{StaticResource StaffFormLabelStyle}">
+                                                <Run Text="Card number " />
+                                                <Run Text="*" Foreground="#DC2626" />
+                                            </TextBlock>
                                             <TextBox x:Name="TxtCardNumber"
                                                      HorizontalAlignment="Stretch"
-                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}"
+                                                     TextChanged="StaffDetailFields_OnTextChanged" />
+                                            <TextBlock x:Name="LblCardNumberError"
+                                                       Visibility="Collapsed"
+                                                       Foreground="#DC2626"
+                                                       TextWrapping="Wrap"
+                                                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=11}" />
                                         </StackPanel>
                                         <StackPanel Grid.Row="3"
                                                     Grid.Column="1"
@@ -1519,7 +1615,8 @@
                                                        Style="{StaticResource StaffFormLabelStyle}" />
                                             <TextBox x:Name="TxtJobTitle"
                                                      HorizontalAlignment="Stretch"
-                                                     Style="{StaticResource IcEnabledTextBoxStyle}" />
+                                                     Style="{StaticResource IcEnabledTextBoxStyle}"
+                                                     TextChanged="StaffDetailFields_OnTextChanged" />
                                         </StackPanel>
 
                                         <!-- Same boolean row pattern as Table Management → Active Status. -->
@@ -1553,33 +1650,11 @@
                                                 <ToggleButton x:Name="TglActiveUser"
                                                               Grid.Column="1"
                                                               Style="{StaticResource IcPillSwitchToggleStyle}"
-                                                              VerticalAlignment="Center" />
+                                                              VerticalAlignment="Center"
+                                                              Checked="TglActiveUser_OnToggle"
+                                                              Unchecked="TglActiveUser_OnToggle" />
                                             </Grid>
                                         </Border>
-
-                                        <StackPanel Grid.Row="5"
-                                                    Grid.Column="0"
-                                                    Grid.ColumnSpan="2"
-                                                    HorizontalAlignment="Stretch"
-                                                    Orientation="Horizontal"
-                                                    VerticalAlignment="Center"
-                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,10,0,0'}">
-                                            <Button Content="Upload profile image"
-                                                    Style="{StaticResource VcSecondaryButtonStyle}"
-                                                    Click="BtnUploadProfile_OnClick" />
-                                            <Button x:Name="BtnViewProfileImage"
-                                                    Content="View image"
-                                                    Style="{StaticResource VcSecondaryButtonStyle}"
-                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,0'}"
-                                                    Visibility="Collapsed"
-                                                    Click="BtnViewProfileImage_OnClick" />
-                                            <Button x:Name="BtnReuploadProfileImage"
-                                                    Content="Re-upload image"
-                                                    Style="{StaticResource VcSecondaryButtonStyle}"
-                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,0'}"
-                                                    Visibility="Collapsed"
-                                                    Click="BtnUploadProfile_OnClick" />
-                                        </StackPanel>
                                     </Grid>
                                     </Border>
                                 </Grid>
@@ -1606,6 +1681,28 @@
 
                     </DockPanel>
                 </Border>
+            </Grid>
+
+            <!-- Audit trail overlay (read-only log for the selected user). -->
+            <Grid x:Name="StaffAuditOverlay"
+                  Panel.ZIndex="400"
+                  Visibility="Collapsed"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  Focusable="True"
+                  PreviewKeyDown="StaffAuditOverlay_OnPreviewKeyDown">
+                <Border Background="#99000000"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        PreviewMouseLeftButtonDown="StaffAuditScrim_OnPreviewMouseLeftButtonDown" />
+                <local:StaffAccessAuditTrail x:Name="StaffAuditTrailPanel"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center"
+                                             Margin="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                              ConverterParameter='20,20,20,20'}"
+                                             CloseRequested="StaffAuditTrailPanel_OnCloseRequested" />
             </Grid>
 
             <!-- Non-modal save confirmation (replaces success MessageBox). -->
