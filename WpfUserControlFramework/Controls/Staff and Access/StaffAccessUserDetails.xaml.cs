@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -329,6 +330,8 @@ public partial class StaffAccessUserDetails
     private ScrollViewer? _usersListInnerScrollViewer;
     private Visibility _usersListLastScrollBarVisibility = Visibility.Collapsed;
     private DispatcherTimer? _staffSaveToastTimer;
+    private bool _performanceMetricsVisible;
+    private bool _staffStoreMetricsHooked;
     private bool _suppressDirty;
     private bool _formDirty;
     private bool _suppressListSelectionHandlers;
@@ -362,6 +365,11 @@ public partial class StaffAccessUserDetails
         _staffSaveToastTimer?.Stop();
         _staffSaveToastTimer = null;
         StopStaffFileRemoteSyncTimers();
+        if (_staffStoreMetricsHooked)
+        {
+            StaffAccessStore.DataChanged -= StaffAccessStore_OnMetricsDataChanged;
+            _staffStoreMetricsHooked = false;
+        }
     }
 
     private enum StaffToastKind
@@ -501,7 +509,19 @@ public partial class StaffAccessUserDetails
             };
         }
 
+        if (!_staffStoreMetricsHooked)
+        {
+            _staffStoreMetricsHooked = true;
+            StaffAccessStore.DataChanged += StaffAccessStore_OnMetricsDataChanged;
+        }
+
         RefreshList(selectUserId: StaffAccessStore.GetUsers().FirstOrDefault()?.Id);
+    }
+
+    private void StaffAccessStore_OnMetricsDataChanged(object? sender, EventArgs e)
+    {
+        if (_performanceMetricsVisible)
+            Dispatcher.BeginInvoke(new Action(RefreshPerformanceMetrics), DispatcherPriority.Background);
     }
 
     private void RefreshList(Guid? selectUserId = null)
@@ -548,6 +568,8 @@ public partial class StaffAccessUserDetails
         var all = StaffAccessStore.GetUsers();
         TxtStatTotal.Text = all.Count.ToString(CultureInfo.CurrentCulture);
         TxtStatActive.Text = all.Count(x => x.IsActive).ToString(CultureInfo.CurrentCulture);
+        if (_performanceMetricsVisible)
+            RefreshPerformanceMetrics();
     }
 
     private void LoadUserIntoForm(StaffUser u)
@@ -1518,6 +1540,555 @@ public partial class StaffAccessUserDetails
         {
             MessageBox.Show(Window.GetWindow(this), ex.Message, "View document", MessageBoxButton.OK,
                 MessageBoxImage.Warning);
+        }
+    }
+
+    private static SolidColorBrush PerfHexBrush(string hex)
+    {
+        var b = (SolidColorBrush)new BrushConverter().ConvertFrom(hex)!;
+        b.Freeze();
+        return b;
+    }
+
+    private void BtnTogglePerformanceMetrics_OnClick(object sender, RoutedEventArgs e)
+    {
+        _performanceMetricsVisible = !_performanceMetricsVisible;
+        PerfMetricsScrollViewer.Visibility = _performanceMetricsVisible ? Visibility.Visible : Visibility.Collapsed;
+        TxtTogglePerformanceMetrics.Text = _performanceMetricsVisible
+            ? "Hide Performance Metrics"
+            : "Show Performance Metrics";
+        if (_performanceMetricsVisible)
+            Dispatcher.BeginInvoke(new Action(RefreshPerformanceMetrics), DispatcherPriority.Loaded);
+    }
+
+    private void PerfWeeklyChartCanvas_OnSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_performanceMetricsVisible && e.NewSize.Width > 1 && e.NewSize.Height > 1)
+            RedrawWeeklyActivityChart();
+    }
+
+    private void RefreshPerformanceMetrics()
+    {
+        StaffAccessStore.EnsureSeeded();
+        var users = StaffAccessStore.GetUsers();
+        var total = users.Count;
+        var active = users.Count(u => u.IsActive);
+        var bio = users.Count(u => u.BiometricEnrolled);
+        TxtPerfKpiTotal.Text = total.ToString(CultureInfo.CurrentCulture);
+        TxtPerfKpiActive.Text = active.ToString(CultureInfo.CurrentCulture);
+        var activePct = total == 0 ? 0 : (int)Math.Round(100.0 * active / total);
+        TxtPerfKpiActiveSub.Text = $"{activePct.ToString(CultureInfo.CurrentCulture)}% active";
+        TxtPerfKpiBio.Text = bio.ToString(CultureInfo.CurrentCulture);
+        var bioPct = total == 0 ? 0 : (int)Math.Round(100.0 * bio / total);
+        TxtPerfKpiBioSub.Text = $"{bioPct.ToString(CultureInfo.CurrentCulture)}% secured";
+
+        UpdateAvgLoginTimeKpi(users);
+
+        TxtPerfStatusActiveCount.Text = active.ToString(CultureInfo.CurrentCulture);
+        TxtPerfStatusInactiveCount.Text = (total - active).ToString(CultureInfo.CurrentCulture);
+        TxtPerfSecurityBioCount.Text = bio.ToString(CultureInfo.CurrentCulture);
+        TxtPerfSecurityPwdCount.Text = (total - bio).ToString(CultureInfo.CurrentCulture);
+
+        var inactive = total - active;
+        var pwdOnly = total - bio;
+        SetPerfBarFraction(PerfStatusActiveFillHost, PerfStatusActiveFill, total == 0 ? 0 : active / (double)total);
+        SetPerfBarFraction(PerfStatusInactiveFillHost, PerfStatusInactiveFill, total == 0 ? 0 : inactive / (double)total);
+        SetPerfBarFraction(PerfSecurityBioFillHost, PerfSecurityBioFill, total == 0 ? 0 : bio / (double)total);
+        SetPerfBarFraction(PerfSecurityPwdFillHost, PerfSecurityPwdFill, total == 0 ? 0 : pwdOnly / (double)total);
+
+        DrawRoleDonutAndLegend(users);
+        DrawBinaryDonut(PerfStatusDonutCanvas, active, inactive, "#14B8A6", "#CBD5E1", "Active", "Inactive");
+        DrawBinaryDonut(PerfSecurityDonutCanvas, bio, pwdOnly, "#5B5FED", "#CBD5E1", "Biometric", "Password Only");
+
+        Dispatcher.BeginInvoke(new Action(RedrawWeeklyActivityChart), DispatcherPriority.Loaded);
+    }
+
+    private void UpdateAvgLoginTimeKpi(IReadOnlyList<StaffUser> users)
+    {
+        // Aggregate all "Successful login" audit entries across every user and
+        // compute the average time-of-day (local). This keeps the KPI tied to
+        // real data — if no logins have been recorded yet we show a placeholder.
+        long totalMinutes = 0;
+        int count = 0;
+        foreach (var u in users)
+        {
+            var entries = StaffAccessAuditRepository.GetBySubjectUserNewestFirst(u.Id);
+            foreach (var e in entries)
+            {
+                if (!string.Equals(e.Title, "Successful login", StringComparison.Ordinal))
+                    continue;
+                var local = e.OccurredAtUtc.Kind == DateTimeKind.Utc
+                    ? e.OccurredAtUtc.ToLocalTime()
+                    : DateTime.SpecifyKind(e.OccurredAtUtc, DateTimeKind.Utc).ToLocalTime();
+                totalMinutes += local.Hour * 60 + local.Minute;
+                count++;
+            }
+        }
+
+        if (count == 0)
+        {
+            TxtPerfKpiAvgLogin.Text = "—";
+            TxtPerfKpiAvgLoginSub.Text = "no logins yet";
+            return;
+        }
+
+        var avg = (int)Math.Round(totalMinutes / (double)count);
+        var h24 = Math.Max(0, Math.Min(23, avg / 60));
+        var m = Math.Max(0, Math.Min(59, avg % 60));
+        var meridiem = h24 < 12 ? "AM" : "PM";
+        var h12 = h24 % 12;
+        if (h12 == 0) h12 = 12;
+
+        TxtPerfKpiAvgLogin.Text = string.Format(CultureInfo.CurrentCulture, "{0}:{1:00}", h12, m);
+        TxtPerfKpiAvgLoginSub.Text = count == 1
+            ? $"{meridiem} · {count} login"
+            : $"{meridiem} · {count} logins";
+    }
+
+    private static void SetPerfBarFraction(Border trackHost, Border fill, double fraction)
+    {
+        void Apply()
+        {
+            trackHost.UpdateLayout();
+            var w = Math.Max(0, trackHost.ActualWidth * Math.Min(1, Math.Max(0, fraction)));
+            fill.Width = w;
+        }
+
+        Apply();
+        if (trackHost.ActualWidth < 0.5)
+            trackHost.Dispatcher.BeginInvoke(new Action(Apply), DispatcherPriority.Loaded);
+    }
+
+    private static readonly (StaffAccessRole Role, string ColorHex)[] PerfRoleOrder =
+    {
+        (StaffAccessRole.Admin, "#9333EA"),
+        (StaffAccessRole.Manager, "#3B82F6"),
+        (StaffAccessRole.Supervisor, "#F97316"),
+        (StaffAccessRole.User, "#64748B"),
+        (StaffAccessRole.System, "#EC4899")
+    };
+
+    private void DrawRoleDonutAndLegend(IReadOnlyList<StaffUser> users)
+    {
+        PerfRoleDonutCanvas.Children.Clear();
+        var counts = PerfRoleOrder.Select(r => users.Count(u => u.AccessRole == r.Role)).ToArray();
+        var sum = counts.Sum();
+        var center = new Point(PerfRoleDonutCanvas.Width / 2, PerfRoleDonutCanvas.Height / 2);
+        var rOut = Math.Min(PerfRoleDonutCanvas.Width, PerfRoleDonutCanvas.Height) / 2 - 4;
+        var rIn = rOut * 0.55;
+        if (sum == 0)
+        {
+            PerfRoleDonutCanvas.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = PerfRingSlice(center, rOut, rIn, 0, 359.99),
+                Fill = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
+                Stroke = Brushes.White,
+                StrokeThickness = 1
+            });
+        }
+        else
+        {
+            var start = 0.0;
+            for (var i = 0; i < counts.Length; i++)
+            {
+                var c = counts[i];
+                if (c <= 0)
+                    continue;
+                var sweep = 360.0 * c / sum;
+                var slice = new System.Windows.Shapes.Path
+                {
+                    Data = PerfRingSlice(center, rOut, rIn, start, sweep),
+                    Fill = PerfHexBrush(PerfRoleOrder[i].ColorHex),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1,
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                slice.ToolTip = BuildChartToolTip(
+                    PerfRoleOrder[i].Role.ToString(),
+                    PerfRoleOrder[i].ColorHex,
+                    c.ToString(CultureInfo.CurrentCulture));
+                ApplyChartToolTipPlacement(slice, PlacementMode.Mouse);
+                PerfRoleDonutCanvas.Children.Add(slice);
+                start += sweep;
+            }
+        }
+
+        PerfRoleLegendPanel.Children.Clear();
+        var fg = TryFindResource("MainForeground") as Brush ?? Brushes.Black;
+        for (var i = 0; i < PerfRoleOrder.Length; i++)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var dot = new System.Windows.Shapes.Ellipse
+            {
+                Width = 10,
+                Height = 10,
+                Fill = PerfHexBrush(PerfRoleOrder[i].ColorHex),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+            Grid.SetColumn(dot, 0);
+            var label = new TextBlock
+            {
+                Text = PerfRoleOrder[i].Role.ToString(),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = fg,
+                FontSize = 13
+            };
+            Grid.SetColumn(label, 1);
+            var val = new TextBlock
+            {
+                Text = counts[i].ToString(CultureInfo.CurrentCulture),
+                VerticalAlignment = VerticalAlignment.Center,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = fg,
+                FontSize = 13
+            };
+            Grid.SetColumn(val, 2);
+            row.Children.Add(dot);
+            row.Children.Add(label);
+            row.Children.Add(val);
+            PerfRoleLegendPanel.Children.Add(row);
+        }
+    }
+
+    private void DrawBinaryDonut(Canvas canvas, int a, int b, string colorA, string colorB, string labelA, string labelB)
+    {
+        canvas.Children.Clear();
+        var center = new Point(canvas.Width / 2, canvas.Height / 2);
+        var rOut = Math.Min(canvas.Width, canvas.Height) / 2 - 2;
+        var rIn = rOut * 0.55;
+        var sum = a + b;
+        if (sum == 0)
+        {
+            canvas.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = PerfRingSlice(center, rOut, rIn, 0, 359.99),
+                Fill = new SolidColorBrush(Color.FromRgb(229, 231, 235))
+            });
+            return;
+        }
+
+        void AddFull(string color, string label, int count)
+        {
+            var p = new System.Windows.Shapes.Path
+            {
+                Data = PerfRingSlice(center, rOut, rIn, 0, 359.99),
+                Fill = PerfHexBrush(color),
+                Stroke = Brushes.White,
+                StrokeThickness = 1,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            p.ToolTip = BuildChartToolTip(label, color, count.ToString(CultureInfo.CurrentCulture));
+            ApplyChartToolTipPlacement(p, PlacementMode.Mouse);
+            canvas.Children.Add(p);
+        }
+
+        if (a <= 0)
+        {
+            AddFull(colorB, labelB, b);
+            return;
+        }
+
+        if (b <= 0)
+        {
+            AddFull(colorA, labelA, a);
+            return;
+        }
+
+        var sweepA = 360.0 * a / sum;
+        var pathA = new System.Windows.Shapes.Path
+        {
+            Data = PerfRingSlice(center, rOut, rIn, 0, sweepA),
+            Fill = PerfHexBrush(colorA),
+            Stroke = Brushes.White,
+            StrokeThickness = 1,
+            Cursor = System.Windows.Input.Cursors.Hand
+        };
+        pathA.ToolTip = BuildChartToolTip(labelA, colorA, a.ToString(CultureInfo.CurrentCulture));
+        ApplyChartToolTipPlacement(pathA, PlacementMode.Mouse);
+        canvas.Children.Add(pathA);
+
+        var pathB = new System.Windows.Shapes.Path
+        {
+            Data = PerfRingSlice(center, rOut, rIn, sweepA, 360 - sweepA),
+            Fill = PerfHexBrush(colorB),
+            Stroke = Brushes.White,
+            StrokeThickness = 1,
+            Cursor = System.Windows.Input.Cursors.Hand
+        };
+        pathB.ToolTip = BuildChartToolTip(labelB, colorB, b.ToString(CultureInfo.CurrentCulture));
+        ApplyChartToolTipPlacement(pathB, PlacementMode.Mouse);
+        canvas.Children.Add(pathB);
+    }
+
+    /// <summary>
+    /// Styled tooltip used by every chart slice / per-day hit area. Matches the client mock:
+    /// rounded white card, coloured heading, value line below.
+    /// </summary>
+    private System.Windows.Controls.ToolTip BuildChartToolTip(string heading, string headingColorHex, string valueLine)
+    {
+        var stack = new StackPanel();
+        stack.Children.Add(new TextBlock
+        {
+            Text = heading,
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 12,
+            Foreground = PerfHexBrush(headingColorHex)
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = valueLine,
+            FontSize = 12,
+            Margin = new Thickness(0, 2, 0, 0),
+            Foreground = TryFindResource("MainForeground") as Brush ?? Brushes.Black
+        });
+
+        return new System.Windows.Controls.ToolTip
+        {
+            Content = stack,
+            Style = TryFindResource("StaffAccessChartToolTipStyle") as Style
+        };
+    }
+
+    /// <summary>
+    /// Attaches a tooltip with predictable placement. Donut slices use mouse-following placement (standard for
+    /// polar segments); line-chart day bands use mouse placement so the card sits near the pointer rather than
+    /// anchoring to the top of a full-height hit box (which looked "floating" above the chart).
+    /// </summary>
+    private static void ApplyChartToolTipPlacement(FrameworkElement owner, PlacementMode mode,
+        double horizontalOffset = 0, double verticalOffset = -10)
+    {
+        // Style sets ToolTip.Placement="Top"; sync the instance so mouse-relative charts and donut
+        // slices do not stay top-anchored (which hid donut tips and floated weekly tips above the plot).
+        if (owner.ToolTip is System.Windows.Controls.ToolTip t)
+        {
+            t.Placement = mode;
+            t.HorizontalOffset = horizontalOffset;
+            t.VerticalOffset = verticalOffset;
+        }
+
+        ToolTipService.SetPlacement(owner, mode);
+        ToolTipService.SetHorizontalOffset(owner, horizontalOffset);
+        ToolTipService.SetVerticalOffset(owner, verticalOffset);
+        ToolTipService.SetInitialShowDelay(owner, 100);
+        ToolTipService.SetBetweenShowDelay(owner, 80);
+        ToolTipService.SetShowDuration(owner, 60_000);
+    }
+
+    /// <summary>Builds a tooltip for a single day in the weekly line chart with both series values.</summary>
+    private System.Windows.Controls.ToolTip BuildWeeklyDayToolTip(string day, double logins, double active)
+    {
+        var stack = new StackPanel { MinWidth = 120 };
+        stack.Children.Add(new TextBlock
+        {
+            Text = day,
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 12,
+            Foreground = TryFindResource("MainForeground") as Brush ?? Brushes.Black,
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = $"Total Logins : {logins.ToString("0", CultureInfo.CurrentCulture)}",
+            FontSize = 12,
+            Foreground = PerfHexBrush("#5B5FED")
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = $"Active Users : {active.ToString("0", CultureInfo.CurrentCulture)}",
+            FontSize = 12,
+            Margin = new Thickness(0, 2, 0, 0),
+            Foreground = PerfHexBrush("#2DD4BF")
+        });
+
+        return new System.Windows.Controls.ToolTip
+        {
+            Content = stack,
+            Style = TryFindResource("StaffAccessChartToolTipStyle") as Style
+        };
+    }
+
+    private static Point PerfPolarDeg(Point c, double r, double deg)
+    {
+        var rad = (deg - 90) * Math.PI / 180.0;
+        return new Point(c.X + r * Math.Cos(rad), c.Y + r * Math.Sin(rad));
+    }
+
+    private static Geometry PerfRingSlice(Point c, double rOut, double rIn, double startDeg, double sweepDeg)
+    {
+        if (sweepDeg <= 0.01)
+            return Geometry.Empty;
+        var large = sweepDeg > 180;
+        var fig = new PathFigure
+        {
+            IsClosed = true,
+            StartPoint = PerfPolarDeg(c, rOut, startDeg)
+        };
+        fig.Segments.Add(new ArcSegment
+        {
+            Point = PerfPolarDeg(c, rOut, startDeg + sweepDeg),
+            Size = new Size(rOut, rOut),
+            SweepDirection = SweepDirection.Clockwise,
+            IsLargeArc = large
+        });
+        fig.Segments.Add(new LineSegment(PerfPolarDeg(c, rIn, startDeg + sweepDeg), true));
+        fig.Segments.Add(new ArcSegment
+        {
+            Point = PerfPolarDeg(c, rIn, startDeg),
+            Size = new Size(rIn, rIn),
+            SweepDirection = SweepDirection.Counterclockwise,
+            IsLargeArc = large
+        });
+        return new PathGeometry(new[] { fig });
+    }
+
+    private static readonly double[] WeeklyDemoLogins = { 32, 38, 42, 48, 65, 52, 28 };
+    private static readonly double[] WeeklyDemoActive = { 28, 32, 36, 40, 50, 44, 22 };
+
+    private void RedrawWeeklyActivityChart()
+    {
+        var canvas = PerfWeeklyChartCanvas;
+        canvas.Children.Clear();
+        var w = canvas.ActualWidth;
+        var h = canvas.ActualHeight;
+        if (w < 8 || h < 8)
+            return;
+
+        // Plot margins. No space reserved at the bottom for a legend — the legend
+        // lives outside this canvas now so it can't overlap the day labels.
+        const double left = 36;
+        const double top = 12;
+        const double right = 16;
+        const double bottomAxis = 22; // room for Mon..Sun labels only
+        var plotW = w - left - right;
+        var plotH = h - top - bottomAxis;
+        if (plotW < 8 || plotH < 8)
+            return;
+        const double yMax = 80;
+
+        void Add(System.Windows.Shapes.Shape s)
+        {
+            canvas.Children.Add(s);
+        }
+
+        var gridBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235));
+        for (var g = 0; g <= 4; g++)
+        {
+            var yv = g * 20.0;
+            var py = top + plotH - plotH * (yv / yMax);
+            Add(new System.Windows.Shapes.Line
+            {
+                X1 = left,
+                Y1 = py,
+                X2 = left + plotW,
+                Y2 = py,
+                Stroke = gridBrush,
+                StrokeThickness = 1,
+                StrokeDashArray = new DoubleCollection { 3, 3 }
+            });
+            var yLabel = new TextBlock
+            {
+                Text = yv.ToString(CultureInfo.InvariantCulture),
+                Foreground = TryFindResource("DimmedForeground") as Brush ?? Brushes.Gray,
+                FontSize = 11
+            };
+            yLabel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(yLabel, 4);
+            Canvas.SetTop(yLabel, py - yLabel.DesiredSize.Height / 2);
+            canvas.Children.Add(yLabel);
+        }
+
+        var days = new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+        var n = WeeklyDemoLogins.Length;
+        for (var i = 0; i < n; i++)
+        {
+            var px = left + plotW * (i + 0.5) / n;
+            var dayTb = new TextBlock
+            {
+                Text = days[i],
+                Foreground = TryFindResource("DimmedForeground") as Brush ?? Brushes.Gray,
+                FontSize = 11
+            };
+            dayTb.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(dayTb, px - dayTb.DesiredSize.Width / 2);
+            Canvas.SetTop(dayTb, top + plotH + 6);
+            canvas.Children.Add(dayTb);
+        }
+
+        Point[] ToPoly(double[] series)
+        {
+            var pts = new Point[n];
+            for (var i = 0; i < n; i++)
+            {
+                var px = left + plotW * (i + 0.5) / n;
+                var py = top + plotH - plotH * (Math.Min(yMax, series[i]) / yMax);
+                pts[i] = new Point(px, py);
+            }
+
+            return pts;
+        }
+
+        var loginPts = ToPoly(WeeklyDemoLogins);
+        var activePts = ToPoly(WeeklyDemoActive);
+
+        void AddLineSeries(Point[] pts, string colorHex, double thickness)
+        {
+            var stroke = PerfHexBrush(colorHex);
+            for (var i = 0; i < pts.Length - 1; i++)
+            {
+                Add(new System.Windows.Shapes.Line
+                {
+                    X1 = pts[i].X,
+                    Y1 = pts[i].Y,
+                    X2 = pts[i + 1].X,
+                    Y2 = pts[i + 1].Y,
+                    Stroke = stroke,
+                    StrokeThickness = thickness,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round
+                });
+            }
+
+            foreach (var p in pts)
+            {
+                var dot = new System.Windows.Shapes.Ellipse
+                {
+                    Width = 8,
+                    Height = 8,
+                    Fill = Brushes.White,
+                    Stroke = stroke,
+                    StrokeThickness = 2
+                };
+                Canvas.SetLeft(dot, p.X - 4);
+                Canvas.SetTop(dot, p.Y - 4);
+                canvas.Children.Add(dot);
+            }
+        }
+
+        AddLineSeries(loginPts, "#5B5FED", 2.5);
+        AddLineSeries(activePts, "#2DD4BF", 2.5);
+
+        // Per-day transparent hit areas. Use mouse-relative placement so the tooltip sits near the pointer
+        // (and thus near the markers) instead of anchoring to Placement=Top on a full-height box, which
+        // pinned the card to the top of the plot.
+        var colW = plotW / n;
+        for (var i = 0; i < n; i++)
+        {
+            var hit = new System.Windows.Shapes.Rectangle
+            {
+                Width = colW,
+                Height = plotH,
+                Fill = Brushes.Transparent,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            hit.ToolTip = BuildWeeklyDayToolTip(days[i], WeeklyDemoLogins[i], WeeklyDemoActive[i]);
+            ApplyChartToolTipPlacement(hit, PlacementMode.Mouse, 0, -12);
+            Canvas.SetLeft(hit, left + i * colW);
+            Canvas.SetTop(hit, top);
+            canvas.Children.Add(hit);
         }
     }
 }

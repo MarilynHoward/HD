@@ -38,6 +38,41 @@
         <SolidColorBrush x:Key="StaffAccessPurple" Color="#676BF0" />
         <SolidColorBrush x:Key="StaffAccessPurpleSubtitle" Color="#DDE4FF" />
 
+        <!-- Shared styled ToolTip for the Performance Metrics charts (donuts + line chart).
+             Rendered as a rounded white card with a subtle shadow so it reads like the
+             client mock instead of the default OS chrome. -->
+        <DropShadowEffect x:Key="StaffAccessChartTooltipShadow"
+                          BlurRadius="16"
+                          Direction="270"
+                          Opacity="0.18"
+                          ShadowDepth="2"
+                          Color="#000000" />
+        <Style x:Key="StaffAccessChartToolTipStyle" TargetType="ToolTip">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HasDropShadow" Value="False" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Placement" Value="Top" />
+            <Setter Property="HorizontalOffset" Value="0" />
+            <Setter Property="VerticalOffset" Value="-6" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="White"
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,8"
+                                Effect="{StaticResource StaffAccessChartTooltipShadow}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="StaffFormLabelStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource DimmedForeground}" />
             <Setter Property="FontSize"
@@ -270,6 +305,74 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Performance metrics: gradient toggle (Tailwind-style #5B5FED → #7B7FF3 + lucide chart-bar) -->
+        <LinearGradientBrush x:Key="StaffPerfMetricsBtnGradient" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#5B5FED" Offset="0" />
+            <GradientStop Color="#7B7FF3" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="StaffPerfMetricsBtnGradientHover" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#5057D6" Offset="0" />
+            <GradientStop Color="#6B6FF0" Offset="1" />
+        </LinearGradientBrush>
+        <Style x:Key="StaffPerformanceMetricsToggleButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Brush.White}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding">
+                <Setter.Value>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource ThicknessScaleConverter}"
+                             ConverterParameter="12,8" />
+                </Setter.Value>
+            </Setter>
+            <Setter Property="FontSize">
+                <Setter.Value>
+                    <Binding Source="{StaticResource UiScaleState}"
+                             Path="FontScale"
+                             Converter="{StaticResource FontScaleConverter}"
+                             ConverterParameter="14" />
+                </Setter.Value>
+            </Setter>
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                SnapsToDevicePixels="True"
+                                CornerRadius="{Binding RelativeSource={RelativeSource TemplatedParent},
+                                                       Path=ActualHeight,
+                                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                       ConverterParameter=6}"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{StaticResource StaffPerfMetricsBtnGradient}">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="14"
+                                                  Direction="270"
+                                                  Opacity="0.28"
+                                                  ShadowDepth="2"
+                                                  Color="#5B5FED" />
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource StaffPerfMetricsBtnGradientHover}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.92" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Border Background="{StaticResource Brush.SurfaceOffWhite}"
@@ -288,14 +391,23 @@
             <Grid VerticalAlignment="Stretch"
                   HorizontalAlignment="Stretch"
                   MinHeight="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition
-                        Width="{Binding Source={StaticResource UiScaleState},
-                                        Path=FontScale,
-                                        Converter={StaticResource LayoutScaleConverter},
-                                        ConverterParameter=340}" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" MinHeight="0" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0"
+                      VerticalAlignment="Stretch"
+                      HorizontalAlignment="Stretch"
+                      MinHeight="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition
+                            Width="{Binding Source={StaticResource UiScaleState},
+                                            Path=FontScale,
+                                            Converter={StaticResource LayoutScaleConverter},
+                                            ConverterParameter=340}" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
 
                 <!-- Left: user list (Operations-style white card) -->
                 <Border x:Name="StaffAccessListCard"
@@ -1681,6 +1793,991 @@
 
                     </DockPanel>
                 </Border>
+                </Grid>
+
+                <!-- Full-width reporting strip below user list + details -->
+                <StackPanel Grid.Row="1"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Left"
+                            Margin="{Binding Source={StaticResource UiScaleState},
+                                             Path=FontScale,
+                                             Converter={StaticResource ThicknessScaleConverter},
+                                             ConverterParameter='0,16,0,0'}">
+                    <Button x:Name="BtnTogglePerformanceMetrics"
+                            Style="{StaticResource StaffPerformanceMetricsToggleButtonStyle}"
+                            Click="BtnTogglePerformanceMetrics_OnClick">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                     Path=FontScale,
+                                                     Converter={StaticResource LayoutScaleConverter},
+                                                     ConverterParameter=16}"
+                                     Height="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource LayoutScaleConverter},
+                                                      ConverterParameter=16}"
+                                     Margin="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                      ConverterParameter='0,0,8,0'}"
+                                     Stretch="Uniform">
+                                <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                    <!-- Lucide chart-bar -->
+                                    <Path Stroke="{StaticResource Brush.White}"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Fill="Transparent"
+                                          Data="M 3 3 v 16 a 2 2 0 0 0 2 2 h 16" />
+                                    <Path Stroke="{StaticResource Brush.White}"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          Fill="Transparent"
+                                          Data="M 7 16 h 8" />
+                                    <Path Stroke="{StaticResource Brush.White}"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          Fill="Transparent"
+                                          Data="M 7 11 h 12" />
+                                    <Path Stroke="{StaticResource Brush.White}"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          Fill="Transparent"
+                                          Data="M 7 6 h 3" />
+                                </Canvas>
+                            </Viewbox>
+                            <TextBlock x:Name="TxtTogglePerformanceMetrics"
+                                       Text="Show Performance Metrics"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.White}" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <ScrollViewer x:Name="PerfMetricsScrollViewer"
+                              Grid.Row="2"
+                              Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Margin="{Binding Source={StaticResource UiScaleState},
+                                               Path=FontScale,
+                                               Converter={StaticResource ThicknessScaleConverter},
+                                               ConverterParameter='0,12,0,0'}"
+                              MaxHeight="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource LayoutScaleConverter},
+                                                  ConverterParameter=620}">
+                    <StackPanel Orientation="Vertical"
+                                HorizontalAlignment="Stretch">
+                        <!-- KPI row -->
+                        <UniformGrid Columns="4"
+                                     Margin="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                      ConverterParameter='0,0,0,0'}">
+                            <UniformGrid.Resources>
+                                <!-- Explicit key so this spacing only applies to the outer KPI cards,
+                                     not to the stripe or icon-container Borders nested inside each card. -->
+                                <Style x:Key="StaffAccessKpiCardSpacing" TargetType="Border">
+                                    <Setter Property="Margin">
+                                        <Setter.Value>
+                                            <Binding Source="{StaticResource UiScaleState}"
+                                                     Path="FontScale"
+                                                     Converter="{StaticResource ThicknessScaleConverter}"
+                                                     ConverterParameter="0,0,12,0" />
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </UniformGrid.Resources>
+                            <!-- Card 1: Total Staff (indigo activity icon) -->
+                            <Border Style="{StaticResource StaffAccessKpiCardSpacing}"
+                                    Background="{StaticResource Brush.White}"
+                                    BorderBrush="#C7D2FE"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="0"
+                                    Effect="{StaticResource StaffAccessCardShadow}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <!-- Left accent stripe -->
+                                    <Border Grid.Column="0"
+                                            Background="#5C64D2"
+                                            CornerRadius="10,0,0,10" />
+                                    <Grid Grid.Column="1"
+                                          Margin="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='14,12,14,12'}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="Total Staff"
+                                                       Foreground="{StaticResource DimmedForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                            <TextBlock x:Name="TxtPerfKpiTotal"
+                                                       Text="0"
+                                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                                        Path=FontScale,
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='0,4,0,2'}"
+                                                       FontWeight="Bold"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=24}"
+                                                       Foreground="#5C64D2" />
+                                            <TextBlock Text="All users"
+                                                       Foreground="{StaticResource DimmedForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                        </StackPanel>
+                                        <Border Grid.Column="1"
+                                                Width="{Binding Source={StaticResource UiScaleState},
+                                                                Path=FontScale,
+                                                                Converter={StaticResource LayoutScaleConverter},
+                                                                ConverterParameter=44}"
+                                                Height="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource LayoutScaleConverter},
+                                                                 ConverterParameter=44}"
+                                                Background="#EEF2FF"
+                                                CornerRadius="10"
+                                                VerticalAlignment="Center">
+                                            <Viewbox Margin="10">
+                                                <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                                    <!-- Lucide activity -->
+                                                    <Path Stroke="#6366F1"
+                                                          StrokeThickness="2"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          StrokeLineJoin="Round"
+                                                          Fill="Transparent"
+                                                          Data="M 22 12 h -4 l -3 9 L 9 3 l -3 9 H 2" />
+                                                </Canvas>
+                                            </Viewbox>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <!-- Card 2: Active Users (teal user-check icon) -->
+                            <Border Style="{StaticResource StaffAccessKpiCardSpacing}"
+                                    Background="{StaticResource Brush.White}"
+                                    BorderBrush="#A7F3D0"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="0"
+                                    Effect="{StaticResource StaffAccessCardShadow}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0"
+                                            Background="#10B981"
+                                            CornerRadius="10,0,0,10" />
+                                    <Grid Grid.Column="1"
+                                          Margin="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='14,12,14,12'}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="Active Users"
+                                                       Foreground="{StaticResource DimmedForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                            <TextBlock x:Name="TxtPerfKpiActive"
+                                                       Text="0"
+                                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                                        Path=FontScale,
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='0,4,0,2'}"
+                                                       FontWeight="Bold"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=24}"
+                                                       Foreground="#10B981" />
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Viewbox Width="14"
+                                                         Height="14"
+                                                         VerticalAlignment="Center"
+                                                         Margin="0,1,4,0">
+                                                    <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                                        <!-- Lucide trending-up (matches Procurement Dashboard "APPROVED + SENT" / "TOTAL SPEND 2026") -->
+                                                        <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
+                                                                  Stroke="#10B981"
+                                                                  StrokeThickness="2"
+                                                                  StrokeLineJoin="Round"
+                                                                  StrokeStartLineCap="Round"
+                                                                  StrokeEndLineCap="Round"
+                                                                  Fill="Transparent" />
+                                                        <Polyline Points="16,7 22,7 22,13"
+                                                                  Stroke="#10B981"
+                                                                  StrokeThickness="2"
+                                                                  StrokeLineJoin="Round"
+                                                                  StrokeStartLineCap="Round"
+                                                                  StrokeEndLineCap="Round"
+                                                                  Fill="Transparent" />
+                                                    </Canvas>
+                                                </Viewbox>
+                                                <TextBlock x:Name="TxtPerfKpiActiveSub"
+                                                           Text="0% active"
+                                                           Foreground="#10B981"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                              Path=FontScale,
+                                                                              Converter={StaticResource FontScaleConverter},
+                                                                              ConverterParameter=12}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <Border Grid.Column="1"
+                                                Width="{Binding Source={StaticResource UiScaleState},
+                                                                Path=FontScale,
+                                                                Converter={StaticResource LayoutScaleConverter},
+                                                                ConverterParameter=44}"
+                                                Height="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource LayoutScaleConverter},
+                                                                 ConverterParameter=44}"
+                                                Background="#D1FAE5"
+                                                CornerRadius="10"
+                                                VerticalAlignment="Center">
+                                            <Viewbox Margin="9">
+                                                <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                                    <!-- Lucide user-check: user body + head + check -->
+                                                    <Path Stroke="#10B981"
+                                                          StrokeThickness="2"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          StrokeLineJoin="Round"
+                                                          Fill="Transparent"
+                                                          Data="M 16 21 v -2 a 4 4 0 0 0 -4 -4 H 6 a 4 4 0 0 0 -4 4 v 2" />
+                                                    <Ellipse Canvas.Left="5"
+                                                             Canvas.Top="3"
+                                                             Width="8"
+                                                             Height="8"
+                                                             Stroke="#10B981"
+                                                             StrokeThickness="2"
+                                                             Fill="Transparent" />
+                                                    <Path Stroke="#10B981"
+                                                          StrokeThickness="2.2"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          StrokeLineJoin="Round"
+                                                          Fill="Transparent"
+                                                          Data="M 17 11 L 19 13 L 22 10" />
+                                                </Canvas>
+                                            </Viewbox>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <!-- Card 3: Biometric (violet shield icon, red subtitle) -->
+                            <Border Style="{StaticResource StaffAccessKpiCardSpacing}"
+                                    Background="{StaticResource Brush.White}"
+                                    BorderBrush="#DDD6FE"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="0"
+                                    Effect="{StaticResource StaffAccessCardShadow}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0"
+                                            Background="#8B5CF6"
+                                            CornerRadius="10,0,0,10" />
+                                    <Grid Grid.Column="1"
+                                          Margin="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='14,12,14,12'}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="Biometric"
+                                                       Foreground="{StaticResource DimmedForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                            <TextBlock x:Name="TxtPerfKpiBio"
+                                                       Text="0"
+                                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                                        Path=FontScale,
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='0,4,0,2'}"
+                                                       FontWeight="Bold"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=24}"
+                                                       Foreground="#8B5CF6" />
+                                            <TextBlock x:Name="TxtPerfKpiBioSub"
+                                                       Text="0% secured"
+                                                       Foreground="#8B5CF6"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                        </StackPanel>
+                                        <Border Grid.Column="1"
+                                                Width="{Binding Source={StaticResource UiScaleState},
+                                                                Path=FontScale,
+                                                                Converter={StaticResource LayoutScaleConverter},
+                                                                ConverterParameter=44}"
+                                                Height="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource LayoutScaleConverter},
+                                                                 ConverterParameter=44}"
+                                                Background="#F3E8FF"
+                                                CornerRadius="10"
+                                                VerticalAlignment="Center">
+                                            <Viewbox Margin="10">
+                                                <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                                    <!-- Lucide shield -->
+                                                    <Path Stroke="#8B5CF6"
+                                                          StrokeThickness="2"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          StrokeLineJoin="Round"
+                                                          Fill="Transparent"
+                                                          Data="M 12 22 s 8 -4 8 -10 V 5 l -8 -3 -8 3 v 7 c 0 6 8 10 8 10 z" />
+                                                </Canvas>
+                                            </Viewbox>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <!-- Card 4: Avg. Login Time (orange clock icon, orange value) -->
+                            <Border Margin="0"
+                                    Background="{StaticResource Brush.White}"
+                                    BorderBrush="#FED7AA"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="0"
+                                    Effect="{StaticResource StaffAccessCardShadow}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0"
+                                            Background="#F97316"
+                                            CornerRadius="10,0,0,10" />
+                                    <Grid Grid.Column="1"
+                                          Margin="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='14,12,14,12'}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="Avg. Login Time"
+                                                       Foreground="{StaticResource DimmedForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                            <TextBlock x:Name="TxtPerfKpiAvgLogin"
+                                                       Text="—"
+                                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                                        Path=FontScale,
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='0,4,0,2'}"
+                                                       FontWeight="Bold"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=24}"
+                                                       Foreground="#F97316" />
+                                            <TextBlock x:Name="TxtPerfKpiAvgLoginSub"
+                                                       Text="no data"
+                                                       Foreground="{StaticResource DimmedForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                        </StackPanel>
+                                        <Border Grid.Column="1"
+                                                Width="{Binding Source={StaticResource UiScaleState},
+                                                                Path=FontScale,
+                                                                Converter={StaticResource LayoutScaleConverter},
+                                                                ConverterParameter=44}"
+                                                Height="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource LayoutScaleConverter},
+                                                                 ConverterParameter=44}"
+                                                Background="#FFEDD5"
+                                                CornerRadius="10"
+                                                VerticalAlignment="Center">
+                                            <Viewbox Margin="10">
+                                                <Canvas Width="24" Height="24" SnapsToDevicePixels="True">
+                                                    <!-- Lucide clock -->
+                                                    <Ellipse Canvas.Left="2"
+                                                             Canvas.Top="2"
+                                                             Width="20"
+                                                             Height="20"
+                                                             Stroke="#F97316"
+                                                             StrokeThickness="2"
+                                                             Fill="Transparent" />
+                                                    <Path Stroke="#F97316"
+                                                          StrokeThickness="2"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          StrokeLineJoin="Round"
+                                                          Fill="Transparent"
+                                                          Data="M 12 6 v 6 l 4 2" />
+                                                </Canvas>
+                                            </Viewbox>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- Role distribution + weekly activity -->
+                        <Grid Margin="{Binding Source={StaticResource UiScaleState},
+                                               Path=FontScale,
+                                               Converter={StaticResource ThicknessScaleConverter},
+                                               ConverterParameter='0,16,0,0'}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="2*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0"
+                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                     Path=FontScale,
+                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                     ConverterParameter='0,0,12,0'}"
+                                    Background="{StaticResource Brush.White}"
+                                    BorderBrush="{StaticResource Brush.BorderSoft}"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource ThicknessScaleConverter},
+                                                      ConverterParameter='16,16,16,16'}"
+                                    Effect="{StaticResource StaffAccessCardShadow}">
+                                <StackPanel HorizontalAlignment="Stretch">
+                                    <TextBlock Text="Role Distribution"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource MainForeground}"
+                                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource FontScaleConverter},
+                                                                  ConverterParameter=15}" />
+                                    <TextBlock Text="Staff by role type"
+                                               Margin="{Binding Source={StaticResource UiScaleState},
+                                                                Path=FontScale,
+                                                                Converter={StaticResource ThicknessScaleConverter},
+                                                                ConverterParameter='0,4,0,12'}"
+                                               Foreground="{StaticResource DimmedForeground}"
+                                               FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource FontScaleConverter},
+                                                                  ConverterParameter=12}" />
+                                    <Canvas x:Name="PerfRoleDonutCanvas"
+                                            Width="200"
+                                            Height="200"
+                                            HorizontalAlignment="Center" />
+                                    <StackPanel x:Name="PerfRoleLegendPanel"
+                                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                                 ConverterParameter='0,12,0,0'}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1"
+                                    Background="{StaticResource Brush.White}"
+                                    BorderBrush="{StaticResource Brush.BorderSoft}"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    ClipToBounds="True"
+                                    Effect="{StaticResource StaffAccessCardShadow}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Border Grid.Row="0"
+                                            Background="#F9FAFB"
+                                            BorderBrush="#E5E7EB"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                              ConverterParameter='16,12,16,12'}">
+                                        <StackPanel>
+                                            <TextBlock Text="Weekly Activity"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource MainForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=15}" />
+                                            <TextBlock Text="Login trends and active sessions"
+                                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                                        Path=FontScale,
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='0,4,0,0'}"
+                                                       Foreground="{StaticResource DimmedForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Canvas x:Name="PerfWeeklyChartCanvas"
+                                            Grid.Row="1"
+                                            MinHeight="200"
+                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                             ConverterParameter='12,8,12,0'}"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch"
+                                            SizeChanged="PerfWeeklyChartCanvas_OnSizeChanged" />
+                                    <!-- Legend lives outside the chart canvas so it never overlaps the day-of-week axis. -->
+                                    <StackPanel Grid.Row="2"
+                                                Orientation="Horizontal"
+                                                HorizontalAlignment="Center"
+                                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                                 ConverterParameter='0,6,0,14'}">
+                                        <StackPanel Orientation="Horizontal"
+                                                    VerticalAlignment="Center"
+                                                    Margin="0,0,20,0">
+                                            <Ellipse Width="8"
+                                                     Height="8"
+                                                     Fill="White"
+                                                     Stroke="#5B5FED"
+                                                     StrokeThickness="2"
+                                                     VerticalAlignment="Center"
+                                                     Margin="0,0,6,0" />
+                                            <TextBlock Text="Total Logins"
+                                                       Foreground="#5B5FED"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal"
+                                                    VerticalAlignment="Center">
+                                            <Ellipse Width="8"
+                                                     Height="8"
+                                                     Fill="White"
+                                                     Stroke="#2DD4BF"
+                                                     StrokeThickness="2"
+                                                     VerticalAlignment="Center"
+                                                     Margin="0,0,6,0" />
+                                            <TextBlock Text="Active Users"
+                                                       Foreground="#2DD4BF"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- User status + security -->
+                        <Grid Margin="{Binding Source={StaticResource UiScaleState},
+                                               Path=FontScale,
+                                               Converter={StaticResource ThicknessScaleConverter},
+                                               ConverterParameter='0,16,0,8'}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0"
+                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                     Path=FontScale,
+                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                     ConverterParameter='0,0,12,0'}"
+                                    Background="{StaticResource Brush.White}"
+                                    BorderBrush="{StaticResource Brush.BorderSoft}"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    ClipToBounds="True"
+                                    Effect="{StaticResource StaffAccessCardShadow}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Border Grid.Row="0"
+                                            Background="#F0FDFA"
+                                            BorderBrush="#E5E7EB"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                              ConverterParameter='16,12,16,12'}">
+                                        <StackPanel>
+                                            <TextBlock Text="User Status"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource MainForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=15}" />
+                                            <TextBlock Text="Active vs inactive accounts"
+                                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                                        Path=FontScale,
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='0,4,0,0'}"
+                                                       Foreground="{StaticResource DimmedForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Grid Grid.Row="1"
+                                          Margin="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='16,16,16,16'}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Canvas x:Name="PerfStatusDonutCanvas"
+                                                Grid.Column="0"
+                                                Width="120"
+                                                Height="120"
+                                                VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1"
+                                                    VerticalAlignment="Center"
+                                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                                     ConverterParameter='16,0,0,0'}">
+                                            <Border x:Name="PerfStatusActiveTrack"
+                                                    Background="#F3F4F6"
+                                                    BorderBrush="#E5E7EB"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="10,8"
+                                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                                     ConverterParameter='0,0,0,8'}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    <Grid Grid.Row="0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Ellipse Grid.Column="0"
+                                                                 Width="8"
+                                                                 Height="8"
+                                                                 Fill="#14B8A6"
+                                                                 VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="Active"
+                                                                   Margin="8,0,0,0"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{StaticResource MainForeground}" />
+                                                        <TextBlock x:Name="TxtPerfStatusActiveCount"
+                                                                   Grid.Column="2"
+                                                                   Text="0"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource MainForeground}" />
+                                                    </Grid>
+                                                    <Border x:Name="PerfStatusActiveFillHost"
+                                                            Grid.Row="1"
+                                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                                             Path=FontScale,
+                                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                                             ConverterParameter='0,6,0,0'}"
+                                                            Background="#E5E7EB"
+                                                            CornerRadius="4"
+                                                            Height="8"
+                                                            HorizontalAlignment="Stretch"
+                                                            ClipToBounds="True">
+                                                        <Border x:Name="PerfStatusActiveFill"
+                                                                HorizontalAlignment="Left"
+                                                                Background="#14B8A6"
+                                                                CornerRadius="4"
+                                                                Height="8"
+                                                                Width="0" />
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                            <Border x:Name="PerfStatusInactiveTrack"
+                                                    Background="#F3F4F6"
+                                                    BorderBrush="#E5E7EB"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="10,8">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    <Grid Grid.Row="0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Ellipse Grid.Column="0"
+                                                                 Width="8"
+                                                                 Height="8"
+                                                                 Fill="#CBD5E1"
+                                                                 VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="Inactive"
+                                                                   Margin="8,0,0,0"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{StaticResource MainForeground}" />
+                                                        <TextBlock x:Name="TxtPerfStatusInactiveCount"
+                                                                   Grid.Column="2"
+                                                                   Text="0"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource MainForeground}" />
+                                                    </Grid>
+                                                    <Border x:Name="PerfStatusInactiveFillHost"
+                                                            Grid.Row="1"
+                                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                                             Path=FontScale,
+                                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                                             ConverterParameter='0,6,0,0'}"
+                                                            Background="#E5E7EB"
+                                                            CornerRadius="4"
+                                                            Height="8"
+                                                            HorizontalAlignment="Stretch"
+                                                            ClipToBounds="True">
+                                                        <Border x:Name="PerfStatusInactiveFill"
+                                                                HorizontalAlignment="Left"
+                                                                Background="#94A3B8"
+                                                                CornerRadius="4"
+                                                                Height="8"
+                                                                Width="0" />
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                            <Border Grid.Column="1"
+                                    Background="{StaticResource Brush.White}"
+                                    BorderBrush="{StaticResource Brush.BorderSoft}"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    ClipToBounds="True"
+                                    Effect="{StaticResource StaffAccessCardShadow}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Border Grid.Row="0"
+                                            Background="#F5F3FF"
+                                            BorderBrush="#E5E7EB"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource ThicknessScaleConverter},
+                                                              ConverterParameter='16,12,16,12'}">
+                                        <StackPanel>
+                                            <TextBlock Text="Security Status"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource MainForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=15}" />
+                                            <TextBlock Text="Biometric enrollment"
+                                                       Margin="{Binding Source={StaticResource UiScaleState},
+                                                                        Path=FontScale,
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='0,4,0,0'}"
+                                                       Foreground="{StaticResource DimmedForeground}"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState},
+                                                                          Path=FontScale,
+                                                                          Converter={StaticResource FontScaleConverter},
+                                                                          ConverterParameter=12}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Grid Grid.Row="1"
+                                          Margin="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='16,16,16,16'}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Canvas x:Name="PerfSecurityDonutCanvas"
+                                                Grid.Column="0"
+                                                Width="120"
+                                                Height="120"
+                                                VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="1"
+                                                    VerticalAlignment="Center"
+                                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                                     ConverterParameter='16,0,0,0'}">
+                                            <Border x:Name="PerfSecurityBioTrack"
+                                                    Background="#F3F4F6"
+                                                    BorderBrush="#E5E7EB"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="10,8"
+                                                    Margin="{Binding Source={StaticResource UiScaleState},
+                                                                     Path=FontScale,
+                                                                     Converter={StaticResource ThicknessScaleConverter},
+                                                                     ConverterParameter='0,0,0,8'}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    <Grid Grid.Row="0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Ellipse Grid.Column="0"
+                                                                 Width="8"
+                                                                 Height="8"
+                                                                 Fill="#5B5FED"
+                                                                 VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="Biometric"
+                                                                   Margin="8,0,0,0"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{StaticResource MainForeground}" />
+                                                        <TextBlock x:Name="TxtPerfSecurityBioCount"
+                                                                   Grid.Column="2"
+                                                                   Text="0"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource MainForeground}" />
+                                                    </Grid>
+                                                    <Border x:Name="PerfSecurityBioFillHost"
+                                                            Grid.Row="1"
+                                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                                             Path=FontScale,
+                                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                                             ConverterParameter='0,6,0,0'}"
+                                                            Background="#E5E7EB"
+                                                            CornerRadius="4"
+                                                            Height="8"
+                                                            HorizontalAlignment="Stretch"
+                                                            ClipToBounds="True">
+                                                        <Border x:Name="PerfSecurityBioFill"
+                                                                HorizontalAlignment="Left"
+                                                                Background="#5B5FED"
+                                                                CornerRadius="4"
+                                                                Height="8"
+                                                                Width="0" />
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                            <Border x:Name="PerfSecurityPwdTrack"
+                                                    Background="#F3F4F6"
+                                                    BorderBrush="#E5E7EB"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="10,8">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    <Grid Grid.Row="0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Ellipse Grid.Column="0"
+                                                                 Width="8"
+                                                                 Height="8"
+                                                                 Fill="#CBD5E1"
+                                                                 VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="Password Only"
+                                                                   Margin="8,0,0,0"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{StaticResource MainForeground}" />
+                                                        <TextBlock x:Name="TxtPerfSecurityPwdCount"
+                                                                   Grid.Column="2"
+                                                                   Text="0"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource MainForeground}" />
+                                                    </Grid>
+                                                    <Border x:Name="PerfSecurityPwdFillHost"
+                                                            Grid.Row="1"
+                                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                                             Path=FontScale,
+                                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                                             ConverterParameter='0,6,0,0'}"
+                                                            Background="#E5E7EB"
+                                                            CornerRadius="4"
+                                                            Height="8"
+                                                            HorizontalAlignment="Stretch"
+                                                            ClipToBounds="True">
+                                                        <Border x:Name="PerfSecurityPwdFill"
+                                                                HorizontalAlignment="Left"
+                                                                Background="#94A3B8"
+                                                                CornerRadius="4"
+                                                                Height="8"
+                                                                Width="0" />
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
 
             <!-- Audit trail overlay (read-only log for the selected user). -->
