@@ -2802,18 +2802,24 @@
                                              CloseRequested="StaffAuditTrailPanel_OnCloseRequested" />
             </Grid>
 
-            <!-- Non-modal save confirmation (replaces success MessageBox). -->
+            <!-- Non-modal save confirmation (replaces success MessageBox). Bottom-right of this control; high-contrast type. -->
             <Border x:Name="StaffSaveToast"
                     Panel.ZIndex="100"
-                    HorizontalAlignment="Center"
+                    HorizontalAlignment="Right"
                     VerticalAlignment="Bottom"
-                    Margin="0,0,0,36"
+                    MinWidth="200"
+                    MaxWidth="560"
+                    Margin="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource ThicknessScaleConverter},
+                                     ConverterParameter='0,0,20,20'}"
                     Visibility="Collapsed"
                     Background="{StaticResource Brush.White}"
                     BorderBrush="#E5E7EB"
                     BorderThickness="1"
                     CornerRadius="12"
                     SnapsToDevicePixels="True"
+                    UseLayoutRounding="True"
                     Effect="{StaticResource StaffAccessCardShadow}">
                 <Border.Padding>
                     <Binding Source="{StaticResource UiScaleState}"
@@ -2821,28 +2827,37 @@
                              Converter="{StaticResource ThicknessScaleConverter}"
                              ConverterParameter="14,10,18,10" />
                 </Border.Padding>
-                <StackPanel Orientation="Horizontal"
-                            VerticalAlignment="Center">
+                <!-- Grid (not horizontal StackPanel) so TextBlock gets a width cap and TextWrapping works. -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
                     <Border x:Name="StaffSaveToastAccent"
+                            Grid.Column="0"
                             Width="3"
-                            Height="22"
-                            VerticalAlignment="Center"
+                            Margin="0,3,0,3"
+                            VerticalAlignment="Stretch"
                             CornerRadius="2"
+                            MinHeight="22"
                             Background="{StaticResource Brush.PrimaryBlue}" />
                     <TextBlock x:Name="StaffSaveToastText"
+                               Grid.Column="1"
                                Margin="{Binding Source={StaticResource UiScaleState},
                                                 Path=FontScale,
                                                 Converter={StaticResource ThicknessScaleConverter},
                                                 ConverterParameter='10,0,0,0'}"
                                VerticalAlignment="Center"
                                Text="Changes saved."
-                               Foreground="{StaticResource MainForeground}"
+                               TextWrapping="Wrap"
+                               TextAlignment="Left"
+                               Foreground="#0F172A"
                                FontWeight="SemiBold"
                                FontSize="{Binding Source={StaticResource UiScaleState},
                                                   Path=FontScale,
                                                   Converter={StaticResource FontScaleConverter},
                                                   ConverterParameter=15}" />
-                </StackPanel>
+                </Grid>
             </Border>
         </Grid>
     </Border>

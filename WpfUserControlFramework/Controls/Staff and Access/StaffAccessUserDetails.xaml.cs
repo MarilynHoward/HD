@@ -347,6 +347,18 @@ public partial class StaffAccessUserDetails
     /// <summary>User id the audit overlay was opened for (so delete success/denial can refresh or close the panel).</summary>
     private Guid? _auditTrailBoundUserId;
 
+    /// <summary>Success toast body on white (#0F172A); avoids theme foreground that may be low-contrast on white.</summary>
+    private static readonly Brush StaffToastBodyBrush = FreezeBrush(Color.FromRgb(0x0F, 0x17, 0x2A));
+
+    private static readonly Brush StaffToastErrorTextFallbackBrush = FreezeBrush(Color.FromRgb(0x99, 0x1B, 0x1B));
+
+    private static SolidColorBrush FreezeBrush(Color c)
+    {
+        var b = new SolidColorBrush(c);
+        b.Freeze();
+        return b;
+    }
+
     /// <summary>Disk root for staff uploads. ID PDFs → <c>docs\{NumericId}_id.pdf</c>; profile → <c>images\{NumericId}_profile.ext</c>.</summary>
     public static readonly string StaffDocumentsRepositoryRoot = @"D:\Dev\Cursor\HD\Documents";
 
@@ -383,8 +395,9 @@ public partial class StaffAccessUserDetails
         StaffSaveToastText.Text = message;
         var primary = TryFindResource("Brush.PrimaryBlue") as Brush ?? Brushes.DodgerBlue;
         var danger = TryFindResource("Brush.DangerRed") as Brush ?? Brushes.Firebrick;
-        var body = TryFindResource("MainForeground") as Brush ?? Brushes.Black;
-        var dangerText = TryFindResource("Brush.DangerTextStrong") as Brush ?? Brushes.DarkRed;
+        // Fixed dark body on white toast so text stays readable (theme MainForeground can be unsuitable on white).
+        var body = StaffToastBodyBrush;
+        var dangerText = TryFindResource("Brush.DangerTextStrong") as Brush ?? StaffToastErrorTextFallbackBrush;
 
         StaffSaveToastAccent.Background = kind == StaffToastKind.Success ? primary : danger;
         StaffSaveToastText.Foreground = kind == StaffToastKind.Success ? body : dangerText;
