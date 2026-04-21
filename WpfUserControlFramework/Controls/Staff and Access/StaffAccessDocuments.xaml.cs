@@ -48,7 +48,7 @@ public partial class StaffAccessDocuments : UserControl
         var idPath = hasId
             ? (!string.IsNullOrWhiteSpace(_user.IdDocumentFileName)
                 ? NormalizeDisplayPath(_user.IdDocumentFileName)
-                : $"docs{Path.DirectorySeparatorChar}{_user.NumericId.ToString(CultureInfo.InvariantCulture)}_id.pdf")
+                : $"docs{Path.DirectorySeparatorChar}user_docs{Path.DirectorySeparatorChar}{_user.NumericId.ToString(CultureInfo.InvariantCulture)}_id.pdf")
             : "(none)";
         TxtIdDocPath.Text = idPath;
         BtnIdView.IsEnabled = hasId;

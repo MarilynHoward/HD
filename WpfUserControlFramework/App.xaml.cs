@@ -7,6 +7,12 @@ namespace RestaurantPosWpf;
 public partial class App : Application
 {
     /// <summary>
+    /// Application-wide ambient context. All data access goes through <c>App.aps.pda</c> + <c>App.aps.sql</c>.
+    /// See the workspace rule <c>wpf-postgresql-appstatus-pattern</c>.
+    /// </summary>
+    public static AppStatus aps { get; } = new AppStatus();
+
+    /// <summary>
     /// Set environment variable <c>PEOPLEPOS_OPS_TRACE=1</c> before launch to append to
     /// <c>%TEMP%\PeoplePosOpsTrace.log</c> (Operations / reservations modal diagnostics).
     /// </summary>
@@ -29,6 +35,16 @@ public partial class App : Application
             Trace.AutoFlush = true;
             OpsTraceEnabled = true;
             OpsTrace($"Trace listener attached: {path}");
+        }
+
+        try
+        {
+            aps.EnsureRolesAndBootstrapUser();
+            aps.ReseedDummyDataIfEnabled();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[App.OnStartup] AppStatus bootstrap failed: " + ex.Message);
         }
 
         base.OnStartup(e);

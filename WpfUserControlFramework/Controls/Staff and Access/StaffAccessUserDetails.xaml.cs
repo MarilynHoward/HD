@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -33,9 +35,11 @@ public enum StaffFileRemoteSyncStatus
 /// <summary>Authoritative staff profile for Staff and Access; also feeds Operations staff pickers via <see cref="StaffAccessStore"/>.</summary>
 public sealed class StaffUser
 {
-    public Guid Id { get; init; }
+    /// <summary><c>public.users.user_id</c>. Single integer key used across Staff and Access and Operations.</summary>
+    public int Id { get; set; }
 
-    public int NumericId { get; set; }
+    /// <summary>Kept as a read/write alias of <see cref="Id"/> for legacy UI code (disk paths, display).</summary>
+    public int NumericId { get => Id; set => Id = value; }
     public string UserName { get; set; } = "";
     public string FirstName { get; set; } = "";
     public string MiddleName { get; set; } = "";
@@ -51,9 +55,9 @@ public sealed class StaffUser
     public string? IdDocumentFileName { get; set; }
     /// <summary>Relative path under <see cref="StaffAccessUserDetails.StaffDocumentsRepositoryRoot"/> for the profile image file, when mirrored on disk.</summary>
     public string? ProfileImageRepositoryRelativePath { get; set; }
-    /// <summary>Simulated cloud sync for the ID PDF on disk (<c>docs\{NumericId}_id.pdf</c>).</summary>
+    /// <summary>Simulated cloud sync for the ID PDF on disk (<c>docs\user_docs\{NumericId}_id.pdf</c>).</summary>
     public StaffFileRemoteSyncStatus IdDocumentRemoteSyncStatus { get; set; } = StaffFileRemoteSyncStatus.Synced;
-    /// <summary>Simulated cloud sync for the profile image on disk (<c>images\{NumericId}_profile.*</c>).</summary>
+    /// <summary>Simulated cloud sync for the profile image on disk (<c>images\user_images\{NumericId}_profile.*</c>).</summary>
     public StaffFileRemoteSyncStatus ProfileImageRemoteSyncStatus { get; set; } = StaffFileRemoteSyncStatus.Synced;
     public bool BiometricEnrolled { get; set; }
     /// <summary>UTC instant of the last successful password change (demo + session saves).</summary>
@@ -146,84 +150,221 @@ public sealed class StaffAccessListItemVm
     }
 }
 
-/// <summary>In-memory demo store for staff; Operations reads employees through <see cref="OpsServicesStore"/> helpers that map from here.</summary>
+/// <summary>
+/// PostgreSQL-backed store for staff users. All reads come from <c>public.users</c> via
+/// <c>App.aps.pda + App.aps.sql</c>; writes are composed through <see cref="Sql"/> and executed through
+/// <see cref="PosDataAccess.SetSql"/>. The in-memory list is a cache that is reloaded after writes or on
+/// explicit <see cref="ReloadFromDb"/> calls. Operations reads employees through helpers that map from
+/// the same cache.
+/// </summary>
 public static class StaffAccessStore
 {
     public static event EventHandler? DataChanged;
 
-    private static readonly List<StaffUser> Users = new();
-    private static bool _seeded;
-
-    /// <summary>Stable ids so Operations demo shifts and table assignments stay aligned across runs.</summary>
-    private static readonly Guid[] SeedIds =
-    {
-        Guid.Parse("A1AAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAA01"),
-        Guid.Parse("A1AAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAA02"),
-        Guid.Parse("A1AAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAA03"),
-        Guid.Parse("A1AAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAA04"),
-        Guid.Parse("A1AAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAA05"),
-        Guid.Parse("A1AAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAA06"),
-        Guid.Parse("A1AAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAA07"),
-        Guid.Parse("A1AAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAA08")
-    };
+    private static readonly object SyncRoot = new();
+    private static List<StaffUser>? _cache;
 
     private static readonly string[] PaletteHex =
     {
         "#2563EB", "#16A34A", "#7C3AED", "#DB2777", "#EA580C", "#0D9488", "#CA8A04", "#4F46E5"
     };
 
-    public static void EnsureSeeded()
+    /// <summary>Kept for API compatibility; triggers an initial load from the database when the cache is empty.</summary>
+    public static void EnsureSeeded() => EnsureLoaded();
+
+    /// <summary>Force a re-read from the database (e.g. after external changes). Raises <see cref="DataChanged"/>.</summary>
+    public static void ReloadFromDb()
     {
-        if (_seeded)
+        lock (SyncRoot)
+        {
+            _cache = LoadFromDb();
+        }
+        Notify();
+    }
+
+    private static void EnsureLoaded()
+    {
+        if (_cache != null)
             return;
-        _seeded = true;
-
-        var rows = new (string User, string First, string Mid, string Last, int NumId, StaffAccessRole Role, string Job,
-            string Card)[]
+        lock (SyncRoot)
         {
-            ("john.smith", "John", "", "Smith", 1001, StaffAccessRole.User, "Server", "CARD-001"),
-            ("sarah.johnson", "Sarah", "", "Johnson", 1002, StaffAccessRole.User, "Server", "CARD-002"),
-            ("mike.brown", "Mike", "", "Brown", 1003, StaffAccessRole.Supervisor, "Bartender", "CARD-003"),
-            ("emily.davis", "Emily", "", "Davis", 1004, StaffAccessRole.Manager, "Host", "CARD-004"),
-            ("alex.lee", "Alex", "", "Lee", 1005, StaffAccessRole.User, "Server", "CARD-005"),
-            ("jordan.taylor", "Jordan", "", "Taylor", 1006, StaffAccessRole.User, "Server", "CARD-006"),
-            ("casey.morgan", "Casey", "", "Morgan", 1007, StaffAccessRole.Supervisor, "Bartender", "CARD-007"),
-            ("riley.chen", "Riley", "", "Chen", 1008, StaffAccessRole.User, "Host", "CARD-008")
-        };
+            if (_cache != null)
+                return;
+            _cache = LoadFromDb();
+        }
+    }
 
-        for (var i = 0; i < rows.Length; i++)
+    private static List<StaffUser> LoadFromDb()
+    {
+        var list = new List<StaffUser>();
+        var logPath = AppStatus.StartupLogPath;
+        try
         {
-            var r = rows[i];
-            Users.Add(new StaffUser
+            if (!App.aps.pda.CheckCurrentConnection())
             {
-                Id = SeedIds[i],
-                NumericId = r.NumId,
-                UserName = r.User,
-                FirstName = r.First,
-                MiddleName = r.Mid,
-                Surname = r.Last,
-                CardNumber = r.Card,
-                AccessRole = r.Role,
-                JobTitle = r.Job,
-                IsActive = true,
-                AccentColorHex = PaletteHex[i % PaletteHex.Length],
-                LastPasswordChangedUtc = new DateTime(2024, 11, 15, 12, 0, 0, DateTimeKind.Utc).AddDays(-i * 3)
-            });
+                AppendLog(logPath, "StaffAccessStore.LoadFromDb: CheckCurrentConnection=false");
+                return list;
+            }
+
+            var sql = App.aps.sql.SelectAllUsers(includeInactive: true);
+            AppendLog(logPath, "StaffAccessStore.LoadFromDb: querying (SQL length=" + sql.Length + ")");
+            var dt = App.aps.pda.GetDataTable(sql, 60);
+            AppendLog(logPath, "StaffAccessStore.LoadFromDb: rows returned=" + dt.Rows.Count);
+            var mapped = 0;
+            var mapErrors = 0;
+            foreach (DataRow r in dt.Rows)
+            {
+                try
+                {
+                    list.Add(MapRow(r));
+                    mapped++;
+                }
+                catch (Exception mapEx)
+                {
+                    mapErrors++;
+                    AppendLog(logPath, "StaffAccessStore.LoadFromDb: MapRow failed - " + mapEx.GetType().Name + " - " + mapEx.Message);
+                }
+            }
+            AppendLog(logPath, "StaffAccessStore.LoadFromDb: mapped=" + mapped + ", mapErrors=" + mapErrors);
+        }
+        catch (Exception ex)
+        {
+            AppendLog(logPath, "StaffAccessStore.LoadFromDb: FAILED - " + ex.GetType().Name + " - " + ex.Message);
+            Debug.WriteLine("[StaffAccessStore] LoadFromDb failed: " + ex.Message);
         }
 
-        StaffAccessAuditRepository.InstallDemoEntriesIfNeeded(Users);
+        return list;
     }
+
+    private static readonly object LoadLogLock = new();
+    private static void AppendLog(string path, string line)
+    {
+        if (!AppStatus.DiagnosticLoggingEnabled)
+            return;
+        try
+        {
+            lock (LoadLogLock)
+                System.IO.File.AppendAllText(path,
+                    "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "] " + line + Environment.NewLine);
+        }
+        catch
+        {
+        }
+    }
+
+    private static StaffUser MapRow(DataRow r)
+    {
+        var userId = Convert.ToInt32(r["user_id"], CultureInfo.InvariantCulture);
+        var roleId = Convert.ToInt32(r["role_id"], CultureInfo.InvariantCulture);
+        var accent = AsString(r, "accent_color_hex");
+        if (string.IsNullOrWhiteSpace(accent))
+            accent = PaletteHex[Math.Abs(userId) % PaletteHex.Length];
+
+        return new StaffUser
+        {
+            Id = userId,
+            UserName = AsString(r, "user_name"),
+            FirstName = AsString(r, "first_name"),
+            MiddleName = FirstNonEmpty(AsString(r, "middle_name"), AsString(r, "second_name")),
+            Surname = AsString(r, "surname"),
+            CardNumber = AsString(r, "card_number"),
+            AccessRole = RoleIdToEnum(roleId),
+            JobTitle = AsString(r, "job_title"),
+            IsActive = AsBool(r, "active", true),
+            AccentColorHex = accent,
+            BiometricEnrolled = AsBool(r, "biometric_enrolled", false),
+            LastPasswordChangedUtc = AsUtc(r, "password_changed_ts"),
+            IdDocumentFileName = NullIfEmpty(AsString(r, "id_doc_file_name")),
+            ProfileImageRepositoryRelativePath = NullIfEmpty(AsString(r, "profile_image_rel_path")),
+            IdDocumentRemoteSyncStatus = ParseSync(AsString(r, "id_doc_sync_status")),
+            ProfileImageRemoteSyncStatus = ParseSync(AsString(r, "profile_image_sync_status"))
+        };
+    }
+
+    private static string AsString(DataRow r, string column)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return "";
+        var v = r[column];
+        return v == DBNull.Value || v == null ? "" : Convert.ToString(v, CultureInfo.InvariantCulture) ?? "";
+    }
+
+    private static bool AsBool(DataRow r, string column, bool fallback)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return fallback;
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return fallback;
+
+        // The PostgreSQL ODBC driver maps BOOLEAN columns to different CLR types depending on
+        // version: real .NET bool, or the strings "0"/"1", "t"/"f", "true"/"false". Handle all.
+        if (v is bool b)
+            return b;
+
+        var s = Convert.ToString(v, CultureInfo.InvariantCulture)?.Trim() ?? "";
+        if (s.Length == 0)
+            return fallback;
+        if (bool.TryParse(s, out var parsed))
+            return parsed;
+        if (s == "1" || s.Equals("t", StringComparison.OrdinalIgnoreCase) ||
+            s.Equals("y", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (s == "0" || s.Equals("f", StringComparison.OrdinalIgnoreCase) ||
+            s.Equals("n", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return fallback;
+    }
+
+    private static DateTime? AsUtc(DataRow r, string column)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return null;
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return null;
+        var dt = Convert.ToDateTime(v, CultureInfo.InvariantCulture);
+        return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+    }
+
+    private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
+    private static string FirstNonEmpty(string a, string b) =>
+        !string.IsNullOrWhiteSpace(a) ? a : b;
+
+    internal static StaffAccessRole RoleIdToEnum(int roleId) => roleId switch
+    {
+        AppStatus.RoleIdAdmin => StaffAccessRole.Admin,
+        AppStatus.RoleIdManager => StaffAccessRole.Manager,
+        AppStatus.RoleIdSupervisor => StaffAccessRole.Supervisor,
+        AppStatus.RoleIdSystem => StaffAccessRole.System,
+        _ => StaffAccessRole.User
+    };
+
+    internal static int EnumToRoleId(StaffAccessRole role) => role switch
+    {
+        StaffAccessRole.Admin => AppStatus.RoleIdAdmin,
+        StaffAccessRole.Manager => AppStatus.RoleIdManager,
+        StaffAccessRole.Supervisor => AppStatus.RoleIdSupervisor,
+        StaffAccessRole.System => AppStatus.RoleIdSystem,
+        _ => AppStatus.RoleIdUser
+    };
+
+    private static StaffFileRemoteSyncStatus ParseSync(string s) =>
+        string.Equals(s, "PendingSync", StringComparison.OrdinalIgnoreCase)
+            ? StaffFileRemoteSyncStatus.PendingSync
+            : StaffFileRemoteSyncStatus.Synced;
 
     public static IReadOnlyList<StaffUser> GetUsers()
     {
-        EnsureSeeded();
-        return Users;
+        EnsureLoaded();
+        return _cache!;
     }
 
-    public static StaffUser? GetUser(Guid id)
+    public static StaffUser? GetUser(int id)
     {
-        EnsureSeeded();
-        return Users.FirstOrDefault(u => u.Id == id);
+        EnsureLoaded();
+        return _cache!.FirstOrDefault(u => u.Id == id);
     }
 
     /// <summary>
@@ -231,9 +372,9 @@ public static class StaffAccessStore
     /// Always calls <see cref="OpsServicesStore.EnsureSeeded"/> first so demo shifts / tables exist even when
     /// the user has never opened Shift Scheduling (otherwise <c>GetShifts()</c> stayed empty and every delete appeared allowed).
     /// </summary>
-    public static bool IsUserAllocatedToSchedule(Guid userId)
+    public static bool IsUserAllocatedToSchedule(int userId)
     {
-        EnsureSeeded();
+        EnsureLoaded();
         OpsServicesStore.EnsureSeeded();
         if (OpsServicesStore.GetShifts().Any(s => s.EmployeeId == userId))
             return true;
@@ -243,8 +384,8 @@ public static class StaffAccessStore
 
     public static IReadOnlyList<OpsEmployee> GetEmployeesForOperations()
     {
-        EnsureSeeded();
-        return Users.Select(u => new OpsEmployee
+        EnsureLoaded();
+        return _cache!.Select(u => new OpsEmployee
         {
             Id = u.Id,
             Name = u.DisplayName,
@@ -254,10 +395,9 @@ public static class StaffAccessStore
         }).ToList();
     }
 
-    public static OpsEmployee? GetOpsEmployee(Guid id)
+    public static OpsEmployee? GetOpsEmployee(int id)
     {
-        EnsureSeeded();
-        var u = Users.FirstOrDefault(x => x.Id == id);
+        var u = GetUser(id);
         return u == null
             ? null
             : new OpsEmployee
@@ -270,15 +410,15 @@ public static class StaffAccessStore
             };
     }
 
+    /// <summary>Create a blank staff user and INSERT into the database immediately (draft row).</summary>
     public static StaffUser AddUser(string? userName = null)
     {
-        EnsureSeeded();
-        var next = Users.Count == 0 ? 1001 : Users.Max(u => u.NumericId) + 1;
+        EnsureLoaded();
+        var next = QueryNextUserId();
         var u = new StaffUser
         {
-            Id = Guid.NewGuid(),
-            NumericId = next,
-            UserName = string.IsNullOrWhiteSpace(userName) ? "" : userName.Trim().ToLowerInvariant(),
+            Id = next,
+            UserName = string.IsNullOrWhiteSpace(userName) ? "" : userName!.Trim().ToLowerInvariant(),
             FirstName = "",
             MiddleName = "",
             Surname = "",
@@ -286,18 +426,52 @@ public static class StaffAccessStore
             AccessRole = StaffAccessRole.User,
             JobTitle = "",
             IsActive = true,
-            AccentColorHex = PaletteHex[Users.Count % PaletteHex.Length]
+            AccentColorHex = PaletteHex[_cache!.Count % PaletteHex.Length]
         };
-        Users.Add(u);
+
+        try
+        {
+            var pw = PasswordHasher.Hash("");
+            App.aps.Execute(App.aps.sql.InsertUser(ToWrite(u), App.aps.CurrentUserId, pw));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[StaffAccessStore] AddUser INSERT failed: " + ex.Message);
+        }
+
+        _cache.Add(u);
         Notify();
         return u;
     }
 
-    public static bool TryRemoveUser(Guid id, out string? error)
+    private static int QueryNextUserId()
     {
-        EnsureSeeded();
+        try
+        {
+            var dt = App.aps.pda.GetDataTable(App.aps.sql.SelectNextUserId(), 30);
+            if (dt.Rows.Count > 0 && dt.Rows[0]["next_id"] != DBNull.Value)
+                return Convert.ToInt32(dt.Rows[0]["next_id"], CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[StaffAccessStore] QueryNextUserId failed: " + ex.Message);
+        }
+
+        var local = _cache ?? new List<StaffUser>();
+        return local.Count == 0 ? 1001 : local.Max(u => u.Id) + 1;
+    }
+
+    /// <summary>
+    /// Soft-delete a user. The row is retained with <c>deleted = TRUE</c>, <c>deleted_ts = now()</c>,
+    /// <c>deleted_user_id = </c><see cref="AppStatus.CurrentUserId"/> so Operations history (past
+    /// shifts, prior table assignments) remains referentially valid. Still blocked while the user
+    /// is currently allocated to a schedule / table (hard operational conflict).
+    /// </summary>
+    public static bool TryRemoveUser(int id, out string? error)
+    {
+        EnsureLoaded();
         error = null;
-        var idx = Users.FindIndex(u => u.Id == id);
+        var idx = _cache!.FindIndex(u => u.Id == id);
         if (idx < 0)
         {
             error = "User not found.";
@@ -311,10 +485,57 @@ public static class StaffAccessStore
             return false;
         }
 
-        Users.RemoveAt(idx);
+        try
+        {
+            App.aps.Execute(App.aps.sql.SoftDeleteUser(id, App.aps.CurrentUserId));
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+
+        _cache.RemoveAt(idx);
         Notify();
         return true;
     }
+
+    /// <summary>Persist the mutable fields of <paramref name="user"/> back to the database. In-memory cache is kept in sync.</summary>
+    public static bool SaveUser(StaffUser user, out string? error)
+    {
+        error = null;
+        try
+        {
+            App.aps.Execute(App.aps.sql.UpdateUser(ToWrite(user), App.aps.CurrentUserId));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    internal static Sql.UserWrite ToWrite(StaffUser u) => new()
+    {
+        UserId = u.Id,
+        UserName = u.UserName ?? "",
+        RoleId = EnumToRoleId(u.AccessRole),
+        FirstName = u.FirstName ?? "",
+        MiddleName = u.MiddleName ?? "",
+        Surname = u.Surname ?? "",
+        CardNumber = u.CardNumber ?? "",
+        JobTitle = u.JobTitle ?? "",
+        AccentColorHex = u.AccentColorHex ?? "",
+        ImagePath = u.ProfileImageRepositoryRelativePath,
+        IdDocPath = u.IdDocumentFileName,
+        IdDocFileName = u.IdDocumentFileName,
+        ProfileImageRelPath = u.ProfileImageRepositoryRelativePath,
+        BiometricEnrolled = u.BiometricEnrolled,
+        IdDocSyncStatus = u.IdDocumentRemoteSyncStatus.ToString(),
+        ProfileImageSyncStatus = u.ProfileImageRemoteSyncStatus.ToString(),
+        IsActive = u.IsActive
+    };
 
     public static void Notify() => DataChanged?.Invoke(null, EventArgs.Empty);
 }
@@ -335,7 +556,7 @@ public partial class StaffAccessUserDetails
     private bool _suppressDirty;
     private bool _formDirty;
     private bool _suppressListSelectionHandlers;
-    private Guid? _idAwaitingFirstSave;
+    private int? _idAwaitingFirstSave;
     /// <summary>Last loaded/saved audit snapshot so saves detect profile/ID uploads vs. committed baseline.</summary>
     private StaffAccessAuditSnapshot? _auditCommittedSnapshot;
 
@@ -345,7 +566,7 @@ public partial class StaffAccessUserDetails
     /// </summary>
     private bool _auditBaselineIsActive = true;
     /// <summary>User id the audit overlay was opened for (so delete success/denial can refresh or close the panel).</summary>
-    private Guid? _auditTrailBoundUserId;
+    private int? _auditTrailBoundUserId;
 
     /// <summary>Success toast body on white (#0F172A); avoids theme foreground that may be low-contrast on white.</summary>
     private static readonly Brush StaffToastBodyBrush = FreezeBrush(Color.FromRgb(0x0F, 0x17, 0x2A));
@@ -359,8 +580,24 @@ public partial class StaffAccessUserDetails
         return b;
     }
 
-    /// <summary>Disk root for staff uploads. ID PDFs → <c>docs\{NumericId}_id.pdf</c>; profile → <c>images\{NumericId}_profile.ext</c>.</summary>
-    public static readonly string StaffDocumentsRepositoryRoot = @"D:\Dev\Cursor\HD\Documents";
+    /// <summary>Disk root for staff uploads. ID PDFs → <c>docs\user_docs\{NumericId}_id.pdf</c>; profile → <c>images\user_images\{NumericId}_profile.ext</c>. Set <c>StaffDocumentsRepositoryRoot</c> in App.config.</summary>
+    public static readonly string StaffDocumentsRepositoryRoot = ResolveStaffDocumentsRepositoryRoot();
+
+    private static string ResolveStaffDocumentsRepositoryRoot()
+    {
+        try
+        {
+            var path = ConfigurationManager.AppSettings["StaffDocumentsRepositoryRoot"];
+            if (!string.IsNullOrWhiteSpace(path))
+                return path.Trim();
+        }
+        catch (ConfigurationErrorsException)
+        {
+            Debug.WriteLine("[StaffAccessUserDetails] App.config could not be read for StaffDocumentsRepositoryRoot.");
+        }
+
+        return @"D:\Dev\Cursor\HD\Documents";
+    }
 
     private DispatcherTimer? _idDocRemoteSyncTimer;
     private DispatcherTimer? _profileRemoteSyncTimer;
@@ -537,7 +774,7 @@ public partial class StaffAccessUserDetails
             Dispatcher.BeginInvoke(new Action(RefreshPerformanceMetrics), DispatcherPriority.Background);
     }
 
-    private void RefreshList(Guid? selectUserId = null)
+    private void RefreshList(int? selectUserId = null)
     {
         if (_idAwaitingFirstSave is { } pid && StaffAccessStore.GetUser(pid) is null)
             _idAwaitingFirstSave = null;
@@ -1113,7 +1350,7 @@ public partial class StaffAccessUserDetails
 
     private void BtnDeleteUser_OnClick(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button btn || btn.Tag is not Guid id)
+        if (sender is not Button btn || btn.Tag is not int id)
             return;
 
         var victim = StaffAccessStore.GetUser(id);
@@ -1212,6 +1449,11 @@ public partial class StaffAccessUserDetails
         _selected.JobTitle = TrimField(TxtJobTitle.Text);
         _selected.IsActive = TglActiveUser.IsChecked == true;
         _selected.AccessRole = RolePicker.SelectedRole;
+        if (!StaffAccessStore.SaveUser(_selected, out var saveError))
+        {
+            ShowStaffToast(saveError ?? "Could not save changes to the database.", StaffToastKind.Error);
+            return;
+        }
         SecurityPanel.ApplyToUser(_selected);
         var afterAudit = StaffAccessAuditSnapshot.FromUser(_selected);
         StaffAccessAuditRepository.AppendProfileSaveIfChanged(_selected.Id, beforeAudit, afterAudit, passwordChanged);
@@ -1278,10 +1520,28 @@ public partial class StaffAccessUserDetails
         e.Handled = true;
     }
 
-    private static string StaffDocsDirectory() => Path.Combine(StaffDocumentsRepositoryRoot, "docs");
+    /// <summary>
+    /// Folder for staff ID PDFs: <c>&lt;root&gt;\docs\user_docs</c>. The two-segment layout
+    /// (<c>docs</c> + <c>user_docs</c>) leaves room for other document categories under
+    /// <c>docs\</c> without colliding with user-uploaded files.
+    /// </summary>
+    private static string StaffDocsDirectory() =>
+        Path.Combine(StaffDocumentsRepositoryRoot, "docs", "user_docs");
 
-    private static string StaffImagesDirectory() => Path.Combine(StaffDocumentsRepositoryRoot, "images");
+    /// <summary>
+    /// Folder for staff profile images: <c>&lt;root&gt;\images\user_images</c>. Mirrors the
+    /// <c>docs\user_docs</c> layout so system images can later live under <c>images\</c> without
+    /// mixing with user avatars.
+    /// </summary>
+    private static string StaffImagesDirectory() =>
+        Path.Combine(StaffDocumentsRepositoryRoot, "images", "user_images");
 
+    /// <summary>
+    /// Guarantees that <c>&lt;root&gt;\docs\user_docs</c> and <c>&lt;root&gt;\images\user_images</c>
+    /// exist. <see cref="Directory.CreateDirectory(string)"/> is idempotent and recursive, so it
+    /// creates every missing segment (including the intermediate <c>docs</c> / <c>images</c>) in
+    /// a single call. Safe to invoke before every upload.
+    /// </summary>
     private static void EnsureStaffRepositoryLayout()
     {
         Directory.CreateDirectory(StaffDocumentsRepositoryRoot);
@@ -1325,6 +1585,29 @@ public partial class StaffAccessUserDetails
             {
                 // best effort
             }
+        }
+    }
+
+    /// <summary>
+    /// Persist the current document / profile paths and their simulated remote-sync statuses for the selected user.
+    /// Called after each attach, after disk copy succeeds, and again when the simulated cloud sync flips to Synced.
+    /// </summary>
+    private static void PersistStaffDocumentPaths(StaffUser u)
+    {
+        try
+        {
+            App.aps.Execute(App.aps.sql.UpdateUserDocumentPaths(
+                u.Id,
+                u.ProfileImageRepositoryRelativePath,
+                u.IdDocumentFileName,
+                u.IdDocumentFileName,
+                u.ProfileImageRemoteSyncStatus.ToString(),
+                u.IdDocumentRemoteSyncStatus.ToString(),
+                App.aps.CurrentUserId));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[StaffAccessUserDetails] PersistStaffDocumentPaths failed: " + ex.Message);
         }
     }
 
@@ -1403,6 +1686,8 @@ public partial class StaffAccessUserDetails
         if (_selected == null)
             return;
         _selected.IdDocumentRemoteSyncStatus = StaffFileRemoteSyncStatus.Synced;
+        PersistStaffDocumentPaths(_selected);
+        StaffAccessAuditRepository.AppendIdDocumentSyncSucceeded(_selected.Id, _selected.IdDocumentFileName);
         DocsPanel.LoadFromUser(_selected);
     }
 
@@ -1430,6 +1715,8 @@ public partial class StaffAccessUserDetails
         if (_selected == null)
             return;
         _selected.ProfileImageRemoteSyncStatus = StaffFileRemoteSyncStatus.Synced;
+        PersistStaffDocumentPaths(_selected);
+        StaffAccessAuditRepository.AppendProfileImageSyncSucceeded(_selected.Id);
         DocsPanel.LoadFromUser(_selected);
     }
 
@@ -1456,6 +1743,7 @@ public partial class StaffAccessUserDetails
             File.WriteAllBytes(dest, bytes);
             _selected.IdDocumentPdfBytes = bytes;
             _selected.IdDocumentFileName = Path.GetRelativePath(StaffDocumentsRepositoryRoot, dest);
+            PersistStaffDocumentPaths(_selected);
             DocsPanel.LoadFromUser(_selected);
             MarkFormDirty();
             ArmIdDocumentRemoteSyncSimulation();
@@ -1517,6 +1805,7 @@ public partial class StaffAccessUserDetails
             File.Copy(dlg.FileName, dest, overwrite: true);
             _selected.ProfileImageBytes = File.ReadAllBytes(dest);
             _selected.ProfileImageRepositoryRelativePath = Path.GetRelativePath(StaffDocumentsRepositoryRoot, dest);
+            PersistStaffDocumentPaths(_selected);
             RefreshProfileChrome();
             DocsPanel.LoadFromUser(_selected);
             MarkFormDirty();
@@ -1545,7 +1834,9 @@ public partial class StaffAccessUserDetails
 
             if (_selected.IdDocumentPdfBytes is not { Length: > 0 } data)
                 return;
-            var path = Path.Combine(Path.GetTempPath(), $"staff-id-{_selected.Id:N}.pdf");
+            var path = Path.Combine(
+                Path.GetTempPath(),
+                "staff-id-" + _selected.Id.ToString(CultureInfo.InvariantCulture) + ".pdf");
             File.WriteAllBytes(path, data);
             Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
         }
@@ -2143,14 +2434,25 @@ public enum StaffAccessAuditTabGlyph
 public sealed class StaffAccessAuditEntry
 {
     public Guid Id { get; init; }
-    /// <summary>Staff user this event applies to.</summary>
-    public Guid SubjectUserId { get; init; }
+    /// <summary>Staff user this event applies to (maps to <c>public.users.user_id</c>).</summary>
+    public int SubjectUserId { get; init; }
     public DateTime OccurredAtUtc { get; init; }
     public string Title { get; init; } = "";
     public string Description { get; init; } = "";
     public StaffAccessAuditEventTone Tone { get; init; }
-    public string Device { get; init; } = "Windows Desktop";
-    public string Ip { get; init; } = "192.168.1.45";
+    /// <summary>
+    /// Terminal display label for the audit row. Populated on read from
+    /// <c>public.audit_trail.machine_name</c> (i.e. <c>Environment.MachineName</c>, the Windows
+    /// computer name). Legacy rows written before the schema carried this column fall back to the
+    /// <c>device</c> key in the JSON <c>event</c> payload. Never hard-coded to a vendor label.
+    /// </summary>
+    public string Device { get; init; } = "";
+    /// <summary>
+    /// Primary IPv4 address of the terminal that produced the event, mapped from
+    /// <c>public.audit_trail.ip_address</c>. Empty for legacy rows written before the app started
+    /// resolving the real adapter address.
+    /// </summary>
+    public string Ip { get; init; } = "";
     public StaffAccessAuditSource Source { get; init; }
     /// <summary>Tab strip glyphs to show for this row (empty → default activity icon in UI).</summary>
     public IReadOnlyList<StaffAccessAuditTabGlyph> TabGlyphs { get; init; } = [];
@@ -2217,41 +2519,208 @@ internal static class StaffAccessAuditBinaryDigest
 }
 
 /// <summary>
-/// Read/write store for <see cref="StaffAccessAuditEntry"/>. In-memory for the demo app; swap for EF/SQL
-/// by implementing the same operations against your audit table.
+/// Read/write store for <see cref="StaffAccessAuditEntry"/>. Backed by <c>public.audit_trail</c>
+/// (client-canonical schema — see 2026-04-21_audit_trail_init.sql) through <c>App.aps.sql</c>;
+/// results are cached per-subject for a short TTL to keep the audit tab responsive. Writes go
+/// straight to the database via <c>InsertAuditTrail</c> and invalidate the subject's cache.
+/// Phase rows are auto-ensured in <c>public.database_update_phase</c> on first use.
 /// </summary>
 public static class StaffAccessAuditRepository
 {
-    private static readonly object Gate = new();
-    private static readonly List<StaffAccessAuditEntry> All = new();
-    private static bool _demoInstalled;
+    private const string AuditCategoryStaffAndAccess = "Staff and Access";
+    private const string AuditSubjectKindUser = "user";
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(30);
 
-    public static void InstallDemoEntriesIfNeeded(IReadOnlyList<StaffUser> staffUsers)
+    private static readonly object Gate = new();
+    private static readonly Dictionary<int, CacheEntry> Cache = new();
+    private static readonly object LogLock = new();
+
+    // Phase (category + event_type) -> phase_id cache. Avoids a round-trip per audit write once
+    // the mapping is resolved once during the app session. Invalidated on process restart only.
+    private static readonly Dictionary<string, int> PhaseIdCache =
+        new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Diagnostic logger for the audit pipeline. Writes to the same startup log as the rest of
+    /// the app (<see cref="AppStatus.StartupLogPath"/>) only when <c>DiagnosticLogging=true</c>.
+    /// Critical for investigating "why didn't my audit row land?" reports, since audit inserts
+    /// are otherwise best-effort and swallow exceptions.
+    /// </summary>
+    private static void AuditLog(string line)
     {
-        lock (Gate)
+        System.Diagnostics.Debug.WriteLine("[AuditRepo] " + line);
+        if (!AppStatus.DiagnosticLoggingEnabled)
+            return;
+        try
         {
-            if (_demoInstalled)
-                return;
-            _demoInstalled = true;
-            foreach (var u in staffUsers)
+            lock (LogLock)
             {
-                foreach (var e in StaffAccessAuditSeed.BuildDemoEntries(u))
-                    All.Add(e);
+                System.IO.File.AppendAllText(
+                    AppStatus.StartupLogPath,
+                    "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture) +
+                    "] [AuditRepo] " + line + Environment.NewLine);
             }
+        }
+        catch
+        {
+            // Diagnostic log is itself best-effort.
         }
     }
 
+    private sealed class CacheEntry
+    {
+        public DateTime FetchedUtc { get; init; }
+        public IReadOnlyList<StaffAccessAuditEntry> Rows { get; init; } = [];
+    }
+
+    /// <summary>Invalidate the per-user cache after a write. Safe to call from any thread.</summary>
+    private static void InvalidateCache(int subjectUserId)
+    {
+        lock (Gate)
+            Cache.Remove(subjectUserId);
+    }
+
+    /// <summary>
+    /// Persist one audit fact to <c>public.audit_trail</c> (client schema) and invalidate the
+    /// per-subject cache. The event body (title, description, tone, tab glyphs, flags, device)
+    /// is JSON-encoded into the <c>event</c> column so the UI can rehydrate a full
+    /// <see cref="StaffAccessAuditEntry"/>. The <c>phase</c> column carries
+    /// <c>"&lt;Category&gt;: &lt;EventType&gt;"</c> and is normalised through
+    /// <see cref="EnsurePhaseId"/> so <c>public.database_update_phase</c> stays in sync.
+    /// </summary>
     public static void Append(StaffAccessAuditEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        lock (Gate)
+        Append(entry, invalidPasswordPlain: null);
+    }
+
+    /// <summary>
+    /// Overload used by sign-in failure paths: when the user enters a bad password, the hashed
+    /// attempted password is written to <c>public.audit_trail.invalid_password</c> for later
+    /// analysis. Audit remains best-effort; a DB outage never blocks the UI.
+    /// </summary>
+    public static void Append(StaffAccessAuditEntry entry, string? invalidPasswordPlain)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        var phaseForLog = "(unresolved)";
+        try
         {
-            All.Add(entry);
+            AuditLog("Append: enter subject=" + entry.SubjectUserId +
+                     ", actor=" + App.aps.CurrentUserId +
+                     ", title=" + (entry.Title ?? "") +
+                     ", denied=" + entry.IsDeniedOutcome);
+
+            if (!App.aps.pda.CheckCurrentConnection())
+            {
+                AuditLog("Append: SKIPPED subject=" + entry.SubjectUserId +
+                         " — CheckCurrentConnection() returned false (cnLocal missing or malformed).");
+                return;
+            }
+
+            var eventType = EventTypeFromTitle(entry.Title, entry.IsDeniedOutcome);
+            var phase = AuditCategoryStaffAndAccess + ": " + eventType;
+            phaseForLog = phase;
+            var phaseId = EnsurePhaseId(phase);
+            var eventPayload = BuildEventPayload(entry);
+            var machine = SafeMachineName();
+
+            string? invalidPwHash = null;
+            if (!string.IsNullOrEmpty(invalidPasswordPlain))
+                invalidPwHash = PasswordHasher.Hash(invalidPasswordPlain);
+
+            var ipAddress = App.aps.LocalIpAddress;
+
+            App.aps.ExecuteStrict(App.aps.sql.InsertAuditTrail(
+                phase: phase,
+                eventPayload: eventPayload,
+                authUserId: App.aps.CurrentUserId,
+                controlIdDescr: AuditSubjectKindUser,
+                controlId: entry.SubjectUserId,
+                invalidPasswordHashed: invalidPwHash,
+                phaseId: phaseId,
+                ipAddress: string.IsNullOrEmpty(ipAddress) ? null : ipAddress,
+                machineName: machine));
+
+            AuditLog("Append: OK subject=" + entry.SubjectUserId +
+                     ", phase=" + phase +
+                     ", phaseId=" + (phaseId?.ToString(CultureInfo.InvariantCulture) ?? "null"));
+        }
+        catch (Exception ex)
+        {
+            // Audit is best-effort; UI should never block because audit is offline. BUT we must
+            // surface the failure to the diagnostic log, or silent drops are impossible to debug.
+            AuditLog("Append: FAILED subject=" + entry.SubjectUserId +
+                     ", phase=" + phaseForLog +
+                     ", " + ex.GetType().Name + " - " + ex.Message);
+        }
+        finally
+        {
+            InvalidateCache(entry.SubjectUserId);
         }
     }
 
+    /// <summary>
+    /// Resolve a <c>phase_id</c> for a given phase descriptor. In-process cache first; otherwise
+    /// upsert into <c>public.database_update_phase</c> (idempotent) and read back. Returns
+    /// <c>null</c> if the lookup fails so the audit INSERT can still proceed with <c>phase_id IS NULL</c>.
+    /// </summary>
+    private static int? EnsurePhaseId(string phase)
+    {
+        lock (Gate)
+        {
+            if (PhaseIdCache.TryGetValue(phase, out var cached))
+                return cached;
+        }
+
+        try
+        {
+            App.aps.ExecuteStrict(App.aps.sql.EnsurePhaseIdUpsert(phase));
+            var dt = App.aps.pda.GetDataTable(App.aps.sql.SelectPhaseIdByDescr(phase), 15);
+            if (dt.Rows.Count > 0)
+            {
+                var raw = dt.Rows[0]["phase_id"];
+                if (raw != null && raw != DBNull.Value &&
+                    int.TryParse(Convert.ToString(raw, CultureInfo.InvariantCulture), out var id))
+                {
+                    lock (Gate)
+                        PhaseIdCache[phase] = id;
+                    return id;
+                }
+            }
+            AuditLog("EnsurePhaseId: lookup returned no rows for phase=" + phase);
+        }
+        catch (Exception ex)
+        {
+            // Best-effort: fall through to null so the audit row is still written with phase_id NULL.
+            AuditLog("EnsurePhaseId: FAILED phase=" + phase + ", " + ex.GetType().Name + " - " + ex.Message);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Envelope written to <c>public.audit_trail.event</c>. Folds the sanitised title (what the
+    /// previous schema called <c>summary</c>) plus tone, tab glyphs, flags and the full description
+    /// body into a single JSON blob so <see cref="MapRow"/> can rehydrate a
+    /// <see cref="StaffAccessAuditEntry"/> on read.
+    /// </summary>
+    private static string BuildEventPayload(StaffAccessAuditEntry entry)
+    {
+        var details = SerializeDetails(entry);
+        var title = StaffAccessAuditTextSanitizer.OneLine(entry.Title, 200);
+
+        // SerializeDetails already returns a JSON object string {"body":"...","tone":"...", ...}.
+        // Insert the title/summary at the front so it survives the round-trip.
+        if (string.IsNullOrWhiteSpace(details) || !details.StartsWith("{", StringComparison.Ordinal))
+            return "{\"title\":\"" + EscapeJson(title) + "\"}";
+
+        // Splice "title" into the existing JSON object without re-parsing.
+        return "{\"title\":\"" + EscapeJson(title) + "\"," + details[1..];
+    }
+
     /// <summary>Records a remove-user attempt that was blocked (e.g. still linked in Operations).</summary>
-    public static void AppendUserDeleteDenied(Guid subjectUserId, string reason)
+    public static void AppendUserDeleteDenied(int subjectUserId, string reason)
     {
         var line = StaffAccessAuditTextSanitizer.OneLine(reason, 400);
         Append(new StaffAccessAuditEntry
@@ -2271,7 +2740,7 @@ public static class StaffAccessAuditRepository
     }
 
     /// <summary>Records a successful staff account removal (after <see cref="StaffAccessStore.TryRemoveUser"/>).</summary>
-    public static void AppendUserDeleteSucceeded(Guid subjectUserId, StaffUser removedUser)
+    public static void AppendUserDeleteSucceeded(int subjectUserId, StaffUser removedUser)
     {
         var name = StaffAccessAuditTextSanitizer.OneLine(removedUser.DisplayName, 120);
         var un = StaffAccessAuditTextSanitizer.OneLine(removedUser.UserName, 120);
@@ -2291,20 +2760,159 @@ public static class StaffAccessAuditRepository
         });
     }
 
-    /// <summary>All audit rows for the user, newest first (UI binding).</summary>
-    public static IReadOnlyList<StaffAccessAuditEntry> GetBySubjectUserNewestFirst(Guid subjectUserId)
+    /// <summary>
+    /// Records that the simulated biometric enrollment timer completed successfully. Emitted from
+    /// <c>StaffAccessBioMetric</c> because enrollment flips the DB flag outside of a profile save.
+    /// </summary>
+    public static void AppendBiometricEnrollmentCompleted(int subjectUserId)
+    {
+        Append(new StaffAccessAuditEntry
+        {
+            Id = Guid.NewGuid(),
+            SubjectUserId = subjectUserId,
+            OccurredAtUtc = DateTime.UtcNow,
+            Title = "Biometric enrollment completed",
+            Description = "Fingerprint template was captured and stored for this user.",
+            Tone = StaffAccessAuditEventTone.Purple,
+            Source = StaffAccessAuditSource.Recorded,
+            TabGlyphs = [StaffAccessAuditTabGlyph.Biometric]
+        });
+    }
+
+    /// <summary>
+    /// Records that the simulated remote-host sync of the ID document PDF completed successfully.
+    /// Emitted from the per-user sync timer, which runs after a profile save has already been audited.
+    /// </summary>
+    public static void AppendIdDocumentSyncSucceeded(int subjectUserId, string? fileName)
+    {
+        var name = StaffAccessAuditTextSanitizer.OneLine(fileName, 160);
+        var desc = string.IsNullOrEmpty(name)
+            ? "Remote host sync completed for the identity document."
+            : "Remote host sync completed for the identity document.\n• File: \"" + name + "\".";
+        Append(new StaffAccessAuditEntry
+        {
+            Id = Guid.NewGuid(),
+            SubjectUserId = subjectUserId,
+            OccurredAtUtc = DateTime.UtcNow,
+            Title = "Identity document synced",
+            Description = desc,
+            Tone = StaffAccessAuditEventTone.Teal,
+            Source = StaffAccessAuditSource.Recorded,
+            TabGlyphs = [StaffAccessAuditTabGlyph.Documents]
+        });
+    }
+
+    /// <summary>
+    /// Records that the simulated remote-host sync of the profile image completed successfully.
+    /// </summary>
+    public static void AppendProfileImageSyncSucceeded(int subjectUserId)
+    {
+        Append(new StaffAccessAuditEntry
+        {
+            Id = Guid.NewGuid(),
+            SubjectUserId = subjectUserId,
+            OccurredAtUtc = DateTime.UtcNow,
+            Title = "Profile image synced",
+            Description = "Remote host sync completed for the profile image.",
+            Tone = StaffAccessAuditEventTone.Teal,
+            Source = StaffAccessAuditSource.Recorded,
+            TabGlyphs = [StaffAccessAuditTabGlyph.BasicInfo]
+        });
+    }
+
+    /// <summary>All audit rows for the user, newest first (UI binding). 30s per-subject cache; DB-backed.</summary>
+    public static IReadOnlyList<StaffAccessAuditEntry> GetBySubjectUserNewestFirst(int subjectUserId)
     {
         lock (Gate)
         {
-            return All.Where(e => e.SubjectUserId == subjectUserId)
-                .OrderByDescending(e => e.OccurredAtUtc)
-                .ToArray();
+            if (Cache.TryGetValue(subjectUserId, out var hit) &&
+                DateTime.UtcNow - hit.FetchedUtc < CacheTtl)
+                return hit.Rows;
         }
+
+        var rows = LoadFromDb(subjectUserId);
+
+        lock (Gate)
+        {
+            Cache[subjectUserId] = new CacheEntry
+            {
+                FetchedUtc = DateTime.UtcNow,
+                Rows = rows
+            };
+        }
+
+        return rows;
+    }
+
+    private static IReadOnlyList<StaffAccessAuditEntry> LoadFromDb(int subjectUserId)
+    {
+        try
+        {
+            if (!App.aps.pda.CheckCurrentConnection())
+                return Array.Empty<StaffAccessAuditEntry>();
+
+            var dt = App.aps.pda.GetDataTable(
+                App.aps.sql.SelectAuditTrailForUser(subjectUserId, maxRows: 500), 30);
+
+            var list = new List<StaffAccessAuditEntry>(dt.Rows.Count);
+            foreach (DataRow r in dt.Rows)
+                list.Add(MapRow(r));
+            return list;
+        }
+        catch
+        {
+            return Array.Empty<StaffAccessAuditEntry>();
+        }
+    }
+
+    private static StaffAccessAuditEntry MapRow(DataRow r)
+    {
+        // inserted_ts is timestamp WITHOUT TIME ZONE; the app writes (now() AT TIME ZONE 'UTC'),
+        // so the naive DateTime we get back represents UTC. Preserve that intent for the UI.
+        var ts = r["inserted_ts"] is DateTime dt
+            ? DateTime.SpecifyKind(dt, DateTimeKind.Utc)
+            : DateTime.UtcNow;
+
+        var subjectId = r.Table.Columns.Contains("control_id") && r["control_id"] != DBNull.Value
+            ? Convert.ToInt32(r["control_id"], CultureInfo.InvariantCulture)
+            : 0;
+
+        var ip = r["ip_address"]?.ToString() ?? "";
+        // Device label is the real machine_name column (Environment.MachineName at write time).
+        // JSON details.Device is only a fallback for legacy rows that stored it there first.
+        var machine = r.Table.Columns.Contains("machine_name") && r["machine_name"] != DBNull.Value
+            ? r["machine_name"]?.ToString() ?? ""
+            : "";
+        var json = r["event"]?.ToString();
+        var details = DeserializeDetails(json);
+        var title = string.IsNullOrWhiteSpace(details.Title)
+            ? PhaseToTitle(r["phase"]?.ToString())
+            : details.Title;
+        var device = !string.IsNullOrWhiteSpace(machine)
+            ? machine
+            : details.Device;
+
+        return new StaffAccessAuditEntry
+        {
+            Id = Guid.NewGuid(),
+            SubjectUserId = subjectId,
+            OccurredAtUtc = ts,
+            Title = title,
+            Description = details.Body,
+            Tone = details.Tone,
+            Source = StaffAccessAuditSource.Recorded,
+            TabGlyphs = details.TabGlyphs,
+            IsDeniedOutcome = details.IsDenied,
+            IncludesPasswordChange = details.IncludesPasswordChange,
+            IncludesAccessRoleChange = details.IncludesAccessRoleChange,
+            Device = device ?? "",
+            Ip = string.IsNullOrWhiteSpace(ip) ? "" : ip
+        };
     }
 
     /// <summary>Records one profile-save audit when at least one tracked field changed.</summary>
     public static void AppendProfileSaveIfChanged(
-        Guid subjectUserId,
+        int subjectUserId,
         StaffAccessAuditSnapshot before,
         StaffAccessAuditSnapshot after,
         bool passwordChanged)
@@ -2495,6 +3103,212 @@ public static class StaffAccessAuditRepository
             return "\"\"";
         return "\"" + s.Replace("\"", "'", StringComparison.Ordinal) + "\"";
     }
+
+    // region: audit_trail.event JSON envelope -------------------------------------------------------
+
+    /// <summary>
+    /// Deterministic machine tag for <c>audit_trail.machine_name</c>. Never throws; returns empty
+    /// when the hostname is unavailable (e.g. sandboxed).
+    /// </summary>
+    private static string SafeMachineName()
+    {
+        try
+        {
+            return Environment.MachineName ?? "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    /// <summary>
+    /// Maps the UI title (plus denied flag) to a stable machine event code that matches the
+    /// <c>descr</c> values seeded into <c>public.database_update_phase</c> by
+    /// <c>2026-04-21_audit_trail_init.sql</c>. Any drift here means <see cref="EnsurePhaseId"/>
+    /// will have to upsert a new phase row instead of reusing the seeded one.
+    /// </summary>
+    private static string EventTypeFromTitle(string? title, bool isDenied)
+    {
+        if (isDenied)
+            return "UserDeleteDenied";
+        if (string.IsNullOrWhiteSpace(title))
+            return "UserUpdated";
+        if (title.StartsWith("User deleted", StringComparison.OrdinalIgnoreCase))
+            return "UserDeleted";
+        if (title.StartsWith("User created", StringComparison.OrdinalIgnoreCase))
+            return "UserCreated";
+        if (title.StartsWith("Password changed", StringComparison.OrdinalIgnoreCase))
+            return "PasswordChanged";
+        if (title.StartsWith("Access role", StringComparison.OrdinalIgnoreCase))
+            return "RoleChanged";
+        if (title.StartsWith("Sign-in status", StringComparison.OrdinalIgnoreCase))
+            return "SignInStatusUpdated";
+        if (title.StartsWith("Sign-in failure", StringComparison.OrdinalIgnoreCase) ||
+            title.StartsWith("Sign-in denied", StringComparison.OrdinalIgnoreCase))
+            return "SignInFailure";
+        if (title.StartsWith("Biometric", StringComparison.OrdinalIgnoreCase))
+            return "BiometricEnrollmentCompleted";
+        if (title.StartsWith("Identity document", StringComparison.OrdinalIgnoreCase))
+            return "IdentityDocumentSynced";
+        if (title.StartsWith("Profile image", StringComparison.OrdinalIgnoreCase))
+            return "ProfileImageSynced";
+        return "UserUpdated";
+    }
+
+    private readonly struct AuditDetails
+    {
+        public string Body { get; init; }
+        public StaffAccessAuditEventTone Tone { get; init; }
+        public IReadOnlyList<StaffAccessAuditTabGlyph> TabGlyphs { get; init; }
+        public bool IsDenied { get; init; }
+        public bool IncludesPasswordChange { get; init; }
+        public bool IncludesAccessRoleChange { get; init; }
+        public string Device { get; init; }
+        /// <summary>
+        /// Title/summary persisted inside the JSON event payload. Previous schema stored it in a
+        /// dedicated <c>summary</c> column; client's <c>audit_trail</c> has no such column so it
+        /// lives inside <c>event</c> and is extracted on read.
+        /// </summary>
+        public string Title { get; init; }
+    }
+
+    /// <summary>
+    /// Fallback when the <c>event</c> JSON didn't carry a title (legacy rows, external writers).
+    /// Produces a human-friendly label from the <c>phase</c> column (e.g.
+    /// <c>"Staff and Access: PasswordChanged"</c> → <c>"Password changed"</c>).
+    /// </summary>
+    private static string PhaseToTitle(string? phase)
+    {
+        if (string.IsNullOrWhiteSpace(phase))
+            return "Audit event";
+        var colon = phase.IndexOf(':');
+        var tail = colon >= 0 && colon + 1 < phase.Length ? phase[(colon + 1)..].Trim() : phase.Trim();
+        if (tail.Length == 0)
+            return "Audit event";
+        var sb = new StringBuilder(tail.Length + 8);
+        for (var i = 0; i < tail.Length; i++)
+        {
+            var ch = tail[i];
+            if (i > 0 && char.IsUpper(ch) && !char.IsUpper(tail[i - 1]))
+                sb.Append(' ').Append(char.ToLowerInvariant(ch));
+            else
+                sb.Append(i == 0 ? ch : char.ToLowerInvariant(ch));
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Hand-written JSON to avoid pulling System.Text.Json DOM allocation for each write.</summary>
+    private static string SerializeDetails(StaffAccessAuditEntry entry)
+    {
+        var b = new StringBuilder(256);
+        b.Append('{');
+        AppendJsonKey(b, "body", entry.Description ?? "");
+        b.Append(',');
+        AppendJsonKey(b, "tone", entry.Tone.ToString());
+        b.Append(',');
+        // Device label is now sourced on read from public.audit_trail.machine_name. We still emit
+        // the field (empty string if unknown) for backwards compatibility with older readers.
+        AppendJsonKey(b, "device", entry.Device ?? "");
+        b.Append(",\"isDenied\":").Append(entry.IsDeniedOutcome ? "true" : "false");
+        b.Append(",\"includesPassword\":").Append(entry.IncludesPasswordChange ? "true" : "false");
+        b.Append(",\"includesRoleChange\":").Append(entry.IncludesAccessRoleChange ? "true" : "false");
+        b.Append(",\"tabs\":[");
+        for (var i = 0; i < entry.TabGlyphs.Count; i++)
+        {
+            if (i > 0)
+                b.Append(',');
+            b.Append('"').Append(entry.TabGlyphs[i]).Append('"');
+        }
+        b.Append("]}");
+        return b.ToString();
+    }
+
+    private static void AppendJsonKey(StringBuilder b, string key, string value)
+    {
+        b.Append('"').Append(key).Append("\":\"").Append(EscapeJson(value)).Append('"');
+    }
+
+    private static string EscapeJson(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return "";
+        var sb = new StringBuilder(value.Length + 8);
+        foreach (var ch in value)
+        {
+            switch (ch)
+            {
+                case '\\': sb.Append("\\\\"); break;
+                case '"': sb.Append("\\\""); break;
+                case '\b': sb.Append("\\b"); break;
+                case '\f': sb.Append("\\f"); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
+                default:
+                    if (ch < 0x20)
+                        sb.Append("\\u").Append(((int)ch).ToString("x4", CultureInfo.InvariantCulture));
+                    else
+                        sb.Append(ch);
+                    break;
+            }
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Lightweight JSON reader tuned for the shape produced by <see cref="SerializeDetails"/>.
+    /// Returns sensible defaults (Blue tone, empty body, no tabs) when the payload is missing or
+    /// malformed so a corrupt row never breaks the audit tab.
+    /// </summary>
+    private static AuditDetails DeserializeDetails(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return new AuditDetails { Body = "", Tone = StaffAccessAuditEventTone.Blue, TabGlyphs = [], Device = "", Title = "" };
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var title = root.TryGetProperty("title", out var ti) ? ti.GetString() ?? "" : "";
+            var body = root.TryGetProperty("body", out var p) ? p.GetString() ?? "" : "";
+            var toneStr = root.TryGetProperty("tone", out var t) ? t.GetString() ?? "" : "";
+            var device = root.TryGetProperty("device", out var d) ? d.GetString() ?? "" : "";
+            var isDenied = root.TryGetProperty("isDenied", out var dn) && dn.ValueKind == System.Text.Json.JsonValueKind.True;
+            var incPw = root.TryGetProperty("includesPassword", out var ip) && ip.ValueKind == System.Text.Json.JsonValueKind.True;
+            var incRole = root.TryGetProperty("includesRoleChange", out var ir) && ir.ValueKind == System.Text.Json.JsonValueKind.True;
+
+            var tabs = new List<StaffAccessAuditTabGlyph>();
+            if (root.TryGetProperty("tabs", out var tabsEl) && tabsEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var item in tabsEl.EnumerateArray())
+                {
+                    var s = item.GetString();
+                    if (!string.IsNullOrEmpty(s) && Enum.TryParse<StaffAccessAuditTabGlyph>(s, out var g))
+                        tabs.Add(g);
+                }
+            }
+
+            if (!Enum.TryParse<StaffAccessAuditEventTone>(toneStr, out var tone))
+                tone = StaffAccessAuditEventTone.Blue;
+
+            return new AuditDetails
+            {
+                Title = title,
+                Body = body,
+                Tone = tone,
+                TabGlyphs = tabs,
+                IsDenied = isDenied,
+                IncludesPasswordChange = incPw,
+                IncludesAccessRoleChange = incRole,
+                Device = device
+            };
+        }
+        catch
+        {
+            return new AuditDetails { Body = "", Tone = StaffAccessAuditEventTone.Blue, TabGlyphs = [], Device = "", Title = "" };
+        }
+    }
 }
 
 file static class StaffAccessAuditTextSanitizer
@@ -2507,83 +3321,6 @@ file static class StaffAccessAuditTextSanitizer
         if (s.Length > maxLen)
             s = s[..maxLen] + "…";
         return s;
-    }
-}
-
-/// <summary>Initial demo rows inserted into <see cref="StaffAccessAuditRepository"/> once.</summary>
-file static class StaffAccessAuditSeed
-{
-    public static IEnumerable<StaffAccessAuditEntry> BuildDemoEntries(StaffUser user)
-    {
-        if (user.NumericId == 1001)
-        {
-            yield return Entry(user.Id, "User profile updated",
-                "Modified first name and contact information.",
-                StaffAccessAuditEventTone.Blue,
-                new DateTime(2025, 4, 10, 14, 32, 18, DateTimeKind.Utc));
-            yield return Entry(user.Id, "Successful login",
-                "Authentication via username and password.",
-                StaffAccessAuditEventTone.Teal,
-                new DateTime(2025, 4, 10, 9, 15, 42, DateTimeKind.Utc));
-            yield return Entry(user.Id, "Session logout",
-                "User initiated logout.",
-                StaffAccessAuditEventTone.Grey,
-                new DateTime(2025, 4, 10, 17, 58, 3, DateTimeKind.Utc));
-            yield return Entry(user.Id, "Password changed",
-                "Password updated successfully.",
-                StaffAccessAuditEventTone.Purple,
-                new DateTime(2025, 4, 9, 11, 4, 55, DateTimeKind.Utc));
-            yield break;
-        }
-
-        var h = user.Id.GetHashCode();
-        yield return Entry(user.Id, "Profile viewed",
-            "Account details page opened.",
-            StaffAccessAuditEventTone.Blue,
-            DemoDateTimeUtc(h, 0));
-        yield return Entry(user.Id, "Successful login",
-            "Authentication completed.",
-            StaffAccessAuditEventTone.Teal,
-            DemoDateTimeUtc(h, 1));
-    }
-
-    private static StaffAccessAuditEntry Entry(
-        Guid subjectUserId,
-        string title,
-        string description,
-        StaffAccessAuditEventTone tone,
-        DateTime occurredAtUtc,
-        IReadOnlyList<StaffAccessAuditTabGlyph>? tabGlyphs = null) =>
-        new()
-        {
-            Id = Guid.NewGuid(),
-            SubjectUserId = subjectUserId,
-            OccurredAtUtc = occurredAtUtc,
-            Title = title,
-            Description = description,
-            Tone = tone,
-            Source = StaffAccessAuditSource.Demo,
-            TabGlyphs = tabGlyphs ?? InferDemoTabGlyphs(title)
-        };
-
-    private static IReadOnlyList<StaffAccessAuditTabGlyph> InferDemoTabGlyphs(string title)
-    {
-        if (title.Contains("Password", StringComparison.OrdinalIgnoreCase))
-            return [StaffAccessAuditTabGlyph.Security];
-        if (title.Contains("Access role", StringComparison.OrdinalIgnoreCase))
-            return [StaffAccessAuditTabGlyph.Security];
-        if (title.Contains("profile", StringComparison.OrdinalIgnoreCase))
-            return [StaffAccessAuditTabGlyph.BasicInfo];
-        return [];
-    }
-
-    private static DateTime DemoDateTimeUtc(int seed, int slot)
-    {
-        var day = 8 + (Math.Abs(seed >> (4 + slot * 2)) % 20);
-        var hh = 8 + (Math.Abs(seed >> (8 + slot)) % 10);
-        var mm = Math.Abs(seed >> (12 + slot)) % 60;
-        var ss = Math.Abs(seed >> (16 + slot)) % 60;
-        return new DateTime(2025, 4, day, hh, mm, ss, DateTimeKind.Utc);
     }
 }
 
@@ -2602,7 +3339,19 @@ public sealed class StaffAccessAuditEntryVm
     public string Description { get; init; } = "";
     public string Timestamp { get; init; } = "";
     public string Device { get; init; } = "";
+    /// <summary>
+    /// <c>true</c> when <see cref="Device"/> is non-empty, driving the <c>Device:</c> strip in the
+    /// XAML row so legacy rows (written before <c>machine_name</c> was captured) don't render a
+    /// bare "Device: " label.
+    /// </summary>
+    public bool HasDevice => !string.IsNullOrWhiteSpace(Device);
     public string Ip { get; init; } = "";
+    /// <summary>
+    /// <c>true</c> when <see cref="Ip"/> is non-empty, driving the <c>IP:</c> strip in the XAML
+    /// row so legacy rows (written before we captured the real adapter address) don't render a
+    /// bare "IP: " label.
+    /// </summary>
+    public bool HasIp => !string.IsNullOrWhiteSpace(Ip);
     public string StatusLabel { get; init; } = "Success";
     public bool ShowSuccessOutcomeBadge { get; init; } = true;
     public bool ShowDeniedOutcomeBadge { get; init; }

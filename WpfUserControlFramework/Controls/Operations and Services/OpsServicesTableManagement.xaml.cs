@@ -12,7 +12,7 @@ public partial class OpsServicesTableManagement : UserControl
 {
     private sealed class WaiterOption
     {
-        public Guid? Id { get; init; }
+        public int? Id { get; init; }
         public string Label { get; init; } = "";
     }
 

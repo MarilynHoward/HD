@@ -758,7 +758,9 @@
                                                                           Path=FontScale,
                                                                           Converter={StaticResource FontScaleConverter},
                                                                           ConverterParameter=12}"
-                                                       Margin="0,0,16,0">
+                                                       Margin="0,0,16,0"
+                                                       Visibility="{Binding HasDevice,
+                                                                            Converter={StaticResource BoolToVisibilityConverter}}">
                                                 <Run Text="Device: " FontWeight="SemiBold" />
                                                 <Run Text="{Binding Device, Mode=OneWay}" />
                                             </TextBlock>
@@ -766,7 +768,9 @@
                                                        FontSize="{Binding Source={StaticResource UiScaleState},
                                                                           Path=FontScale,
                                                                           Converter={StaticResource FontScaleConverter},
-                                                                          ConverterParameter=12}">
+                                                                          ConverterParameter=12}"
+                                                       Visibility="{Binding HasIp,
+                                                                            Converter={StaticResource BoolToVisibilityConverter}}">
                                                 <Run Text="IP: " FontWeight="SemiBold" />
                                                 <Run Text="{Binding Ip, Mode=OneWay}" />
                                             </TextBlock>

@@ -1051,7 +1051,8 @@ public enum OpsShiftFrequencyKind
 
 public sealed class OpsEmployee
 {
-    public Guid Id { get; init; }
+    /// <summary>Maps to <c>public.users.user_id</c>.</summary>
+    public int Id { get; init; }
     public string Name { get; init; } = "";
     public string Role { get; init; } = "";
     public bool IsOnShift { get; init; } = true;
@@ -1068,7 +1069,8 @@ public sealed class OpsFloorTable
     public int SeatCount { get; set; }
     public string Shape { get; set; } = "Square";
     public bool IsActive { get; set; } = true;
-    public Guid? AssignedWaiterId { get; set; }
+    /// <summary>Maps to <c>public.users.user_id</c> or <c>null</c> when unassigned.</summary>
+    public int? AssignedWaiterId { get; set; }
     public int Zone { get; set; } = 1;
     public int Station { get; set; } = 1;
     public int TurnTimeMinutes { get; set; } = 60;
@@ -1081,7 +1083,8 @@ public sealed class OpsFloorTable
     public DateTime ModifiedUtc { get; set; } = DateTime.UtcNow;
     /// <summary>Operational UI state (Available, Occupied, …).</summary>
     public string OpsStatus { get; set; } = "Available";
-    public Guid? OpsServerId { get; set; }
+    /// <summary>Server assigned at seating time; maps to <c>public.users.user_id</c>.</summary>
+    public int? OpsServerId { get; set; }
     public DateTime? SeatedAtUtc { get; set; }
     public int? PartySize { get; set; }
 
@@ -1093,7 +1096,8 @@ public sealed class OpsFloorTable
 public sealed class OpsScheduledShift
 {
     public Guid Id { get; init; }
-    public Guid EmployeeId { get; init; }
+    /// <summary>Maps to <c>public.users.user_id</c>.</summary>
+    public int EmployeeId { get; init; }
     public DateOnly Date { get; init; }
     public TimeOnly Start { get; init; }
     public TimeOnly End { get; init; }
@@ -1140,7 +1144,7 @@ public static partial class OpsServicesStore
         if (employeesForIds.Count < 2)
             return;
 
-        void AddTable(string name, string floor, int seats, bool active = true, Guid? waiter = null)
+        void AddTable(string name, string floor, int seats, bool active = true, int? waiter = null)
         {
             Tables.Add(new OpsFloorTable
             {
@@ -1202,7 +1206,7 @@ public static partial class OpsServicesStore
         }
     }
 
-    private static void AddDemoShift(Guid employeeId, DateOnly date, TimeOnly start, TimeOnly end,
+    private static void AddDemoShift(int employeeId, DateOnly date, TimeOnly start, TimeOnly end,
         Guid[] tableIds, OpsShiftFrequencyKind kind)
     {
         Shifts.Add(new OpsScheduledShift
@@ -1221,7 +1225,7 @@ public static partial class OpsServicesStore
 
     public static IReadOnlyList<OpsFloorTable> GetTables() => Tables;
 
-    public static OpsEmployee? GetEmployee(Guid id) => StaffAccessStore.GetOpsEmployee(id);
+    public static OpsEmployee? GetEmployee(int id) => StaffAccessStore.GetOpsEmployee(id);
 
     public static OpsFloorTable? GetTable(Guid id) => Tables.FirstOrDefault(t => t.Id == id);
 
@@ -1240,7 +1244,7 @@ public static partial class OpsServicesStore
     }
 
     /// <summary>True if the employee already has a shift on that date overlapping [start, end).</summary>
-    public static bool HasTimeConflict(Guid employeeId, DateOnly date, TimeOnly start, TimeOnly end,
+    public static bool HasTimeConflict(int employeeId, DateOnly date, TimeOnly start, TimeOnly end,
         Guid? excludeShiftId = null)
     {
         foreach (var s in Shifts)
@@ -1519,7 +1523,7 @@ public static partial class OpsServicesStore
         return parts.Count == 0 ? "—" : string.Join(", ", parts);
     }
 
-    public static double TotalHoursForEmployeeInRange(Guid employeeId, DateOnly start, DateOnly end)
+    public static double TotalHoursForEmployeeInRange(int employeeId, DateOnly start, DateOnly end)
     {
         double h = 0;
         foreach (var s in Shifts)

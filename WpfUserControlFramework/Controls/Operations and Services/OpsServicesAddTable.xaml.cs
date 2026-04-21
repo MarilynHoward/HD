@@ -7,7 +7,7 @@ public partial class OpsServicesAddTable : UserControl
 {
     private sealed class WaiterOption
     {
-        public Guid? Id { get; init; }
+        public int? Id { get; init; }
         public string Label { get; init; } = "";
     }
 
@@ -81,7 +81,7 @@ public partial class OpsServicesAddTable : UserControl
         if (string.IsNullOrEmpty(floor))
             floor = "Main Floor";
 
-        Guid? waiterId = CmbWaiter.SelectedItem is WaiterOption wo ? wo.Id : null;
+        int? waiterId = CmbWaiter.SelectedItem is WaiterOption wo ? wo.Id : null;
 
         var table = new OpsFloorTable
         {

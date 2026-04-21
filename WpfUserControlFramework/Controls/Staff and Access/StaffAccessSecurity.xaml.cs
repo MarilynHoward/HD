@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -49,7 +50,19 @@ public partial class StaffAccessSecurity : UserControl
         var newPwd = GetNewPassword();
         user.PasswordChangedInSession = !string.IsNullOrEmpty(newPwd);
         if (!string.IsNullOrEmpty(newPwd))
-            user.LastPasswordChangedUtc = DateTime.UtcNow;
+        {
+            try
+            {
+                var hash = PasswordHasher.Hash(newPwd);
+                App.aps.Execute(App.aps.sql.UpdateUserPassword(user.Id, hash, App.aps.CurrentUserId));
+                user.LastPasswordChangedUtc = ReadPasswordChangedUtc(user.Id) ?? DateTime.UtcNow;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("[StaffAccessSecurity] UpdateUserPassword failed: " + ex.Message);
+                user.LastPasswordChangedUtc = DateTime.UtcNow;
+            }
+        }
 
         PwdNew.Password = "";
         TxtNewPlain.Text = "";
@@ -58,6 +71,25 @@ public partial class StaffAccessSecurity : UserControl
         ForcePasswordFieldsHidden();
         ClearAllInlinePasswordErrors();
         RefreshPasswordFieldFeedback();
+    }
+
+    private static DateTime? ReadPasswordChangedUtc(int userId)
+    {
+        try
+        {
+            var dt = App.aps.pda.GetDataTable(App.aps.sql.SelectUserById(userId), 15);
+            if (dt.Rows.Count == 0)
+                return null;
+            var v = dt.Rows[0]["password_changed_ts"];
+            if (v == DBNull.Value || v == null)
+                return null;
+            return DateTime.SpecifyKind(Convert.ToDateTime(v, CultureInfo.InvariantCulture), DateTimeKind.Utc);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[StaffAccessSecurity] ReadPasswordChangedUtc failed: " + ex.Message);
+            return null;
+        }
     }
 
     public void LoadFromUser(StaffUser? user)

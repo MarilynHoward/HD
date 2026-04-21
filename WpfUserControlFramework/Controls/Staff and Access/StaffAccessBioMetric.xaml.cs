@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -76,6 +77,15 @@ public partial class StaffAccessBioMetric : UserControl
         if (_user == null)
             return;
         _user.BiometricEnrolled = true;
+        try
+        {
+            App.aps.Execute(App.aps.sql.SetBiometricEnrolled(_user.Id, true, App.aps.CurrentUserId));
+            StaffAccessAuditRepository.AppendBiometricEnrollmentCompleted(_user.Id);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[StaffAccessBioMetric] SetBiometricEnrolled failed: " + ex.Message);
+        }
         RefreshChrome();
         BiometricStateChanged?.Invoke(this, EventArgs.Empty);
     }
