@@ -52,7 +52,7 @@ public partial class StaffAccessRoles : UserControl
         var items = new List<RoleComboItem>();
         try
         {
-            var dt = App.aps.pda.GetDataTable(App.aps.sql.SelectActiveRoles(), 30);
+            var dt = App.aps.pda.GetDataTable(App.aps.LocalConnectionstring(App.aps.propertyBranchCode), App.aps.sql.SelectActiveRoles(), 30);
             foreach (DataRow r in dt.Rows)
             {
                 var roleId = Convert.ToInt32(r["role_id"], CultureInfo.InvariantCulture);

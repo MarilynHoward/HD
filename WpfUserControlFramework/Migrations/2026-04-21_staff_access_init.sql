@@ -24,7 +24,8 @@
 --     is NOT NULL but has NO FK to public.roles. So we insert the bootstrap
 --     user (user_id = 1) FIRST -- its auth_user_id = 1 is a self-reference,
 --     which Postgres accepts in a single INSERT without DEFERRABLE tricks --
---     then we insert the 5 fixed roles with auth_user_id = 1.
+--     then we insert the 6 fixed roles (Developer = 0, Admin = 1, Manager = 2,
+--     Supervisor = 3, User = 4, System = 5) with auth_user_id = 1.
 -- ============================================================================
 
 -- If a previous run of this script aborted inside a transaction, the session
@@ -80,17 +81,20 @@ INSERT INTO public.users
     (user_id, user_name, password, role_id, auth_user_id, first_name, surname,
      active, affected_ts, is_seed)
 VALUES
-    (1, 'system', '', 5, 1, 'System', 'Account', TRUE, now(), FALSE)
+    (0, 'berend', 'ACAAAAHHHHABCDBN', 0, 0, 'Berend', 'Howard', TRUE, now(), FALSE)
 ON CONFLICT (user_id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
--- Fixed roles (1..5). Descriptions match the app's legacy StaffAccessRole
--- enum so the UI can map role_id <-> display name. auth_user_id = 1 is
--- satisfied because the bootstrap user was inserted above. Existing rows
--- are left untouched.
+-- Fixed roles (0..5). role_id = 0 is Developer, a selectable engineering role
+-- shown in the WPF role picker alongside Admin/Manager/Supervisor/User. Only
+-- System (role_id = 5) is hidden from the picker. Descriptions match the
+-- app's StaffAccessRole enum so the UI can map role_id <-> display name.
+-- auth_user_id = 1 is satisfied because the bootstrap user was inserted
+-- above. Existing rows are left untouched.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.roles (role_id, descr, auth_user_id, active, deleted, affected_ts, is_seed)
 VALUES
+    (0, 'Developer',      1, TRUE, FALSE, now(), FALSE),
     (1, 'Admin',      1, TRUE, FALSE, now(), FALSE),
     (2, 'Manager',    1, TRUE, FALSE, now(), FALSE),
     (3, 'Supervisor', 1, TRUE, FALSE, now(), FALSE),

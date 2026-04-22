@@ -50,6 +50,7 @@ public sealed class Sql
     public string EnsureFixedRoles()
     {
         var b = new StringBuilder();
+        AppendEnsureRole(b, AppStatus.RoleIdDeveloper, "Developer");
         AppendEnsureRole(b, AppStatus.RoleIdAdmin, "Admin");
         AppendEnsureRole(b, AppStatus.RoleIdManager, "Manager");
         AppendEnsureRole(b, AppStatus.RoleIdSupervisor, "Supervisor");
@@ -105,8 +106,7 @@ public sealed class Sql
     /// </summary>
     public string SelectAllUsers(bool includeInactive)
     {
-        var where = "WHERE user_id <> " + Int(AppStatus.SystemBootstrapUserId) +
-                    " AND COALESCE(deleted, FALSE) = FALSE";
+        var where = "WHERE COALESCE(deleted, FALSE) = FALSE";
         if (!includeInactive)
             where += " AND active = TRUE";
         return "SELECT " + UserColumns + " FROM public.users " + where + " ORDER BY user_name";
@@ -157,7 +157,7 @@ public sealed class Sql
         public bool IsSeed { get; init; }
     }
 
-    public string InsertUser(UserWrite u, int authUserId, string hashedPassword)
+    public string InsertUser(UserWrite u, int authUserId, string encryptedPassword)
     {
         return "INSERT INTO public.users " +
                "(user_id, user_name, password, role_id, auth_user_id, image_path, card_number, " +
@@ -167,7 +167,7 @@ public sealed class Sql
                "VALUES (" +
                Int(u.UserId) + ", " +
                Quote(u.UserName) + ", " +
-               Quote(hashedPassword) + ", " +
+               Quote(encryptedPassword) + ", " +
                Int(u.RoleId) + ", " +
                Int(authUserId) + ", " +
                Nullable(u.ImagePath) + ", " +
@@ -214,9 +214,9 @@ public sealed class Sql
                "WHERE user_id = " + Int(u.UserId) + ";";
     }
 
-    public string UpdateUserPassword(int userId, string hashedPassword, int authUserId) =>
+    public string UpdateUserPassword(int userId, string encryptedPassword, int authUserId) =>
         "UPDATE public.users SET " +
-        "password = " + Quote(hashedPassword) + ", " +
+        "password = " + Quote(encryptedPassword) + ", " +
         "password_changed_ts = now(), " +
         "auth_user_id = " + Int(authUserId) + ", " +
         "affected_ts = now() " +
@@ -284,8 +284,8 @@ public sealed class Sql
         "WHERE user_id = " + Int(userId) + ";";
 
     /// <summary>
-    /// Soft delete a role. The five fixed roles (1..5) are protected — the WHERE clause prevents
-    /// the client from accidentally retiring Admin / Manager / Supervisor / User / System.
+    /// Soft delete a role. The six fixed roles (0..5) are protected — the WHERE clause prevents
+    /// the client from accidentally retiring Developer / Admin / Manager / Supervisor / User / System.
     /// </summary>
     public string SoftDeleteRole(int roleId, int actorUserId) =>
         "UPDATE public.roles SET " +
@@ -297,6 +297,7 @@ public sealed class Sql
         "affected_ts = now() " +
         "WHERE role_id = " + Int(roleId) +
         " AND role_id NOT IN (" +
+        Int(AppStatus.RoleIdDeveloper) + ", " +
         Int(AppStatus.RoleIdAdmin) + ", " +
         Int(AppStatus.RoleIdManager) + ", " +
         Int(AppStatus.RoleIdSupervisor) + ", " +
@@ -323,11 +324,12 @@ public sealed class Sql
     /// <summary>
     /// Insert the eight demo users (matches the in-memory seed set the UI previously used) with
     /// <c>is_seed = TRUE</c> so <see cref="DeleteAllSeedRows"/> can wipe them deterministically.
-    /// Passwords are the same plain-text value ("password") hashed with PBKDF2.
+    /// Passwords are the same plain-text value ("password") encrypted via <see cref="Crypt"/>
+    /// on <see cref="AppStatus.crypt"/> — by client decree <c>PasswordHasher</c> is not used.
     /// </summary>
     public string InsertSeedUsers()
     {
-        var pw = PasswordHasher.Hash("password");
+        var pw = App.aps.crypt.DoEncrypt("password");
         var auth = AppStatus.SystemBootstrapUserId;
         var sys = AppStatus.SystemBootstrapUserId;
         var palette = new[]

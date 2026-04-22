@@ -7,41 +7,22 @@ using System.Windows;
 namespace RestaurantPosWpf;
 
 /// <summary>
-/// PostgreSQL access via ODBC, following compact connection strings and driver selection patterns
-/// used elsewhere in the POS stack (user,password,host,port,database — comma or space separated).
-/// Default connection and driver are read from App.config once (lazy) and reused; call
-/// <see cref="ReloadConfiguration"/> if the file changes at runtime.
+/// PostgreSQL access via ODBC. Every CRUD method on this class <b>requires</b> the compact
+/// connection string (<c>user,password,host,port,database</c>) as an explicit argument — by
+/// client decree there are no overloads that fall back to App.config or to an instance-stored
+/// default. Callers obtain the branch-qualified compact from
+/// <see cref="AppStatus.LocalConnectionstring(string)"/>, and <b>must always pass
+/// <see cref="AppStatus.propertyBranchCode"/> explicitly</b>
+/// (e.g. <c>App.aps.LocalConnectionstring(App.aps.propertyBranchCode)</c>) to disambiguate from
+/// other <c>LocalConnectionstring</c> overloads elsewhere in the client's codebase.
+/// The ODBC driver is read from App.config (<c>PostgreSqlOdbcDriver</c>) and may be overridden
+/// via <see cref="PsqlDriver"/>.
 /// </summary>
 public sealed class PosDataAccess
 {
-    private static readonly object SyncRoot = new();
-    private static Lazy<PosConnectionSnapshot> _snapshot = CreateSnapshotLazy();
-
-    private static Lazy<PosConnectionSnapshot> CreateSnapshotLazy() =>
-        new(LoadSnapshot, LazyThreadSafetyMode.ExecutionAndPublication);
-
-    /// <summary>Immutable snapshot of <c>cnLocal</c> and <c>PostgreSqlOdbcDriver</c> from App.config.</summary>
-    public sealed record PosConnectionSnapshot(string? CompactConnectionString, PSQLDrivers Driver);
-
-    /// <summary>Current cached defaults (triggers a single config load on first use).</summary>
-    public static PosConnectionSnapshot CurrentSnapshot => _snapshot.Value;
-
-    /// <summary>Reloads settings from disk (e.g. after editing App.config). New <see cref="PosDataAccess"/> instances use the new values.</summary>
-    public static void ReloadConfiguration()
-    {
-        lock (SyncRoot)
-        {
-            _snapshot = CreateSnapshotLazy();
-            _ = _snapshot.Value;
-        }
-    }
-
-    private static PosConnectionSnapshot LoadSnapshot()
-    {
-        var cn = ConfigurationManager.AppSettings["cnLocal"]?.Trim();
-        var driver = ParseDriver(ConfigurationManager.AppSettings["PostgreSqlOdbcDriver"]);
-        return new PosConnectionSnapshot(cn, driver);
-    }
+    /// <summary>Reads <c>PostgreSqlOdbcDriver</c> from App.config, falling back to <see cref="PSQLDrivers.PostgreSql64Unicode93"/>.</summary>
+    public static PSQLDrivers DefaultDriver =>
+        ParseDriver(ConfigurationManager.AppSettings["PostgreSqlOdbcDriver"]);
 
     private static PSQLDrivers ParseDriver(string? s)
     {
@@ -61,42 +42,21 @@ public sealed class PosDataAccess
         PostgreSql64Ansi93
     }
 
-    private readonly string? _compactConnectionString;
-
+    /// <summary>Driver used when this instance builds full ODBC strings. Defaults to <see cref="DefaultDriver"/>.</summary>
     public PSQLDrivers PsqlDriver { get; set; }
 
-    /// <summary>Uses cached <c>cnLocal</c> and driver from App.config.</summary>
     public PosDataAccess()
-        : this(compactConnectionString: null, driver: null)
     {
+        PsqlDriver = DefaultDriver;
     }
 
-    /// <summary>Override driver only; compact string comes from cached App.config.</summary>
     public PosDataAccess(PSQLDrivers driver)
-        : this(compactConnectionString: null, driver)
     {
+        PsqlDriver = driver;
     }
 
-    /// <summary>Explicit branch / connection (e.g. alternate database); optional driver override. Pass <c>null</c> to use cached <c>cnLocal</c>.</summary>
-    public PosDataAccess(string? compactConnectionString, PSQLDrivers? driver = null)
-    {
-        _compactConnectionString = compactConnectionString;
-        PsqlDriver = driver ?? CurrentSnapshot.Driver;
-    }
-
-    private string? EffectiveCompact =>
-        _compactConnectionString ?? CurrentSnapshot.CompactConnectionString;
-
-    /// <summary>Reads optional <c>PostgreSqlOdbcDriver</c> from cached snapshot (same as App.config at last load).</summary>
-    public static PSQLDrivers ReadDefaultDriverFromConfig() => CurrentSnapshot.Driver;
-
-    /// <summary>Compact connection string: uses cached <c>cnLocal</c> when <paramref name="appSettingsKey"/> is <c>cnLocal</c>.</summary>
-    public static string? GetConfiguredCompactConnectionString(string appSettingsKey = "cnLocal")
-    {
-        if (appSettingsKey.Equals("cnLocal", StringComparison.OrdinalIgnoreCase))
-            return CurrentSnapshot.CompactConnectionString;
-        return ConfigurationManager.AppSettings[appSettingsKey]?.Trim();
-    }
+    /// <summary>Reads <c>PostgreSqlOdbcDriver</c> from App.config.</summary>
+    public static PSQLDrivers ReadDefaultDriverFromConfig() => DefaultDriver;
 
     /// <summary>True when the compact string has five parts (user, password, host, port, database).</summary>
     public static bool CheckBranchConnection(string? compactConnectionString)
@@ -107,19 +67,12 @@ public sealed class PosDataAccess
         return parts.Length >= 5;
     }
 
-    /// <inheritdoc cref="CheckBranchConnection(string?)"/>
-    public bool CheckCurrentConnection() => CheckBranchConnection(EffectiveCompact);
-
     /// <summary>
     /// Builds a PostgreSQL ODBC connection string from a compact string
-    /// <c>user,password,host,port,database</c> (commas or spaces).
+    /// <c>user,password,host,port,database</c> (commas or spaces) using this instance's <see cref="PsqlDriver"/>.
     /// </summary>
     public string BuildPostgresConnectionString(string compactConnectionString) =>
         BuildPostgresConnectionString(compactConnectionString, PsqlDriver);
-
-    /// <summary>Uses this instance's effective compact string (cached default or ctor override).</summary>
-    public string BuildPostgresConnectionString() =>
-        BuildPostgresConnectionString(EffectiveCompact ?? "", PsqlDriver);
 
     /// <summary>Static helper for pure composition (e.g. tests) without an instance.</summary>
     public static string BuildPostgresConnectionString(string compactConnectionString, PSQLDrivers driver)
@@ -177,12 +130,8 @@ public sealed class PosDataAccess
         };
     }
 
-    /// <summary>Uses cached default compact connection from App.config.</summary>
-    public DataRow? GetDataRow(string sql, int commandTimeoutSeconds) =>
-        GetDataRow(EffectiveCompact, sql, commandTimeoutSeconds);
-
-    /// <summary>First row or null when no rows / branch check fails.</summary>
-    public DataRow? GetDataRow(string? compactConnectionString, string sql, int commandTimeoutSeconds)
+    /// <summary>First row or null when no rows / branch check fails. Caller supplies the compact string.</summary>
+    public DataRow? GetDataRow(string compactConnectionString, string sql, int commandTimeoutSeconds)
     {
         var dt = QueryToDataTable(compactConnectionString, sql, commandTimeoutSeconds, out var error);
         if (error != null)
@@ -190,12 +139,8 @@ public sealed class PosDataAccess
         return dt.Rows.Count == 0 ? null : dt.Rows[0];
     }
 
-    /// <summary>Uses cached default compact connection from App.config.</summary>
-    public DataTable GetDataTable(string sql, int commandTimeoutSeconds) =>
-        GetDataTable(EffectiveCompact, sql, commandTimeoutSeconds);
-
-    /// <summary>All rows (may be empty). Returns empty <see cref="DataTable"/> if branch check fails.</summary>
-    public DataTable GetDataTable(string? compactConnectionString, string sql, int commandTimeoutSeconds)
+    /// <summary>All rows (may be empty). Returns empty <see cref="DataTable"/> when the branch check fails.</summary>
+    public DataTable GetDataTable(string compactConnectionString, string sql, int commandTimeoutSeconds)
     {
         var dt = QueryToDataTable(compactConnectionString, sql, commandTimeoutSeconds, out var error);
         if (error != null)
@@ -203,7 +148,7 @@ public sealed class PosDataAccess
         return dt;
     }
 
-    private DataTable QueryToDataTable(string? compactConnectionString, string sql, int commandTimeoutSeconds,
+    private DataTable QueryToDataTable(string compactConnectionString, string sql, int commandTimeoutSeconds,
         out Exception? error)
     {
         error = null;
@@ -214,7 +159,7 @@ public sealed class PosDataAccess
 
         try
         {
-            var fullConnection = BuildPostgresConnectionString(compactConnectionString!, PsqlDriver);
+            var fullConnection = BuildPostgresConnectionString(compactConnectionString, PsqlDriver);
             if (string.IsNullOrEmpty(fullConnection))
                 return dt;
 
@@ -237,25 +182,17 @@ public sealed class PosDataAccess
         da.Fill(dt);
     }
 
-    /// <summary>Uses cached default compact connection from App.config.</summary>
-    public void SetSql(bool showError, string sql, bool transactional) =>
-        SetSql(showError, sql, transactional, EffectiveCompact);
-
     /// <summary>
     /// Non-query execution that <b>rethrows</b> instead of swallowing ODBC exceptions. Intended
     /// for callers (like audit writes) that need to know when the INSERT failed so they can log
     /// the real root cause instead of silently dropping the row. Transactional: commits on
-    /// success, rolls back and throws on failure.
+    /// success, rolls back and throws on failure. Caller supplies the compact string.
     /// </summary>
-    public void SetSqlStrict(string sql, bool transactional) =>
-        SetSqlStrict(sql, transactional, EffectiveCompact);
-
-    /// <inheritdoc cref="SetSqlStrict(string, bool)"/>
-    public void SetSqlStrict(string sql, bool transactional, string? compactConnectionString)
+    public void SetSqlStrict(string compactConnectionString, string sql, bool transactional)
     {
-        var fullConnection = BuildPostgresConnectionString(compactConnectionString ?? "", PsqlDriver);
+        var fullConnection = BuildPostgresConnectionString(compactConnectionString, PsqlDriver);
         if (string.IsNullOrEmpty(fullConnection))
-            throw new InvalidOperationException("SetSqlStrict: connection string is not configured (cnLocal missing).");
+            throw new InvalidOperationException("SetSqlStrict: connection string is not configured (compact string is empty or malformed).");
 
         using var conn = new OdbcConnection(fullConnection);
         conn.Open();
@@ -282,10 +219,10 @@ public sealed class PosDataAccess
         }
     }
 
-    /// <summary>Non-query execution; optionally wraps in a transaction (commit on success, rollback on failure).</summary>
-    public void SetSql(bool showError, string sql, bool transactional, string? compactConnectionString)
+    /// <summary>Non-query execution; optionally wraps in a transaction (commit on success, rollback on failure). Caller supplies the compact string.</summary>
+    public void SetSql(string compactConnectionString, bool showError, string sql, bool transactional)
     {
-        var fullConnection = BuildPostgresConnectionString(compactConnectionString ?? "", PsqlDriver);
+        var fullConnection = BuildPostgresConnectionString(compactConnectionString, PsqlDriver);
         if (string.IsNullOrEmpty(fullConnection))
         {
             Debug.WriteLine("[PosDataAccess] SetSql: empty connection string.");

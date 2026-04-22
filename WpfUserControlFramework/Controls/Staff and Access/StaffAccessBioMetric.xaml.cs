@@ -79,7 +79,7 @@ public partial class StaffAccessBioMetric : UserControl
         _user.BiometricEnrolled = true;
         try
         {
-            App.aps.Execute(App.aps.sql.SetBiometricEnrolled(_user.Id, true, App.aps.CurrentUserId));
+            App.aps.Execute(App.aps.LocalConnectionstring(App.aps.propertyBranchCode), App.aps.sql.SetBiometricEnrolled(_user.Id, true, App.aps.signedOnUserId));
             StaffAccessAuditRepository.AppendBiometricEnrollmentCompleted(_user.Id);
         }
         catch (Exception ex)

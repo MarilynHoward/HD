@@ -12,36 +12,44 @@ Any new feature that needs to read from or write to the client's PostgreSQL data
 All data access goes through `App.aps` only:
 
 ```csharp
+var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+
 var dt = App.aps.pda.GetDataTable(
+    cn,
     App.aps.sql.SelectAllUsers(includeInactive: false),
     commandTimeoutSeconds: 60);
 
-App.aps.Execute(App.aps.sql.UpdateUserPassword(userId, hash, App.aps.CurrentUserId));
+var encrypted = App.aps.crypt.DoEncrypt(newPlainPassword);
+App.aps.Execute(cn, App.aps.sql.UpdateUserPassword(userId, encrypted, App.aps.signedOnUserId));
 ```
 
 `App.aps` is the single `AppStatus` instance constructed in `App.OnStartup`. It owns:
 
-- `App.aps.pda` — the `PosDataAccess` ODBC executor (already provided by the client).
+- `App.aps.pda` — the `PosDataAccess` ODBC executor (already provided by the client). It is **stateless with respect to the connection string**: every CRUD call takes the compact string explicitly.
 - `App.aps.sql` — the `Sql` query catalogue (every SQL string in the solution lives as a method here).
-- `App.aps.CurrentUserId` — the integer `users.user_id` that is stamped into `auth_user_id` on writes.
+- `App.aps.crypt` — the `Crypt` instance used to encrypt/decrypt `users.password`. There is no `PasswordHasher`; by client decree all password save/display/seed/reseed paths use `crypt.DoEncrypt` / `crypt.DoDecrypt`.
+- `App.aps.signedOnUserId` — the integer `users.user_id` that is stamped into `auth_user_id` on writes.
+- `App.aps.LocalConnectionstring(App.aps.propertyBranchCode)` — the **only** source for the branch-qualified compact connection string. Call it once at the top of the method and thread the result through every `pda.*`, `Execute`, `ExecuteStrict`, and `Query` call in that scope. There is no hidden default anywhere in `PosDataAccess` or `AppStatus`. **External callers (anywhere outside `AppStatus.cs`) MUST always pass `App.aps.propertyBranchCode` explicitly** — the client's wider codebase has other `LocalConnectionstring` overloads, and the parameterless form here creates cross-assembly ambiguity.
 
 ## Forbidden
 
 - Do NOT instantiate `PosDataAccess` yourself in UserControls, view-models, or `OpsServices*Store` classes.
 - Do NOT build SQL strings inline anywhere outside `Sql.cs`. No `"SELECT ... FROM ..."` literals in `.xaml.cs` files, domain services, or stores. If the query does not exist yet, add a method to `Sql.cs` first and call it.
 - Do NOT introduce new `Guid` keys for users/staff. User identity is the integer `public.users.user_id`. Operations types key staff by `int` (`OpsEmployee.Id`, `OpsScheduledShift.EmployeeId`, `OpsFloorTable.AssignedWaiterId`, `OpsFloorTable.OpsServerId`).
-- Do NOT write plain-text passwords to `users.password`. Use `PasswordHasher.Hash(...)` before persisting.
+- Do NOT write plain-text passwords to `users.password`. Encrypt them with `App.aps.crypt.DoEncrypt(plain)` before persisting, and decrypt for display with `App.aps.crypt.DoDecrypt(stored)`. `PasswordHasher` has been removed — do not reintroduce it or any other hashing scheme for the user password column.
+- Do NOT call `PosDataAccess` or `AppStatus.Execute` / `ExecuteStrict` / `Query` without passing the compact connection string obtained from `App.aps.LocalConnectionstring(App.aps.propertyBranchCode)`. There are no parameterless overloads on the data-access methods; the first argument of every data-access method is the compact string by contract.
+- Do NOT call `App.aps.LocalConnectionstring()` without an argument from outside `AppStatus.cs`. Always pass `App.aps.propertyBranchCode` so the call is unambiguous against other `LocalConnectionstring` overloads in the client's wider codebase. Only code inside `AppStatus` itself is allowed to use the parameterless form.
 - Do NOT run DDL (`ALTER TABLE`, `CREATE TABLE`, …) from the app at startup or anywhere else. The app only runs DML.
 
 ## Required conventions
 
 - Writes that are part of a single logical operation MUST use `PosDataAccess.SetSql(..., transactional: true)`. The `AppStatus.Execute(sql)` helper already sets this by default — prefer it over calling `pda.SetSql` directly.
-- Writes stamp `auth_user_id = App.aps.CurrentUserId` and `affected_ts = now()`. `Sql` methods already do this; do not bypass them by writing your own UPDATE statements.
+- Writes stamp `auth_user_id = App.aps.signedOnUserId` and `affected_ts = now()`. `Sql` methods already do this; do not bypass them by writing your own UPDATE statements.
 - Reads go through the cached stores where they exist (`StaffAccessStore`, `OpsServicesStore`). New stores should follow the same shape: lazy load via `App.aps.pda`, raise `DataChanged` after mutations, expose `ReloadFromDb()`.
 - Demo / fixture rows are inserted with `is_seed = TRUE` and deleted by `AppStatus.ReseedDummyDataIfEnabled()` when `SeedDummyDataOnStartup = true` in `App.config`. Live rows (`is_seed = FALSE`) are never touched by reseed. New seed data must use the same toggle.
-- Passwords and any other sensitive text MUST be hashed / redacted before being passed to `Sql` methods. Never log them.
+- Passwords and any other sensitive text MUST be encrypted (`App.aps.crypt.DoEncrypt`) or redacted before being passed to `Sql` methods. Never log them in plain text.
 - Any literal that comes from user input has to be composed through `Sql.Quote`, `Sql.Int`, `Sql.Bool`, `Sql.Ts`, `Sql.Nullable` — never by string concatenation with `$"..."` interpolation.
-- **Soft delete is the default.** User and role deletions MUST go through `Sql.SoftDeleteUser` / `Sql.SoftDeleteRole`, which set `deleted = TRUE`, `deleted_ts = now()`, `deleted_user_id = App.aps.CurrentUserId`, `active = FALSE`. Reads filter `COALESCE(deleted, FALSE) = FALSE`. `user_id` values of soft-deleted users are NEVER reused — Operations history stays referentially valid. Hard `DELETE FROM public.users/roles` is reserved for `is_seed = TRUE` dev data only (see `DeleteAllSeedRows`).
+- **Soft delete is the default.** User and role deletions MUST go through `Sql.SoftDeleteUser` / `Sql.SoftDeleteRole`, which set `deleted = TRUE`, `deleted_ts = now()`, `deleted_user_id = App.aps.signedOnUserId`, `active = FALSE`. Reads filter `COALESCE(deleted, FALSE) = FALSE`. `user_id` values of soft-deleted users are NEVER reused — Operations history stays referentially valid. Hard `DELETE FROM public.users/roles` is reserved for `is_seed = TRUE` dev data only (see `DeleteAllSeedRows`).
 - Boolean column reads MUST accept the PostgreSQL ODBC driver's string form (`"0"`, `"1"`, `"t"`, `"f"`, `"true"`, `"false"`) as well as real `System.Boolean`. Use the `StaffAccessStore.AsBool` helper pattern — do NOT call `Convert.ToBoolean(obj)` directly on driver output.
 - **Audit writes identify the terminal by its real IPv4.** Use `App.aps.LocalIpAddress` (not a hard-coded sample, not `Dns.GetHostName`, not the MAC address) as `ipAddress:` on every `Sql.InsertAuditTrail` call. The helper returns the primary operational Ethernet/Wi-Fi adapter's IPv4 and is cached for 60 s. When no usable NIC is found it returns an empty string — pass `null` in that case so the column is `NULL`, not `""`. The `ip_address` column in `public.audit_trail` **is** the terminal identifier; do not introduce a separate `device_id` or similar column.
 
@@ -63,4 +71,4 @@ Every new feature ships, in the same change:
 3. A dated `.sql` migration file if the schema has to change.
 4. No raw ODBC, no raw SQL outside `Sql`, no new `Guid` keys for users.
 
-The Staff and Access implementation (`WpfUserControlFramework/Controls/Staff and Access`) plus `WpfUserControlFramework/Utils/AppStatus.cs`, `Sql.cs`, and `PasswordHasher.cs` are the reference implementation for this rule.
+The Staff and Access implementation (`WpfUserControlFramework/Controls/Staff and Access`) plus `WpfUserControlFramework/Utils/AppStatus.cs`, `Sql.cs`, `PosDataAccess.cs`, and `Crypt.cs` are the reference implementation for this rule.

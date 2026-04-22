@@ -18,6 +18,7 @@ namespace RestaurantPosWpf;
 
 public enum StaffAccessRole
 {
+    Developer,
     Admin,
     Manager,
     Supervisor,
@@ -118,6 +119,7 @@ public sealed class StaffAccessListItemVm
 
     public Brush RoleBadgeBackground => User.AccessRole switch
     {
+        StaffAccessRole.Developer => Freeze(new SolidColorBrush(Color.FromRgb(204, 251, 241))),
         StaffAccessRole.Admin => Freeze(new SolidColorBrush(Color.FromRgb(252, 231, 243))),
         StaffAccessRole.Manager => Freeze(new SolidColorBrush(Color.FromRgb(219, 234, 254))),
         StaffAccessRole.Supervisor => Freeze(new SolidColorBrush(Color.FromRgb(255, 237, 213))),
@@ -127,6 +129,7 @@ public sealed class StaffAccessListItemVm
 
     public Brush RoleBadgeForeground => User.AccessRole switch
     {
+        StaffAccessRole.Developer => Freeze(new SolidColorBrush(Color.FromRgb(15, 118, 110))),
         StaffAccessRole.Admin => Freeze(new SolidColorBrush(Color.FromRgb(157, 23, 77))),
         StaffAccessRole.Manager => Freeze(new SolidColorBrush(Color.FromRgb(30, 64, 175))),
         StaffAccessRole.Supervisor => Freeze(new SolidColorBrush(Color.FromRgb(194, 65, 12))),
@@ -136,6 +139,7 @@ public sealed class StaffAccessListItemVm
 
     public Brush RoleBadgeBorderBrush => User.AccessRole switch
     {
+        StaffAccessRole.Developer => Freeze(new SolidColorBrush(Color.FromRgb(94, 234, 212))),
         StaffAccessRole.Admin => Freeze(new SolidColorBrush(Color.FromRgb(251, 207, 232))),
         StaffAccessRole.Manager => Freeze(new SolidColorBrush(Color.FromRgb(147, 197, 253))),
         StaffAccessRole.Supervisor => Freeze(new SolidColorBrush(Color.FromRgb(253, 186, 116))),
@@ -200,15 +204,16 @@ public static class StaffAccessStore
         var logPath = AppStatus.StartupLogPath;
         try
         {
-            if (!App.aps.pda.CheckCurrentConnection())
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            if (!PosDataAccess.CheckBranchConnection(cn))
             {
-                AppendLog(logPath, "StaffAccessStore.LoadFromDb: CheckCurrentConnection=false");
+                AppendLog(logPath, "StaffAccessStore.LoadFromDb: CheckBranchConnection=false");
                 return list;
             }
 
             var sql = App.aps.sql.SelectAllUsers(includeInactive: true);
             AppendLog(logPath, "StaffAccessStore.LoadFromDb: querying (SQL length=" + sql.Length + ")");
-            var dt = App.aps.pda.GetDataTable(sql, 60);
+            var dt = App.aps.pda.GetDataTable(cn, sql, 60);
             AppendLog(logPath, "StaffAccessStore.LoadFromDb: rows returned=" + dt.Rows.Count);
             var mapped = 0;
             var mapErrors = 0;
@@ -334,6 +339,7 @@ public static class StaffAccessStore
 
     internal static StaffAccessRole RoleIdToEnum(int roleId) => roleId switch
     {
+        AppStatus.RoleIdDeveloper => StaffAccessRole.Developer,
         AppStatus.RoleIdAdmin => StaffAccessRole.Admin,
         AppStatus.RoleIdManager => StaffAccessRole.Manager,
         AppStatus.RoleIdSupervisor => StaffAccessRole.Supervisor,
@@ -343,6 +349,7 @@ public static class StaffAccessStore
 
     internal static int EnumToRoleId(StaffAccessRole role) => role switch
     {
+        StaffAccessRole.Developer => AppStatus.RoleIdDeveloper,
         StaffAccessRole.Admin => AppStatus.RoleIdAdmin,
         StaffAccessRole.Manager => AppStatus.RoleIdManager,
         StaffAccessRole.Supervisor => AppStatus.RoleIdSupervisor,
@@ -431,8 +438,8 @@ public static class StaffAccessStore
 
         try
         {
-            var pw = PasswordHasher.Hash("");
-            App.aps.Execute(App.aps.sql.InsertUser(ToWrite(u), App.aps.CurrentUserId, pw));
+            var pw = App.aps.crypt.DoEncrypt("");
+            App.aps.Execute(App.aps.LocalConnectionstring(App.aps.propertyBranchCode), App.aps.sql.InsertUser(ToWrite(u), App.aps.signedOnUserId, pw));
         }
         catch (Exception ex)
         {
@@ -448,7 +455,7 @@ public static class StaffAccessStore
     {
         try
         {
-            var dt = App.aps.pda.GetDataTable(App.aps.sql.SelectNextUserId(), 30);
+            var dt = App.aps.pda.GetDataTable(App.aps.LocalConnectionstring(App.aps.propertyBranchCode), App.aps.sql.SelectNextUserId(), 30);
             if (dt.Rows.Count > 0 && dt.Rows[0]["next_id"] != DBNull.Value)
                 return Convert.ToInt32(dt.Rows[0]["next_id"], CultureInfo.InvariantCulture);
         }
@@ -463,7 +470,7 @@ public static class StaffAccessStore
 
     /// <summary>
     /// Soft-delete a user. The row is retained with <c>deleted = TRUE</c>, <c>deleted_ts = now()</c>,
-    /// <c>deleted_user_id = </c><see cref="AppStatus.CurrentUserId"/> so Operations history (past
+    /// <c>deleted_user_id = </c><see cref="AppStatus.signedOnUserId"/> so Operations history (past
     /// shifts, prior table assignments) remains referentially valid. Still blocked while the user
     /// is currently allocated to a schedule / table (hard operational conflict).
     /// </summary>
@@ -487,7 +494,7 @@ public static class StaffAccessStore
 
         try
         {
-            App.aps.Execute(App.aps.sql.SoftDeleteUser(id, App.aps.CurrentUserId));
+            App.aps.Execute(App.aps.LocalConnectionstring(App.aps.propertyBranchCode), App.aps.sql.SoftDeleteUser(id, App.aps.signedOnUserId));
         }
         catch (Exception ex)
         {
@@ -506,7 +513,7 @@ public static class StaffAccessStore
         error = null;
         try
         {
-            App.aps.Execute(App.aps.sql.UpdateUser(ToWrite(user), App.aps.CurrentUserId));
+            App.aps.Execute(App.aps.LocalConnectionstring(App.aps.propertyBranchCode), App.aps.sql.UpdateUser(ToWrite(user), App.aps.signedOnUserId));
             return true;
         }
         catch (Exception ex)
@@ -1596,14 +1603,14 @@ public partial class StaffAccessUserDetails
     {
         try
         {
-            App.aps.Execute(App.aps.sql.UpdateUserDocumentPaths(
+            App.aps.Execute(App.aps.LocalConnectionstring(App.aps.propertyBranchCode), App.aps.sql.UpdateUserDocumentPaths(
                 u.Id,
                 u.ProfileImageRepositoryRelativePath,
                 u.IdDocumentFileName,
                 u.IdDocumentFileName,
                 u.ProfileImageRemoteSyncStatus.ToString(),
                 u.IdDocumentRemoteSyncStatus.ToString(),
-                App.aps.CurrentUserId));
+                App.aps.signedOnUserId));
         }
         catch (Exception ex)
         {
@@ -1965,6 +1972,7 @@ public partial class StaffAccessUserDetails
 
     private static readonly (StaffAccessRole Role, string ColorHex)[] PerfRoleOrder =
     {
+        (StaffAccessRole.Developer, "#14B8A6"),
         (StaffAccessRole.Admin, "#9333EA"),
         (StaffAccessRole.Manager, "#3B82F6"),
         (StaffAccessRole.Supervisor, "#F97316"),
@@ -2607,14 +2615,15 @@ public static class StaffAccessAuditRepository
         try
         {
             AuditLog("Append: enter subject=" + entry.SubjectUserId +
-                     ", actor=" + App.aps.CurrentUserId +
+                     ", actor=" + App.aps.signedOnUserId +
                      ", title=" + (entry.Title ?? "") +
                      ", denied=" + entry.IsDeniedOutcome);
 
-            if (!App.aps.pda.CheckCurrentConnection())
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            if (!PosDataAccess.CheckBranchConnection(cn))
             {
                 AuditLog("Append: SKIPPED subject=" + entry.SubjectUserId +
-                         " — CheckCurrentConnection() returned false (cnLocal missing or malformed).");
+                         " — CheckBranchConnection() returned false (branch connection missing or malformed).");
                 return;
             }
 
@@ -2627,14 +2636,14 @@ public static class StaffAccessAuditRepository
 
             string? invalidPwHash = null;
             if (!string.IsNullOrEmpty(invalidPasswordPlain))
-                invalidPwHash = PasswordHasher.Hash(invalidPasswordPlain);
+                invalidPwHash = App.aps.crypt.DoEncrypt(invalidPasswordPlain);
 
             var ipAddress = App.aps.LocalIpAddress;
 
-            App.aps.ExecuteStrict(App.aps.sql.InsertAuditTrail(
+            App.aps.ExecuteStrict(cn, App.aps.sql.InsertAuditTrail(
                 phase: phase,
                 eventPayload: eventPayload,
-                authUserId: App.aps.CurrentUserId,
+                authUserId: App.aps.signedOnUserId,
                 controlIdDescr: AuditSubjectKindUser,
                 controlId: entry.SubjectUserId,
                 invalidPasswordHashed: invalidPwHash,
@@ -2675,8 +2684,9 @@ public static class StaffAccessAuditRepository
 
         try
         {
-            App.aps.ExecuteStrict(App.aps.sql.EnsurePhaseIdUpsert(phase));
-            var dt = App.aps.pda.GetDataTable(App.aps.sql.SelectPhaseIdByDescr(phase), 15);
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            App.aps.ExecuteStrict(cn, App.aps.sql.EnsurePhaseIdUpsert(phase));
+            var dt = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectPhaseIdByDescr(phase), 15);
             if (dt.Rows.Count > 0)
             {
                 var raw = dt.Rows[0]["phase_id"];
@@ -2848,10 +2858,11 @@ public static class StaffAccessAuditRepository
     {
         try
         {
-            if (!App.aps.pda.CheckCurrentConnection())
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            if (!PosDataAccess.CheckBranchConnection(cn))
                 return Array.Empty<StaffAccessAuditEntry>();
 
-            var dt = App.aps.pda.GetDataTable(
+            var dt = App.aps.pda.GetDataTable(cn,
                 App.aps.sql.SelectAuditTrailForUser(subjectUserId, maxRows: 500), 30);
 
             var list = new List<StaffAccessAuditEntry>(dt.Rows.Count);

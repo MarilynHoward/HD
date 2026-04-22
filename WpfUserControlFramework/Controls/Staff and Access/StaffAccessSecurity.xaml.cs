@@ -53,8 +53,8 @@ public partial class StaffAccessSecurity : UserControl
         {
             try
             {
-                var hash = PasswordHasher.Hash(newPwd);
-                App.aps.Execute(App.aps.sql.UpdateUserPassword(user.Id, hash, App.aps.CurrentUserId));
+                var encrypted = App.aps.crypt.DoEncrypt(newPwd);
+                App.aps.Execute(App.aps.LocalConnectionstring(App.aps.propertyBranchCode), App.aps.sql.UpdateUserPassword(user.Id, encrypted, App.aps.signedOnUserId));
                 user.LastPasswordChangedUtc = ReadPasswordChangedUtc(user.Id) ?? DateTime.UtcNow;
             }
             catch (Exception ex)
@@ -77,7 +77,7 @@ public partial class StaffAccessSecurity : UserControl
     {
         try
         {
-            var dt = App.aps.pda.GetDataTable(App.aps.sql.SelectUserById(userId), 15);
+            var dt = App.aps.pda.GetDataTable(App.aps.LocalConnectionstring(App.aps.propertyBranchCode), App.aps.sql.SelectUserById(userId), 15);
             if (dt.Rows.Count == 0)
                 return null;
             var v = dt.Rows[0]["password_changed_ts"];
