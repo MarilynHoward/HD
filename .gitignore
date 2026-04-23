@@ -3,3 +3,11 @@ obj/
 .vs/
 *.user
 *.suo
+
+# Scratch / backup copies of control sources (working snapshots, not part of build)
+New_BH/
+New_BH.zip
+
+# Local and remote staff document repositories (contain real user PDFs/images, not code)
+Documents/
+Remote_Documents/

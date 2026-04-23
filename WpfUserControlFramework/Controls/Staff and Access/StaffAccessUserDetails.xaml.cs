@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -26,7 +27,14 @@ public enum StaffAccessRole
     System
 }
 
-/// <summary>Simulated remote-host sync for files written under <see cref="StaffAccessUserDetails.StaffDocumentsRepositoryRoot"/>.</summary>
+/// <summary>
+/// Remote-host sync status for staff files that are mirrored from
+/// <see cref="StaffAccessUserDetails.StaffDocumentsRepositoryRoot"/> to the destination configured
+/// by <c>StaffDocumentsRemoteRoot</c> in App.config (a local/UNC folder or an <c>sftp://</c> URI).
+/// <see cref="StaffDocumentsRemoteSync"/> performs the actual push; the UI flips the status to
+/// <see cref="PendingSync"/> before kicking sync off and to <see cref="Synced"/> once the remote
+/// copy completes.
+/// </summary>
 public enum StaffFileRemoteSyncStatus
 {
     PendingSync,
@@ -56,9 +64,9 @@ public sealed class StaffUser
     public string? IdDocumentFileName { get; set; }
     /// <summary>Relative path under <see cref="StaffAccessUserDetails.StaffDocumentsRepositoryRoot"/> for the profile image file, when mirrored on disk.</summary>
     public string? ProfileImageRepositoryRelativePath { get; set; }
-    /// <summary>Simulated cloud sync for the ID PDF on disk (<c>docs\user_docs\{NumericId}_id.pdf</c>).</summary>
+    /// <summary>Remote-host sync status for the ID PDF on disk (<c>docs\user_docs\{NumericId}_id.pdf</c>). Driven by <see cref="StaffDocumentsRemoteSync"/>.</summary>
     public StaffFileRemoteSyncStatus IdDocumentRemoteSyncStatus { get; set; } = StaffFileRemoteSyncStatus.Synced;
-    /// <summary>Simulated cloud sync for the profile image on disk (<c>images\user_images\{NumericId}_profile.*</c>).</summary>
+    /// <summary>Remote-host sync status for the profile image on disk (<c>images\user_images\{NumericId}_profile.*</c>). Driven by <see cref="StaffDocumentsRemoteSync"/>.</summary>
     public StaffFileRemoteSyncStatus ProfileImageRemoteSyncStatus { get; set; } = StaffFileRemoteSyncStatus.Synced;
     public bool BiometricEnrolled { get; set; }
     /// <summary>UTC instant of the last successful password change (demo + session saves).</summary>
@@ -606,9 +614,6 @@ public partial class StaffAccessUserDetails
         return @"D:\Dev\Cursor\HD\Documents";
     }
 
-    private DispatcherTimer? _idDocRemoteSyncTimer;
-    private DispatcherTimer? _profileRemoteSyncTimer;
-
     public StaffAccessUserDetails()
     {
         InitializeComponent();
@@ -620,7 +625,6 @@ public partial class StaffAccessUserDetails
         DetachUsersListScrollPaddingHook();
         _staffSaveToastTimer?.Stop();
         _staffSaveToastTimer = null;
-        StopStaffFileRemoteSyncTimers();
         if (_staffStoreMetricsHooked)
         {
             StaffAccessStore.DataChanged -= StaffAccessStore_OnMetricsDataChanged;
@@ -831,7 +835,6 @@ public partial class StaffAccessUserDetails
 
     private void LoadUserIntoForm(StaffUser u)
     {
-        StopStaffFileRemoteSyncTimers();
         _suppressDirty = true;
         try
         {
@@ -866,7 +869,6 @@ public partial class StaffAccessUserDetails
 
     private void ClearForm()
     {
-        StopStaffFileRemoteSyncTimers();
         _suppressDirty = true;
         try
         {
@@ -1596,8 +1598,10 @@ public partial class StaffAccessUserDetails
     }
 
     /// <summary>
-    /// Persist the current document / profile paths and their simulated remote-sync statuses for the selected user.
-    /// Called after each attach, after disk copy succeeds, and again when the simulated cloud sync flips to Synced.
+    /// Persist the current document / profile paths and their remote-sync statuses for the user.
+    /// Called after each attach, after the local disk copy succeeds, when the sync flips to
+    /// <see cref="StaffFileRemoteSyncStatus.PendingSync"/>, and again when the real remote push
+    /// via <see cref="StaffDocumentsRemoteSync"/> flips it to <see cref="StaffFileRemoteSyncStatus.Synced"/>.
     /// </summary>
     private static void PersistStaffDocumentPaths(StaffUser u)
     {
@@ -1645,87 +1649,136 @@ public partial class StaffAccessUserDetails
         }
     }
 
-    private void StopIdDocRemoteSyncTimer()
-    {
-        if (_idDocRemoteSyncTimer == null)
-            return;
-        _idDocRemoteSyncTimer.Stop();
-        _idDocRemoteSyncTimer.Tick -= IdDocRemoteSyncTimer_OnTick;
-        _idDocRemoteSyncTimer = null;
-    }
-
-    private void StopProfileRemoteSyncTimer()
-    {
-        if (_profileRemoteSyncTimer == null)
-            return;
-        _profileRemoteSyncTimer.Stop();
-        _profileRemoteSyncTimer.Tick -= ProfileRemoteSyncTimer_OnTick;
-        _profileRemoteSyncTimer = null;
-    }
-
-    private void StopStaffFileRemoteSyncTimers()
-    {
-        StopIdDocRemoteSyncTimer();
-        StopProfileRemoteSyncTimer();
-    }
-
-    private void ArmIdDocumentRemoteSyncSimulation()
+    /// <summary>
+    /// Kick off an asynchronous push of the ID PDF to the remote destination configured in
+    /// <c>StaffDocumentsRemoteRoot</c>. The UI flips to <see cref="StaffFileRemoteSyncStatus.PendingSync"/>
+    /// immediately, the file is copied on a worker thread, and the status flips to
+    /// <see cref="StaffFileRemoteSyncStatus.Synced"/> only after the push succeeds. If no remote is
+    /// configured, the status skips PendingSync entirely (there is nothing to wait for).
+    /// </summary>
+    private void KickOffIdDocumentRemoteSync()
     {
         if (_selected == null)
             return;
-        _selected.IdDocumentRemoteSyncStatus = StaffFileRemoteSyncStatus.PendingSync;
-        DocsPanel.LoadFromUser(_selected);
-        StopIdDocRemoteSyncTimer();
-        _idDocRemoteSyncTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.3) };
-        _idDocRemoteSyncTimer.Tick += IdDocRemoteSyncTimer_OnTick;
-        _idDocRemoteSyncTimer.Start();
-    }
 
-    private void IdDocRemoteSyncTimer_OnTick(object? sender, EventArgs e)
-    {
-        if (_idDocRemoteSyncTimer != null)
+        var user = _selected;
+        var relative = user.IdDocumentFileName;
+        var localFull = GetCanonicalIdPdfFullPath(user.NumericId);
+
+        if (!StaffDocumentsRemoteSync.IsConfigured || string.IsNullOrWhiteSpace(relative) || !File.Exists(localFull))
         {
-            _idDocRemoteSyncTimer.Stop();
-            _idDocRemoteSyncTimer.Tick -= IdDocRemoteSyncTimer_OnTick;
-            _idDocRemoteSyncTimer = null;
+            user.IdDocumentRemoteSyncStatus = StaffFileRemoteSyncStatus.Synced;
+            PersistStaffDocumentPaths(user);
+            if (ReferenceEquals(_selected, user))
+                DocsPanel.LoadFromUser(user);
+            return;
         }
 
-        if (_selected == null)
-            return;
-        _selected.IdDocumentRemoteSyncStatus = StaffFileRemoteSyncStatus.Synced;
-        PersistStaffDocumentPaths(_selected);
-        StaffAccessAuditRepository.AppendIdDocumentSyncSucceeded(_selected.Id, _selected.IdDocumentFileName);
-        DocsPanel.LoadFromUser(_selected);
+        user.IdDocumentRemoteSyncStatus = StaffFileRemoteSyncStatus.PendingSync;
+        PersistStaffDocumentPaths(user);
+        DocsPanel.LoadFromUser(user);
+
+        _ = RunRemoteSyncAsync(
+            user,
+            localFull,
+            relative!,
+            onSuccess: u =>
+            {
+                u.IdDocumentRemoteSyncStatus = StaffFileRemoteSyncStatus.Synced;
+                PersistStaffDocumentPaths(u);
+                StaffAccessAuditRepository.AppendIdDocumentSyncSucceeded(u.Id, u.IdDocumentFileName);
+            },
+            failureLabel: "ID document");
     }
 
-    private void ArmProfileImageRemoteSyncSimulation()
+    /// <summary>
+    /// Kick off an asynchronous push of the profile image to the remote destination configured in
+    /// <c>StaffDocumentsRemoteRoot</c>. Same lifecycle as <see cref="KickOffIdDocumentRemoteSync"/>.
+    /// </summary>
+    private void KickOffProfileImageRemoteSync()
     {
         if (_selected == null)
             return;
-        _selected.ProfileImageRemoteSyncStatus = StaffFileRemoteSyncStatus.PendingSync;
-        DocsPanel.LoadFromUser(_selected);
-        StopProfileRemoteSyncTimer();
-        _profileRemoteSyncTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.3) };
-        _profileRemoteSyncTimer.Tick += ProfileRemoteSyncTimer_OnTick;
-        _profileRemoteSyncTimer.Start();
-    }
 
-    private void ProfileRemoteSyncTimer_OnTick(object? sender, EventArgs e)
-    {
-        if (_profileRemoteSyncTimer != null)
+        var user = _selected;
+        var relative = user.ProfileImageRepositoryRelativePath;
+        var localFull = relative == null
+            ? null
+            : Path.Combine(StaffDocumentsRepositoryRoot, NormaliseRelativeForLocal(relative));
+
+        if (!StaffDocumentsRemoteSync.IsConfigured || string.IsNullOrWhiteSpace(relative) ||
+            localFull == null || !File.Exists(localFull))
         {
-            _profileRemoteSyncTimer.Stop();
-            _profileRemoteSyncTimer.Tick -= ProfileRemoteSyncTimer_OnTick;
-            _profileRemoteSyncTimer = null;
+            user.ProfileImageRemoteSyncStatus = StaffFileRemoteSyncStatus.Synced;
+            PersistStaffDocumentPaths(user);
+            if (ReferenceEquals(_selected, user))
+                DocsPanel.LoadFromUser(user);
+            return;
         }
 
-        if (_selected == null)
-            return;
-        _selected.ProfileImageRemoteSyncStatus = StaffFileRemoteSyncStatus.Synced;
-        PersistStaffDocumentPaths(_selected);
-        StaffAccessAuditRepository.AppendProfileImageSyncSucceeded(_selected.Id);
-        DocsPanel.LoadFromUser(_selected);
+        user.ProfileImageRemoteSyncStatus = StaffFileRemoteSyncStatus.PendingSync;
+        PersistStaffDocumentPaths(user);
+        DocsPanel.LoadFromUser(user);
+
+        _ = RunRemoteSyncAsync(
+            user,
+            localFull,
+            relative!,
+            onSuccess: u =>
+            {
+                u.ProfileImageRemoteSyncStatus = StaffFileRemoteSyncStatus.Synced;
+                PersistStaffDocumentPaths(u);
+                StaffAccessAuditRepository.AppendProfileImageSyncSucceeded(u.Id);
+            },
+            failureLabel: "profile image");
     }
+
+    /// <summary>
+    /// Run the remote push on a worker thread and marshal the outcome back to the UI. On success,
+    /// applies <paramref name="onSuccess"/> (which handles status / DB / audit) and refreshes the
+    /// panel when <paramref name="user"/> is still the selected user. On failure, keeps the
+    /// PendingSync badge so the operator can see something didn't make it.
+    /// </summary>
+    private async Task RunRemoteSyncAsync(
+        StaffUser user,
+        string localFullPath,
+        string relativePath,
+        Action<StaffUser> onSuccess,
+        string failureLabel)
+    {
+        StaffDocumentsRemoteSync.Result result;
+        try
+        {
+            result = await StaffDocumentsRemoteSync.PushFileAsync(localFullPath, relativePath).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[StaffAccessUserDetails] Remote sync unexpected failure (" + failureLabel + "): " + ex);
+            return;
+        }
+
+        await Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (result.Success)
+            {
+                onSuccess(user);
+            }
+            else
+            {
+                Debug.WriteLine("[StaffAccessUserDetails] Remote sync failed for " + failureLabel +
+                                " (user " + user.Id + "): " + (result.Error ?? "<unknown>"));
+            }
+
+            if (ReferenceEquals(_selected, user))
+                DocsPanel.LoadFromUser(user);
+        }));
+    }
+
+    private static string NormaliseRelativeForLocal(string relativePath) =>
+        relativePath
+            .Replace('/', Path.DirectorySeparatorChar)
+            .Replace('\\', Path.DirectorySeparatorChar)
+            .TrimStart(Path.DirectorySeparatorChar);
 
     private void AttachStaffIdPdf()
     {
@@ -1753,7 +1806,7 @@ public partial class StaffAccessUserDetails
             PersistStaffDocumentPaths(_selected);
             DocsPanel.LoadFromUser(_selected);
             MarkFormDirty();
-            ArmIdDocumentRemoteSyncSimulation();
+            KickOffIdDocumentRemoteSync();
             TryAutoSaveAfterSideEffect();
         }
         catch (Exception ex)
@@ -1816,7 +1869,7 @@ public partial class StaffAccessUserDetails
             RefreshProfileChrome();
             DocsPanel.LoadFromUser(_selected);
             MarkFormDirty();
-            ArmProfileImageRemoteSyncSimulation();
+            KickOffProfileImageRemoteSync();
             TryAutoSaveAfterSideEffect();
         }
         catch
@@ -2790,8 +2843,9 @@ public static class StaffAccessAuditRepository
     }
 
     /// <summary>
-    /// Records that the simulated remote-host sync of the ID document PDF completed successfully.
-    /// Emitted from the per-user sync timer, which runs after a profile save has already been audited.
+    /// Records that the remote-host sync of the ID document PDF completed successfully. Emitted
+    /// by <see cref="StaffAccessUserDetails"/> after <see cref="StaffDocumentsRemoteSync"/> finishes
+    /// pushing the file to the configured destination.
     /// </summary>
     public static void AppendIdDocumentSyncSucceeded(int subjectUserId, string? fileName)
     {
@@ -2813,7 +2867,9 @@ public static class StaffAccessAuditRepository
     }
 
     /// <summary>
-    /// Records that the simulated remote-host sync of the profile image completed successfully.
+    /// Records that the remote-host sync of the profile image completed successfully. Emitted by
+    /// <see cref="StaffAccessUserDetails"/> after <see cref="StaffDocumentsRemoteSync"/> finishes
+    /// pushing the file to the configured destination.
     /// </summary>
     public static void AppendProfileImageSyncSucceeded(int subjectUserId)
     {
