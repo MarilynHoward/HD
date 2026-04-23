@@ -11,6 +11,20 @@ namespace RestaurantPosWpf;
 /// substitution, so this class is also responsible for safe literal composition via <see cref="Quote"/>,
 /// <see cref="Int"/>, <see cref="Bool"/>, <see cref="Ts"/>, <see cref="Nullable(string?)"/>.
 /// </para>
+/// <para>
+/// <b>PostgreSQL 9.3 compatibility</b> — the client runs PostgreSQL 9.3 in production. All SQL emitted
+/// here must work on 9.3, which means:
+/// <list type="bullet">
+/// <item><description>NO <c>ON CONFLICT (...) DO NOTHING/UPDATE</c> (added in 9.5). Emulate with
+///   <c>INSERT INTO t (...) SELECT ... WHERE NOT EXISTS (SELECT 1 FROM t WHERE pk = ...)</c>.</description></item>
+/// <item><description>NO <c>ALTER TABLE ... ADD COLUMN IF NOT EXISTS</c> (9.6+) — runtime code never emits DDL
+///   anyway; migration files emulate it with <c>DO $$...$$</c> blocks against <c>information_schema.columns</c>.</description></item>
+/// <item><description>NO <c>CREATE INDEX IF NOT EXISTS</c> (9.5+) — migration-only concern; use DO blocks against
+///   <c>pg_indexes</c>.</description></item>
+/// <item><description>NO <c>FILTER</c> clause on aggregates (9.4+), no <c>GROUPING SETS/CUBE/ROLLUP</c> (9.5+),
+///   no <c>TABLESAMPLE</c> (9.5+), no <c>JSONB</c> (9.4+). Plain <c>json</c> is fine for 9.3.</description></item>
+/// </list>
+/// </para>
 /// </summary>
 public sealed class Sql
 {
@@ -46,7 +60,12 @@ public sealed class Sql
         "WHERE active = TRUE AND deleted = FALSE " +
         "ORDER BY role_id";
 
-    /// <summary>Guarantee the five fixed roles exist. Idempotent; uses ON CONFLICT DO NOTHING.</summary>
+    /// <summary>
+    /// Guarantee the six fixed roles (Developer, Admin, Manager, Supervisor, User, System) exist.
+    /// Idempotent on PostgreSQL 9.3: each row is inserted via
+    /// <c>INSERT INTO ... SELECT ... WHERE NOT EXISTS (SELECT 1 FROM public.roles WHERE role_id = ...)</c>
+    /// because <c>ON CONFLICT</c> is a 9.5+ feature the client's database does not support.
+    /// </summary>
     public string EnsureFixedRoles()
     {
         var b = new StringBuilder();
@@ -61,26 +80,30 @@ public sealed class Sql
 
     private static void AppendEnsureRole(StringBuilder b, int roleId, string descr)
     {
+        // PostgreSQL 9.3: emulate ON CONFLICT (role_id) DO NOTHING with WHERE NOT EXISTS.
         b.Append("INSERT INTO public.roles (role_id, descr, auth_user_id, active, deleted, affected_ts, is_seed) ")
-         .Append("VALUES (").Append(Int(roleId)).Append(", ").Append(Quote(descr))
+         .Append("SELECT ").Append(Int(roleId)).Append(", ").Append(Quote(descr))
          .Append(", ").Append(Int(AppStatus.SystemBootstrapUserId))
-         .Append(", TRUE, FALSE, now(), FALSE) ")
-         .Append("ON CONFLICT (role_id) DO NOTHING; ");
+         .Append(", TRUE, FALSE, now(), FALSE ")
+         .Append("WHERE NOT EXISTS (SELECT 1 FROM public.roles WHERE role_id = ").Append(Int(roleId)).Append("); ");
     }
 
     /// <summary>
-    /// Guarantee bootstrap <c>user_id = 1</c> ("system") exists so <c>auth_user_id</c> has a valid FK
-    /// target before any real login exists. Self-references via <c>auth_user_id = 1</c>.
+    /// Guarantee bootstrap <c>user_id = SystemBootstrapUserId</c> ("system") exists so <c>auth_user_id</c>
+    /// has a valid FK target before any real login exists. Self-references via <c>auth_user_id</c> pointing
+    /// at its own <c>user_id</c>. PostgreSQL 9.3-safe: uses <c>INSERT ... WHERE NOT EXISTS</c> instead of
+    /// <c>ON CONFLICT</c>.
     /// </summary>
     public string EnsureBootstrapSystemUser()
     {
+        var sysId = Int(AppStatus.SystemBootstrapUserId);
         return "INSERT INTO public.users " +
                "(user_id, user_name, password, role_id, auth_user_id, first_name, surname, active, affected_ts, is_seed) " +
-               "VALUES (" +
-               Int(AppStatus.SystemBootstrapUserId) + ", 'system', '', " +
+               "SELECT " +
+               sysId + ", 'system', '', " +
                Int(AppStatus.RoleIdSystem) + ", " +
-               Int(AppStatus.SystemBootstrapUserId) + ", 'System', 'Account', TRUE, now(), FALSE) " +
-               "ON CONFLICT (user_id) DO NOTHING;";
+               sysId + ", 'System', 'Account', TRUE, now(), FALSE " +
+               "WHERE NOT EXISTS (SELECT 1 FROM public.users WHERE user_id = " + sysId + ");";
     }
 
     // region: Users (read) ---------------------------------------------------------------------------
@@ -354,11 +377,12 @@ public sealed class Sql
         for (var i = 0; i < rows.Length; i++)
         {
             var r = rows[i];
+            // PostgreSQL 9.3: emulate ON CONFLICT (user_id) DO NOTHING with WHERE NOT EXISTS.
             b.Append("INSERT INTO public.users ")
              .Append("(user_id, user_name, password, role_id, auth_user_id, card_number, ")
              .Append(" first_name, surname, active, affected_ts, ")
              .Append(" job_title, accent_color_hex, is_seed) ")
-             .Append("VALUES (")
+             .Append("SELECT ")
              .Append(Int(r.Id)).Append(", ")
              .Append(Quote(r.User)).Append(", ")
              .Append(Quote(pw)).Append(", ")
@@ -368,8 +392,9 @@ public sealed class Sql
              .Append(Quote(r.First)).Append(", ")
              .Append(Quote(r.Last)).Append(", TRUE, now(), ")
              .Append(Quote(r.Job)).Append(", ")
-             .Append(Quote(palette[i % palette.Length])).Append(", TRUE) ")
-             .Append("ON CONFLICT (user_id) DO NOTHING; ");
+             .Append(Quote(palette[i % palette.Length])).Append(", TRUE ")
+             .Append("WHERE NOT EXISTS (SELECT 1 FROM public.users WHERE user_id = ")
+             .Append(Int(r.Id)).Append("); ");
         }
 
         return b.ToString();
@@ -431,14 +456,15 @@ public sealed class Sql
 
     /// <summary>
     /// Insert a new <c>public.database_update_phase</c> row if <paramref name="descr"/> is not yet
-    /// known. Uses <c>COALESCE(MAX(phase_id), 0) + 1</c> and <c>ON CONFLICT (descr) DO NOTHING</c>
-    /// so concurrent calls are safe. Pair with <see cref="SelectPhaseIdByDescr"/> to get the id.
+    /// known. PostgreSQL 9.3-safe: the insert is guarded by <c>WHERE NOT EXISTS</c> on the
+    /// <c>UNIQUE (descr)</c> column (the 9.5+ <c>ON CONFLICT (descr) DO NOTHING</c> form is unavailable
+    /// on the client's 9.3 server). Pair with <see cref="SelectPhaseIdByDescr"/> to get the id.
     /// </summary>
     public string EnsurePhaseIdUpsert(string descr) =>
         "INSERT INTO public.database_update_phase (phase_id, descr) " +
-        "SELECT COALESCE(MAX(phase_id), 0) + 1, " + Quote(descr) + " " +
-        "FROM public.database_update_phase " +
-        "ON CONFLICT (descr) DO NOTHING;";
+        "SELECT COALESCE((SELECT MAX(phase_id) FROM public.database_update_phase), 0) + 1, " +
+        Quote(descr) + " " +
+        "WHERE NOT EXISTS (SELECT 1 FROM public.database_update_phase WHERE descr = " + Quote(descr) + ");";
 
     /// <summary>Look up an existing <c>phase_id</c> by its description. Returns 0 rows if unknown.</summary>
     public string SelectPhaseIdByDescr(string descr) =>

@@ -203,11 +203,12 @@ public sealed class AppStatus
     }
 
     /// <summary>
-    /// Guarantees the bootstrap system user (<c>user_id = 1</c>) and the five fixed roles exist.
-    /// Safe to call on every startup; uses <c>ON CONFLICT DO NOTHING</c> so live rows keep their
-    /// own descriptions/audit ids. The bootstrap user is inserted FIRST because
-    /// <c>public.roles.auth_user_id</c> is a FK to <c>public.users.user_id</c>; the user's own
-    /// <c>auth_user_id = 1</c> is a self-reference, which Postgres accepts on a single INSERT.
+    /// Guarantees the bootstrap system user (<c>user_id = SystemBootstrapUserId</c>) and the six fixed
+    /// roles (Developer, Admin, Manager, Supervisor, User, System) exist. Safe to call on every startup:
+    /// every emitted <c>INSERT</c> is guarded by <c>WHERE NOT EXISTS</c> (PostgreSQL 9.3 has no
+    /// <c>ON CONFLICT</c>) so live rows keep their own descriptions / audit ids. The bootstrap user is
+    /// inserted FIRST because <c>public.roles.auth_user_id</c> is a FK to <c>public.users.user_id</c>;
+    /// the user's own <c>auth_user_id</c> is a self-reference, which Postgres accepts on a single INSERT.
     /// </summary>
     public void EnsureRolesAndBootstrapUser()
     {

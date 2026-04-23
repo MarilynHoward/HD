@@ -53,14 +53,77 @@ App.aps.Execute(cn, App.aps.sql.UpdateUserPassword(userId, encrypted, App.aps.si
 - Boolean column reads MUST accept the PostgreSQL ODBC driver's string form (`"0"`, `"1"`, `"t"`, `"f"`, `"true"`, `"false"`) as well as real `System.Boolean`. Use the `StaffAccessStore.AsBool` helper pattern — do NOT call `Convert.ToBoolean(obj)` directly on driver output.
 - **Audit writes identify the terminal by its real IPv4.** Use `App.aps.LocalIpAddress` (not a hard-coded sample, not `Dns.GetHostName`, not the MAC address) as `ipAddress:` on every `Sql.InsertAuditTrail` call. The helper returns the primary operational Ethernet/Wi-Fi adapter's IPv4 and is cached for 60 s. When no usable NIC is found it returns an empty string — pass `null` in that case so the column is `NULL`, not `""`. The `ip_address` column in `public.audit_trail` **is** the terminal identifier; do not introduce a separate `device_id` or similar column.
 
+## PostgreSQL 9.3 compatibility (hard requirement)
+
+The client's production database is **PostgreSQL 9.3**. Every SQL statement emitted by this app — migration scripts under `WpfUserControlFramework/Migrations/*.sql` AND runtime strings built in `Sql.cs` — MUST run as-is on 9.3. When in doubt, favour the older pattern; never assume 9.4+ features.
+
+**Forbidden syntax (PG 9.3 does NOT have it):**
+
+| Feature | Introduced in | Use instead |
+|---|---|---|
+| `INSERT ... ON CONFLICT (col) DO NOTHING / DO UPDATE` | 9.5 | `INSERT INTO t (...) SELECT <vals> WHERE NOT EXISTS (SELECT 1 FROM t WHERE <key> = <val>)` |
+| `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` | 9.6 | `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='<t>' AND column_name='<c>') THEN ALTER TABLE public.<t> ADD COLUMN <c> <type>; END IF; END$$;` |
+| `CREATE INDEX IF NOT EXISTS` | 9.5 | `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='<ix>') THEN CREATE INDEX <ix> ON ...; END IF; END$$;` |
+| `FILTER (WHERE ...)` on aggregates | 9.4 | `SUM(CASE WHEN <cond> THEN <expr> ELSE 0 END)` equivalents |
+| `GROUPING SETS` / `CUBE` / `ROLLUP` | 9.5 | Multiple `UNION ALL` subqueries |
+| `TABLESAMPLE` | 9.5 | `ORDER BY random() LIMIT n` or modulo-based sampling |
+| `jsonb` type, `jsonb_*` operators (`->`, `->>` exist on `json` since 9.3) | 9.4 | Plain `json` type only |
+| `gen_random_uuid()` (from pgcrypto) | 9.4 | `uuid_generate_v4()` from `uuid-ossp`, or have the app generate the UUID |
+| Correlated `UPDATE ... FROM` / writable CTE shortcuts newer than 9.3 | 9.4+ | Stick to 9.3-documented UPDATE/DELETE syntax |
+
+**Allowed and used heavily** (all available in 9.3 or earlier):
+
+- `CREATE TABLE IF NOT EXISTS`, `CREATE EXTENSION IF NOT EXISTS`, `DROP ... IF EXISTS`
+- `DO $$ ... $$` PL/pgSQL blocks (since 9.0)
+- `WITH` / `WITH RECURSIVE` CTEs (8.4+)
+- Partial indexes (`CREATE INDEX ... WHERE ...`)
+- `RETURNING` in DML (8.2+)
+- `LATERAL` joins (9.3)
+- `json` type with `->`, `->>` operators (9.3)
+- `AT TIME ZONE`, `COALESCE`, `LIMIT`, `OFFSET`, window functions
+
+**Patterns the reference implementation uses — copy these verbatim for new features:**
+
+```sql
+-- Idempotent row insert, 9.3-safe (replaces ON CONFLICT DO NOTHING):
+INSERT INTO public.roles (role_id, descr, auth_user_id, active, deleted, affected_ts, is_seed)
+SELECT 1, 'Admin', 1, TRUE, FALSE, now(), FALSE
+WHERE NOT EXISTS (SELECT 1 FROM public.roles WHERE role_id = 1);
+
+-- Idempotent column add, 9.3-safe (replaces ADD COLUMN IF NOT EXISTS):
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'job_title'
+    ) THEN
+        ALTER TABLE public.users ADD COLUMN job_title text;
+    END IF;
+END$$;
+
+-- Idempotent index create, 9.3-safe (replaces CREATE INDEX IF NOT EXISTS):
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE schemaname = 'public' AND indexname = 'ix_users_not_deleted'
+    ) THEN
+        CREATE INDEX ix_users_not_deleted ON public.users (user_id) WHERE deleted = FALSE;
+    END IF;
+END$$;
+```
+
+`Sql.cs` builds the same `INSERT ... WHERE NOT EXISTS` pattern at runtime for `EnsureFixedRoles`, `EnsureBootstrapSystemUser`, `InsertSeedUsers`, and `EnsurePhaseIdUpsert`. Do not reintroduce `ON CONFLICT` in either place.
+
 ## Schema changes
 
 If a feature needs new columns or tables:
 
-1. Add an idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...` / `CREATE TABLE IF NOT EXISTS ...` block to `WpfUserControlFramework/Migrations/<yyyy-mm-dd>_<feature>.sql`.
-2. Wrap the script in `BEGIN; ... COMMIT;` so the client DBA can run the whole file in one transaction.
-3. Update `Sql.cs` to read/write the new columns.
-4. Do NOT run the migration from the app. The app assumes the schema is already present (it tolerates missing columns via `COALESCE(...)` in `Sql.SelectAllUsers`-style read queries when safe).
+1. Create `WpfUserControlFramework/Migrations/<yyyy-mm-dd>_<feature>.sql` using the 9.3-safe patterns above. Start the file with a `ROLLBACK; BEGIN;` pair and end with `COMMIT;` so the client DBA can paste the whole script into psql in one go.
+2. `CREATE TABLE IF NOT EXISTS` is allowed; `ADD COLUMN IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` are NOT — use DO-block guards instead.
+3. Seed rows via `INSERT ... SELECT ... WHERE NOT EXISTS`, never `ON CONFLICT`.
+4. Update `Sql.cs` to read/write the new columns. Any runtime upserts there must also use the `WHERE NOT EXISTS` pattern.
+5. Do NOT run the migration from the app. The app assumes the schema is already present (it tolerates missing columns via `COALESCE(...)` in `Sql.SelectAllUsers`-style read queries when safe).
 
 ## End-to-end expectation for new features
 

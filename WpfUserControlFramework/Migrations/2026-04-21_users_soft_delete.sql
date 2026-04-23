@@ -2,6 +2,9 @@
 -- Migration: add soft-delete columns to public.users
 -- Date:      2026-04-21
 -- Author:    RestaurantPosWpf / Staff and Access
+-- PostgreSQL target: 9.3 (client production). This script avoids 9.5+/9.6+ syntax:
+--   * NO `ADD COLUMN IF NOT EXISTS`   (9.6+) -> DO block probing information_schema.columns
+--   * NO `CREATE INDEX IF NOT EXISTS` (9.5+) -> DO block probing pg_indexes
 --
 -- Background
 --   public.roles already carries deleted / deleted_ts / deleted_user_id (see BH_User_Role_Tables.sql).
@@ -12,10 +15,11 @@
 --   can continue to dereference the original user_id without dangling FKs.
 --
 -- What this script does
---   1. ALTER public.users ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE
---   2. ALTER public.users ADD COLUMN IF NOT EXISTS deleted_ts TIMESTAMPTZ
---   3. ALTER public.users ADD COLUMN IF NOT EXISTS deleted_user_id INTEGER
---   4. CREATE INDEX IF NOT EXISTS ix_users_not_deleted ON public.users(user_id) WHERE deleted = FALSE
+--   1. Add column public.users.deleted         BOOLEAN NOT NULL DEFAULT FALSE   (if missing)
+--   2. Add column public.users.deleted_ts      TIMESTAMPTZ                      (if missing)
+--   3. Add column public.users.deleted_user_id INTEGER                          (if missing)
+--   4. Create partial index ix_users_not_deleted ON public.users(user_id) WHERE deleted = FALSE
+--      (if missing)
 --
 -- Idempotent: safe to rerun.
 -- Rollback:
@@ -28,14 +32,29 @@
 ROLLBACK;
 BEGIN;
 
-ALTER TABLE public.users
-    ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='users' AND column_name='deleted'
+    ) THEN
+        ALTER TABLE public.users ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT FALSE;
+    END IF;
 
-ALTER TABLE public.users
-    ADD COLUMN IF NOT EXISTS deleted_ts TIMESTAMP WITH TIME ZONE;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='users' AND column_name='deleted_ts'
+    ) THEN
+        ALTER TABLE public.users ADD COLUMN deleted_ts TIMESTAMP WITH TIME ZONE;
+    END IF;
 
-ALTER TABLE public.users
-    ADD COLUMN IF NOT EXISTS deleted_user_id INTEGER;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='users' AND column_name='deleted_user_id'
+    ) THEN
+        ALTER TABLE public.users ADD COLUMN deleted_user_id INTEGER;
+    END IF;
+END$$;
 
 COMMENT ON COLUMN public.users.deleted IS
     'Soft-delete flag. Live reads filter WHERE deleted = FALSE.';
@@ -45,9 +64,18 @@ COMMENT ON COLUMN public.users.deleted_user_id IS
     'users.user_id of the operator who performed the soft delete.';
 
 -- Partial index to keep "active roster" reads fast without excluding deleted rows from history.
-CREATE INDEX IF NOT EXISTS ix_users_not_deleted
-    ON public.users (user_id)
-    WHERE deleted = FALSE;
+-- 9.3-safe: emulate CREATE INDEX IF NOT EXISTS via DO block.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE schemaname='public' AND indexname='ix_users_not_deleted'
+    ) THEN
+        CREATE INDEX ix_users_not_deleted
+            ON public.users (user_id)
+            WHERE deleted = FALSE;
+    END IF;
+END$$;
 
 COMMIT;
 
