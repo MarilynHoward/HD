@@ -267,11 +267,27 @@ public static partial class OpsServicesStore
 
     public static void SetFloorPlanTablePosition(DateOnly date, string floor, Guid tableId, double x, double y)
     {
-        var key = FloorPlanLayoutKey(date, floor);
+        EnsureLoaded();
+        var normFloor = NormalizeFloorName(floor);
+        var key = FloorPlanLayoutKey(date, normFloor);
         if (!FloorPlanLayouts.TryGetValue(key, out var map))
         {
             map = new Dictionary<Guid, Point>();
             FloorPlanLayouts[key] = map;
+        }
+
+        try
+        {
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            // A fresh layoutId is only consumed by the INSERT arm when no row exists yet for
+            // this (date, floor, table) tuple; the UPDATE arm keys on the UNIQUE index.
+            App.aps.Execute(cn, App.aps.sql.UpsertOpsFloorPlanLayout(
+                Guid.NewGuid(), date, normFloor, tableId, x, y,
+                App.aps.signedOnUserId, isSeed: false));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[OpsServicesStore] SetFloorPlanTablePosition persist failed: " + ex.Message);
         }
 
         map[tableId] = new Point(x, y);
@@ -304,11 +320,28 @@ public static partial class OpsServicesStore
 
     public static void UpsertReservation(OpsReservation reservation)
     {
+        EnsureLoaded();
         var table = GetTable(reservation.TableId);
         if (table != null)
             reservation.FloorName = NormalizeFloorName(table.LocationName);
+        if (reservation.Id == Guid.Empty)
+            reservation.Id = Guid.NewGuid();
 
         var idx = Reservations.FindIndex(r => r.Id == reservation.Id);
+        try
+        {
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            var write = ToReservationWrite(reservation);
+            var sql = idx >= 0
+                ? App.aps.sql.UpdateOpsReservation(write, App.aps.signedOnUserId)
+                : App.aps.sql.InsertOpsReservation(write, App.aps.signedOnUserId);
+            App.aps.Execute(cn, sql);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[OpsServicesStore] UpsertReservation persist failed: " + ex.Message);
+        }
+
         if (idx >= 0)
             Reservations[idx] = reservation;
         else
@@ -318,100 +351,97 @@ public static partial class OpsServicesStore
 
     public static bool TryRemoveReservation(Guid id)
     {
+        EnsureLoaded();
         var idx = Reservations.FindIndex(r => r.Id == id);
         if (idx < 0)
             return false;
+
+        try
+        {
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            App.aps.Execute(cn, App.aps.sql.SoftDeleteOpsReservation(id, App.aps.signedOnUserId));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[OpsServicesStore] TryRemoveReservation persist failed: " + ex.Message);
+        }
+
         Reservations.RemoveAt(idx);
         DataChanged?.Invoke(null, EventArgs.Empty);
         return true;
     }
 
-    static partial void SeedReservationsAndLayouts()
+    private static Sql.OpsReservationWrite ToReservationWrite(OpsReservation r) =>
+        new()
+        {
+            ReservationId = r.Id,
+            TableId = r.TableId,
+            FloorName = NormalizeFloorName(r.FloorName),
+            Date = r.Date,
+            CustomerName = r.CustomerName ?? "",
+            Phone = r.Phone ?? "",
+            Email = r.Email,
+            PartySize = r.PartySize,
+            Time = r.Time,
+            Status = r.Status.ToString(),
+            Notes = r.Notes ?? "",
+            Reference = r.Reference ?? "",
+            IsSeed = false
+        };
+
+    /// <summary>
+    /// Loads active reservations into the in-memory cache. Called from
+    /// <see cref="LoadFromDbLocked"/> so the floor plan card state and reservation list are in
+    /// sync with the database as soon as the store is first touched.
+    /// </summary>
+    private static void LoadReservations(string cn)
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        if (Tables.Count < 4)
-            return;
-
-        // Align with shift seed week range: use today and adjacent days for demos
-        var t0 = Tables[0];
-        var t1 = Tables[1];
-        var t2 = Tables[2];
-        var t3 = Tables[3];
-        var t5 = Tables.Count > 5 ? Tables[5] : t0;
-
-        void Add(OpsReservation r) => Reservations.Add(r);
-
-        Add(new OpsReservation
+        var dt = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectAllOpsReservations(), 60);
+        foreach (System.Data.DataRow r in dt.Rows)
         {
-            Id = Guid.NewGuid(),
-            TableId = t2.Id,
-            FloorName = NormalizeFloorName(t2.LocationName),
-            Date = today,
-            CustomerName = "Robert Williams",
-            Phone = "+44 078 890 0000",
-            Email = "robert@example.com",
-            PartySize = 4,
-            Time = new TimeOnly(19, 30),
-            Status = OpsReservationStatus.Confirmed,
-            Notes = "Special request for a vegetarian menu.",
-            Reference = "RW-1042"
-        });
+            try
+            {
+                Reservations.Add(OpsStoreRowReader.MapReservation(r));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[OpsServicesStore] MapReservation failed: " + ex.Message);
+            }
+        }
+    }
 
-        Add(new OpsReservation
+    /// <summary>
+    /// Loads saved floor-plan table positions keyed by (date, floor). Missing coordinates are
+    /// skipped; <see cref="EnsureDefaultFloorPlanPositions"/> later fills in grid defaults so the
+    /// UI always has something to render even on a clean database.
+    /// </summary>
+    private static void LoadFloorPlanLayouts(string cn)
+    {
+        var dt = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectAllOpsFloorPlanLayouts(), 60);
+        foreach (System.Data.DataRow r in dt.Rows)
         {
-            Id = Guid.NewGuid(),
-            TableId = t3.Id,
-            FloorName = NormalizeFloorName(t3.LocationName),
-            Date = today,
-            CustomerName = "Mike Brown",
-            Phone = "+44 070 100 2000",
-            PartySize = 2,
-            Time = new TimeOnly(20, 15),
-            Status = OpsReservationStatus.Seated,
-            Reference = "MB-2211"
-        });
-
-        Add(new OpsReservation
-        {
-            Id = Guid.NewGuid(),
-            TableId = t5.Id,
-            FloorName = NormalizeFloorName(t5.LocationName),
-            Date = today,
-            CustomerName = "Barbara Miller",
-            Phone = "+44 078 234 555",
-            PartySize = 2,
-            Time = new TimeOnly(20, 0),
-            Status = OpsReservationStatus.Pending,
-            Reference = "BM-8831"
-        });
-
-        Add(new OpsReservation
-        {
-            Id = Guid.NewGuid(),
-            TableId = t1.Id,
-            FloorName = NormalizeFloorName(t1.LocationName),
-            Date = today,
-            CustomerName = "David Anderson",
-            Phone = "+44 078 111 2222",
-            PartySize = 4,
-            Time = new TimeOnly(20, 0),
-            Status = OpsReservationStatus.Confirmed,
-            Reference = "DA-9901"
-        });
-
-        Add(new OpsReservation
-        {
-            Id = Guid.NewGuid(),
-            TableId = t0.Id,
-            FloorName = NormalizeFloorName(t0.LocationName),
-            Date = today.AddDays(-1),
-            CustomerName = "Jennifer Taylor",
-            Phone = "+44 078 000 3333",
-            PartySize = 3,
-            Time = new TimeOnly(18, 0),
-            Status = OpsReservationStatus.Completed,
-            Reference = "JT-7712"
-        });
+            try
+            {
+                var date = OpsStoreRowReader.AsDate(r, "layout_date");
+                var floor = OpsStoreRowReader.AsString(r, "floor_name");
+                var tableId = OpsStoreRowReader.AsGuid(r, "table_id");
+                var x = OpsStoreRowReader.AsDouble(r, "pos_x", 0);
+                var y = OpsStoreRowReader.AsDouble(r, "pos_y", 0);
+                if (tableId == Guid.Empty)
+                    continue;
+                var key = FloorPlanLayoutKey(date, floor);
+                if (!FloorPlanLayouts.TryGetValue(key, out var map))
+                {
+                    map = new Dictionary<Guid, Point>();
+                    FloorPlanLayouts[key] = map;
+                }
+                map[tableId] = new Point(x, y);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[OpsServicesStore] MapFloorPlanLayout failed: " + ex.Message);
+            }
+        }
     }
 }
 

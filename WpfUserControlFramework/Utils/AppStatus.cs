@@ -276,6 +276,16 @@ public sealed class AppStatus
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Warning);
         }
+
+        // Operations and Services reseed. Same contract as the user seed: wipe is_seed=TRUE rows
+        // from every ops_* table, then insert the canned demo set. Lives alongside the user seed
+        // so a single SeedDummyDataOnStartup=true pass refreshes both modules.
+        Log("ReseedDummyDataIfEnabled: opsSeedBefore rows = " + CountSeedOpsRows(cn));
+        RunTransactionalLogged("DeleteAllOpsSeedRows", sql.DeleteAllOpsSeedRows(), cn);
+        var opsSeedSql = sql.InsertSeedOpsServices();
+        Log("ReseedDummyDataIfEnabled: InsertSeedOpsServices SQL length = " + opsSeedSql.Length);
+        RunTransactionalLogged("InsertSeedOpsServices", opsSeedSql, cn);
+        Log("ReseedDummyDataIfEnabled: opsSeedAfter rows = " + CountSeedOpsRows(cn));
     }
 
     /// <summary>
@@ -333,6 +343,40 @@ public sealed class AppStatus
         catch (Exception ex)
         {
             Log("CountSeedUsers failed: " + ex.GetType().Name + " - " + ex.Message);
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// Diagnostic helper: sum of is_seed = TRUE rows across the Operations and Services tables.
+    /// Surfaced only in the startup log; a zero result after <c>InsertSeedOpsServices</c> is the
+    /// canonical sign the ops migration (<c>2026-04-23_ops_services_init.sql</c>) has not been
+    /// applied yet, mirroring the <see cref="CountSeedUsers"/> diagnostic for Staff and Access.
+    /// </summary>
+    private int CountSeedOpsRows(string compactConnectionString)
+    {
+        try
+        {
+            var dt = pda.GetDataTable(
+                compactConnectionString,
+                "SELECT " +
+                "(SELECT COUNT(*) FROM public.ops_floors WHERE is_seed = TRUE) + " +
+                "(SELECT COUNT(*) FROM public.ops_tables WHERE is_seed = TRUE) + " +
+                "(SELECT COUNT(*) FROM public.ops_shifts WHERE is_seed = TRUE) + " +
+                "(SELECT COUNT(*) FROM public.ops_shift_tables WHERE is_seed = TRUE) + " +
+                "(SELECT COUNT(*) FROM public.ops_reservations WHERE is_seed = TRUE) + " +
+                "(SELECT COUNT(*) FROM public.ops_floor_plan_layouts WHERE is_seed = TRUE) AS n",
+                15);
+            if (dt.Rows.Count > 0)
+            {
+                var raw = dt.Rows[0]["n"];
+                if (raw != null && raw != DBNull.Value && int.TryParse(raw.ToString(), out var n))
+                    return n;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log("CountSeedOpsRows failed: " + ex.GetType().Name + " - " + ex.Message);
         }
         return 0;
     }

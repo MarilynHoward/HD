@@ -1105,16 +1105,26 @@ public sealed class OpsScheduledShift
     public OpsShiftFrequencyKind SourceKind { get; init; }
 }
 
-/// <summary>Static demo store and conflict checks for Operations and Services.</summary>
+/// <summary>
+/// PostgreSQL-backed store for Operations and Services. Mirrors the <see cref="StaffAccessStore"/>
+/// pattern: reads go through <c>App.aps.pda + App.aps.sql</c>, writes are composed via
+/// <see cref="Sql"/> and executed through <c>App.aps.Execute</c>, and the in-memory lists are a
+/// cache reloaded after writes or on explicit <see cref="ReloadFromDb"/>. Demo rows (is_seed=TRUE)
+/// are reseeded at startup via <see cref="AppStatus.ReseedDummyDataIfEnabled"/> when
+/// <c>SeedDummyDataOnStartup</c> is <c>true</c> in App.config.
+/// </summary>
 public static partial class OpsServicesStore
 {
     public static event EventHandler? DataChanged;
 
+    private static readonly object SyncRoot = new();
     private static readonly List<OpsFloorTable> Tables = new();
     private static readonly List<OpsScheduledShift> Shifts = new();
     /// <summary>Distinct floor names for filters, combos, and manage-floors UI (includes floors with zero tables).</summary>
     private static readonly List<string> CanonicalFloors = new();
-    private static bool _seeded;
+    /// <summary>ops_floors.floor_id per canonical floor name; populated on load so renames/deletes can target the row.</summary>
+    private static readonly Dictionary<string, int> FloorIdByName = new(StringComparer.OrdinalIgnoreCase);
+    private static bool _loaded;
 
     static OpsServicesStore()
     {
@@ -1128,97 +1138,150 @@ public static partial class OpsServicesStore
         return date.AddDays(-diff);
     }
 
-    public static void EnsureSeeded()
+    /// <summary>Kept for API compatibility; triggers an initial load from the database when the cache is empty.</summary>
+    public static void EnsureSeeded() => EnsureLoaded();
+
+    /// <summary>Force a re-read from the database (e.g. after external changes). Raises <see cref="DataChanged"/>.</summary>
+    public static void ReloadFromDb()
     {
-        if (_seeded)
-            return;
-        _seeded = true;
-        Seed();
+        lock (SyncRoot)
+        {
+            _loaded = false;
+            LoadFromDbLocked();
+        }
+        DataChanged?.Invoke(null, EventArgs.Empty);
     }
 
-    private static void Seed()
+    private static void EnsureLoaded()
     {
-        var today = DateTime.Today;
+        if (_loaded)
+            return;
+        lock (SyncRoot)
+        {
+            if (_loaded)
+                return;
+            LoadFromDbLocked();
+        }
+    }
+
+    /// <summary>
+    /// Replace the in-memory cache with a fresh snapshot of the Operations and Services tables.
+    /// Safe to call re-entrantly: always resets <c>_loaded</c> on exit so a later failure to
+    /// connect does not lock the store into a half-populated state. Any unexpected DB errors are
+    /// logged and swallowed — the UI degrades to an empty schedule rather than crashing.
+    /// </summary>
+    private static void LoadFromDbLocked()
+    {
         StaffAccessStore.EnsureSeeded();
-        var employeesForIds = StaffAccessStore.GetEmployeesForOperations().ToList();
-        if (employeesForIds.Count < 2)
-            return;
+        Tables.Clear();
+        Shifts.Clear();
+        CanonicalFloors.Clear();
+        FloorIdByName.Clear();
+        Reservations.Clear();
+        FloorPlanLayouts.Clear();
 
-        void AddTable(string name, string floor, int seats, bool active = true, int? waiter = null)
+        try
         {
-            Tables.Add(new OpsFloorTable
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            if (!PosDataAccess.CheckBranchConnection(cn))
             {
-                Id = Guid.NewGuid(),
-                Name = name,
-                LocationName = floor,
-                SeatCount = seats,
-                Shape = name.Contains("VIP", StringComparison.OrdinalIgnoreCase) ? "Round" : "Square",
-                IsActive = active,
-                AssignedWaiterId = waiter,
-                Status = "Available",
-                OpsStatus = active ? "Available" : "Inactive",
-                CreatedUtc = today.AddDays(-120).ToUniversalTime(),
-                ModifiedUtc = today.AddDays(-1).ToUniversalTime()
-            });
+                _loaded = true;
+                return;
+            }
+
+            LoadFloors(cn);
+            LoadTables(cn);
+            LoadShiftsWithTables(cn);
+            LoadReservations(cn);
+            LoadFloorPlanLayouts(cn);
         }
-
-        var john = employeesForIds[0].Id;
-        var sarah = employeesForIds[1].Id;
-        AddTable("Table 1", "Main Floor", 4, true, john);
-        AddTable("Table 2", "Main Floor", 6, true, sarah);
-        AddTable("Table 3", "Main Floor", 4, true, null);
-        AddTable("Table 4", "Main Floor", 2, true, null);
-        AddTable("Table 5", "Main Floor", 4, false, null);
-        AddTable("Table 6", "Patio", 8, true, null);
-        AddTable("VIP Table", "Patio", 6, true, null);
-
-        if (Tables.Count > 1)
+        catch (Exception ex)
         {
-            Tables[1].OpsStatus = "Occupied";
-            Tables[1].SeatedAtUtc = DateTime.UtcNow.AddMinutes(-106);
-            Tables[1].PartySize = 4;
-            Tables[1].OpsServerId = john;
+            System.Diagnostics.Debug.WriteLine("[OpsServicesStore] LoadFromDb failed: " + ex.Message);
         }
 
-        RebuildCanonicalFloorsFromTables();
-
-        SeedReservationsAndLayouts();
-
-        // Demo shifts: previous week through current week + 6 weeks (8 weeks total)
-        var week0 = DateOnly.FromDateTime(StartOfWeekMonday(today.AddDays(-7)));
-        for (int w = 0; w < 8; w++)
-        {
-            var monday = week0.AddDays(w * 7);
-            // Scatter shifts across Mon–Sat
-            AddDemoShift(employeesForIds[0].Id, monday.AddDays(0), new TimeOnly(9, 0), new TimeOnly(17, 0),
-                new[] { Tables[0].Id, Tables[1].Id }, OpsShiftFrequencyKind.Weekly);
-            AddDemoShift(employeesForIds[1].Id, monday.AddDays(1), new TimeOnly(10, 0), new TimeOnly(18, 0),
-                new[] { Tables[1].Id }, OpsShiftFrequencyKind.Weekly);
-            AddDemoShift(employeesForIds[2].Id, monday.AddDays(2), new TimeOnly(12, 0), new TimeOnly(20, 0),
-                Array.Empty<Guid>(), OpsShiftFrequencyKind.Daily);
-            AddDemoShift(employeesForIds[3].Id, monday.AddDays(3), new TimeOnly(9, 0), new TimeOnly(15, 0),
-                new[] { Tables[2].Id, Tables[3].Id }, OpsShiftFrequencyKind.Daily);
-            if (w % 2 == 0)
-                AddDemoShift(employeesForIds[4].Id, monday.AddDays(4), new TimeOnly(9, 0), new TimeOnly(17, 0),
-                    new[] { Tables[5].Id }, OpsShiftFrequencyKind.Monthly);
-            AddDemoShift(employeesForIds[5].Id, monday.AddDays(5), new TimeOnly(11, 0), new TimeOnly(19, 0),
-                new[] { Tables[0].Id }, OpsShiftFrequencyKind.Weekly);
-        }
+        _loaded = true;
     }
 
-    private static void AddDemoShift(int employeeId, DateOnly date, TimeOnly start, TimeOnly end,
-        Guid[] tableIds, OpsShiftFrequencyKind kind)
+    private static void LoadFloors(string cn)
     {
-        Shifts.Add(new OpsScheduledShift
+        var dt = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectAllOpsFloors(), 60);
+        foreach (System.Data.DataRow r in dt.Rows)
         {
-            Id = Guid.NewGuid(),
-            EmployeeId = employeeId,
-            Date = date,
-            Start = start,
-            End = end,
-            TableIds = tableIds.ToList(),
-            SourceKind = kind
-        });
+            var id = Convert.ToInt32(r["floor_id"], CultureInfo.InvariantCulture);
+            var name = OpsStoreRowReader.AsString(r, "name");
+            if (string.IsNullOrWhiteSpace(name))
+                continue;
+            var n = NormalizeFloorName(name);
+            if (!CanonicalFloors.Exists(x => string.Equals(x, n, StringComparison.OrdinalIgnoreCase)))
+                CanonicalFloors.Add(n);
+            if (!FloorIdByName.ContainsKey(n))
+                FloorIdByName[n] = id;
+        }
+        SortCanonicalFloors();
+    }
+
+    private static void LoadTables(string cn)
+    {
+        var dt = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectAllOpsTables(), 60);
+        foreach (System.Data.DataRow r in dt.Rows)
+        {
+            try
+            {
+                Tables.Add(OpsStoreRowReader.MapTable(r));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[OpsServicesStore] MapTable failed: " + ex.Message);
+            }
+        }
+
+        // Backfill canonical floor list with any floor names tables reference but that are not yet
+        // in ops_floors. This keeps existing data usable after upgrades where floors were never
+        // explicitly inserted (all floor logic previously lived in memory).
+        foreach (var t in Tables)
+        {
+            var n = NormalizeFloorName(t.LocationName);
+            if (!CanonicalFloors.Exists(x => string.Equals(x, n, StringComparison.OrdinalIgnoreCase)))
+                CanonicalFloors.Add(n);
+        }
+        SortCanonicalFloors();
+    }
+
+    private static void LoadShiftsWithTables(string cn)
+    {
+        var shiftsDt = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectAllOpsShifts(), 60);
+        var linksDt = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectAllOpsShiftTables(), 60);
+
+        var linksByShift = new Dictionary<Guid, List<Guid>>();
+        foreach (System.Data.DataRow r in linksDt.Rows)
+        {
+            var shiftId = OpsStoreRowReader.AsGuid(r, "shift_id");
+            var tableId = OpsStoreRowReader.AsGuid(r, "table_id");
+            if (shiftId == Guid.Empty || tableId == Guid.Empty)
+                continue;
+            if (!linksByShift.TryGetValue(shiftId, out var list))
+            {
+                list = new List<Guid>();
+                linksByShift[shiftId] = list;
+            }
+            list.Add(tableId);
+        }
+
+        foreach (System.Data.DataRow r in shiftsDt.Rows)
+        {
+            try
+            {
+                var shift = OpsStoreRowReader.MapShift(r);
+                if (linksByShift.TryGetValue(shift.Id, out var ids))
+                    shift.TableIds.AddRange(ids);
+                Shifts.Add(shift);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[OpsServicesStore] MapShift failed: " + ex.Message);
+            }
+        }
     }
 
     public static IReadOnlyList<OpsEmployee> GetEmployees() => StaffAccessStore.GetEmployeesForOperations();
@@ -1262,6 +1325,7 @@ public static partial class OpsServicesStore
 
     public static string? TryAddShifts(IEnumerable<OpsScheduledShift> newShifts)
     {
+        EnsureLoaded();
         var list = newShifts.ToList();
         foreach (var n in list)
         {
@@ -1288,6 +1352,32 @@ public static partial class OpsServicesStore
             }
         }
 
+        // Persist each shift + its table links inside a single batched execute so the schedule
+        // grid re-renders with everything visible; on failure nothing is added to the cache.
+        try
+        {
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            var b = new System.Text.StringBuilder();
+            foreach (var n in list)
+            {
+                b.Append(App.aps.sql.InsertOpsShift(
+                    n.Id, n.EmployeeId, n.Date, n.Start, n.End,
+                    n.SourceKind.ToString(), App.aps.signedOnUserId, isSeed: false));
+                b.Append(' ');
+                foreach (var tid in n.TableIds)
+                {
+                    b.Append(App.aps.sql.InsertOpsShiftTableLink(n.Id, tid, isSeed: false));
+                    b.Append(' ');
+                }
+            }
+            if (b.Length > 0)
+                App.aps.Execute(cn, b.ToString());
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[OpsServicesStore] TryAddShifts persist failed: " + ex.Message);
+        }
+
         foreach (var n in list)
             Shifts.Add(n);
         DataChanged?.Invoke(null, EventArgs.Empty);
@@ -1296,10 +1386,70 @@ public static partial class OpsServicesStore
 
     public static void AddTable(OpsFloorTable table)
     {
+        EnsureLoaded();
+        try
+        {
+            RegisterFloorName(table.LocationName);
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            App.aps.Execute(cn, App.aps.sql.InsertOpsTable(ToTableWrite(table), App.aps.signedOnUserId));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[OpsServicesStore] AddTable persist failed: " + ex.Message);
+        }
+
         Tables.Add(table);
-        RegisterFloorName(table.LocationName);
         DataChanged?.Invoke(null, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Persist an in-place edit to a table (Table Management's Save button). The caller has
+    /// already mutated <paramref name="table"/> in the cache; we issue the UPDATE and raise
+    /// <see cref="DataChanged"/> so dependent views refresh.
+    /// </summary>
+    public static void SaveTable(OpsFloorTable table)
+    {
+        EnsureLoaded();
+        try
+        {
+            RegisterFloorName(table.LocationName);
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            App.aps.Execute(cn, App.aps.sql.UpdateOpsTable(ToTableWrite(table), App.aps.signedOnUserId));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[OpsServicesStore] SaveTable persist failed: " + ex.Message);
+        }
+
+        DataChanged?.Invoke(null, EventArgs.Empty);
+    }
+
+    private static Sql.OpsTableWrite ToTableWrite(OpsFloorTable t) =>
+        new()
+        {
+            TableId = t.Id,
+            Name = t.Name,
+            LocationName = NormalizeFloorName(t.LocationName),
+            SeatCount = t.SeatCount,
+            Shape = t.Shape,
+            IsActive = t.IsActive,
+            AssignedWaiterId = t.AssignedWaiterId,
+            Zone = t.Zone,
+            Station = t.Station,
+            TurnTimeMinutes = t.TurnTimeMinutes,
+            Status = t.Status,
+            Notes = t.Notes,
+            Accessible = t.Accessible,
+            VipPriority = t.VipPriority,
+            CanMerge = t.CanMerge,
+            CreatedUtc = t.CreatedUtc,
+            ModifiedUtc = t.ModifiedUtc,
+            OpsStatus = t.OpsStatus,
+            OpsServerId = t.OpsServerId,
+            SeatedAtUtc = t.SeatedAtUtc,
+            PartySize = t.PartySize,
+            IsSeed = false
+        };
 
     private static string NormalizeFloorName(string? s)
     {
@@ -1320,14 +1470,42 @@ public static partial class OpsServicesStore
             RegisterFloorName(t.LocationName);
     }
 
-    /// <summary>Registers a floor name from table data (empty becomes Main Floor).</summary>
+    /// <summary>
+    /// Registers a floor name from table data (empty becomes Main Floor). When the name is new,
+    /// we also insert a row in <c>public.ops_floors</c> so renames/deletes have something to
+    /// target later — the rule-of-thumb is "every name the UI can show must exist in ops_floors".
+    /// </summary>
     public static void RegisterFloorName(string? locationName)
     {
         var n = NormalizeFloorName(locationName);
         if (CanonicalFloors.Exists(x => string.Equals(x, n, StringComparison.OrdinalIgnoreCase)))
             return;
+
+        try
+        {
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            var nextId = QueryNextFloorId(cn);
+            App.aps.Execute(cn, App.aps.sql.InsertOpsFloor(nextId, n, App.aps.signedOnUserId, isSeed: false));
+            FloorIdByName[n] = nextId;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[OpsServicesStore] RegisterFloorName persist failed: " + ex.Message);
+        }
+
         CanonicalFloors.Add(n);
         SortCanonicalFloors();
+    }
+
+    private static int QueryNextFloorId(string cn)
+    {
+        var dt = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectNextOpsFloorId(), 15);
+        if (dt.Rows.Count == 0)
+            return 10001;
+        var raw = dt.Rows[0][0];
+        return raw == null || raw == DBNull.Value
+            ? 10001
+            : Convert.ToInt32(raw, CultureInfo.InvariantCulture);
     }
 
     private static void RemoveCanonicalFloorIfPresent(string name)
@@ -1337,7 +1515,9 @@ public static partial class OpsServicesStore
         {
             if (!string.Equals(CanonicalFloors[i], n, StringComparison.OrdinalIgnoreCase))
                 continue;
+            var removed = CanonicalFloors[i];
             CanonicalFloors.RemoveAt(i);
+            FloorIdByName.Remove(removed);
             return;
         }
     }
@@ -1363,6 +1543,7 @@ public static partial class OpsServicesStore
 
     public static bool TryAddFloor(string rawName, out string? error)
     {
+        EnsureLoaded();
         error = null;
         var trimmed = (rawName ?? "").Trim();
         if (string.IsNullOrEmpty(trimmed))
@@ -1377,6 +1558,19 @@ public static partial class OpsServicesStore
             return false;
         }
 
+        try
+        {
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            var nextId = QueryNextFloorId(cn);
+            App.aps.Execute(cn, App.aps.sql.InsertOpsFloor(nextId, trimmed, App.aps.signedOnUserId, isSeed: false));
+            FloorIdByName[trimmed] = nextId;
+        }
+        catch (Exception ex)
+        {
+            error = "Could not save the floor: " + ex.Message;
+            return false;
+        }
+
         CanonicalFloors.Add(trimmed);
         SortCanonicalFloors();
         DataChanged?.Invoke(null, EventArgs.Empty);
@@ -1385,6 +1579,7 @@ public static partial class OpsServicesStore
 
     public static bool TryDeleteFloor(string name, out string? error)
     {
+        EnsureLoaded();
         error = null;
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -1411,6 +1606,20 @@ public static partial class OpsServicesStore
             return false;
         }
 
+        if (FloorIdByName.TryGetValue(canonicalEntry, out var floorId))
+        {
+            try
+            {
+                var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+                App.aps.Execute(cn, App.aps.sql.SoftDeleteOpsFloor(floorId, App.aps.signedOnUserId));
+            }
+            catch (Exception ex)
+            {
+                error = "Could not delete the floor: " + ex.Message;
+                return false;
+            }
+        }
+
         RemoveCanonicalFloorIfPresent(canonicalEntry);
         DataChanged?.Invoke(null, EventArgs.Empty);
         return true;
@@ -1418,6 +1627,7 @@ public static partial class OpsServicesStore
 
     public static bool TryRenameFloor(string oldName, string newName, out string? error)
     {
+        EnsureLoaded();
         error = null;
         var trimmedNew = (newName ?? "").Trim();
         if (string.IsNullOrEmpty(trimmedNew))
@@ -1442,15 +1652,46 @@ public static partial class OpsServicesStore
             return false;
         }
 
+        try
+        {
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            var b = new System.Text.StringBuilder();
+            if (FloorIdByName.TryGetValue(o, out var floorId))
+            {
+                b.Append(App.aps.sql.RenameOpsFloor(floorId, trimmedNew, App.aps.signedOnUserId));
+                b.Append(' ');
+            }
+            // Cascade the denormalized name into tables, reservations, and layouts so filters
+            // and historical positions pick up the new label without a second reseed.
+            b.Append(App.aps.sql.RenameFloorNameInOpsTables(o, trimmedNew, App.aps.signedOnUserId));
+            b.Append(' ');
+            b.Append(App.aps.sql.RenameFloorNameInOpsReservations(o, trimmedNew, App.aps.signedOnUserId));
+            b.Append(' ');
+            b.Append(App.aps.sql.RenameFloorNameInOpsLayouts(o, trimmedNew, App.aps.signedOnUserId));
+            App.aps.Execute(cn, b.ToString());
+        }
+        catch (Exception ex)
+        {
+            error = "Could not rename the floor: " + ex.Message;
+            return false;
+        }
+
         foreach (var t in Tables)
         {
             if (string.Equals(NormalizeFloorName(t.LocationName), o, StringComparison.OrdinalIgnoreCase))
                 t.LocationName = trimmedNew;
         }
+        foreach (var r in Reservations)
+        {
+            if (string.Equals(NormalizeFloorName(r.FloorName), o, StringComparison.OrdinalIgnoreCase))
+                r.FloorName = trimmedNew;
+        }
 
         var idx = CanonicalFloors.FindIndex(x => string.Equals(x, o, StringComparison.OrdinalIgnoreCase));
         if (idx >= 0)
             CanonicalFloors[idx] = trimmedNew;
+        if (FloorIdByName.Remove(o, out var id))
+            FloorIdByName[trimmedNew] = id;
         SortCanonicalFloors();
         DataChanged?.Invoke(null, EventArgs.Empty);
         return true;
@@ -1458,9 +1699,21 @@ public static partial class OpsServicesStore
 
     public static bool RemoveTable(Guid id)
     {
+        EnsureLoaded();
         var idx = Tables.FindIndex(t => t.Id == id);
         if (idx < 0)
             return false;
+
+        try
+        {
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            App.aps.Execute(cn, App.aps.sql.SoftDeleteOpsTable(id, App.aps.signedOnUserId));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[OpsServicesStore] RemoveTable persist failed: " + ex.Message);
+        }
+
         Tables.RemoveAt(idx);
         DataChanged?.Invoke(null, EventArgs.Empty);
         return true;
@@ -1540,6 +1793,214 @@ public static partial class OpsServicesStore
 
         return Math.Round(h, 1);
     }
+}
 
-    static partial void SeedReservationsAndLayouts();
+/// <summary>
+/// Row-to-model mappers for the Operations and Services store. Lives alongside
+/// <see cref="OpsServicesStore"/> because it is the only consumer; isolated in its own static
+/// type so the partial-class file split stays readable. Mirrors the driver-tolerant patterns in
+/// <c>StaffAccessStore</c> (string forms for booleans, missing-column tolerance for forwards
+/// compatibility with older DBs).
+/// </summary>
+internal static class OpsStoreRowReader
+{
+    public static string AsString(System.Data.DataRow r, string column)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return "";
+        var v = r[column];
+        return v == DBNull.Value || v == null ? "" : Convert.ToString(v, CultureInfo.InvariantCulture) ?? "";
+    }
+
+    public static int AsInt(System.Data.DataRow r, string column, int fallback)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return fallback;
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return fallback;
+        if (v is int i)
+            return i;
+        return int.TryParse(Convert.ToString(v, CultureInfo.InvariantCulture), NumberStyles.Integer,
+            CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
+    }
+
+    public static int? AsNullableInt(System.Data.DataRow r, string column)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return null;
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return null;
+        if (v is int i)
+            return i;
+        return int.TryParse(Convert.ToString(v, CultureInfo.InvariantCulture), NumberStyles.Integer,
+            CultureInfo.InvariantCulture, out var parsed) ? parsed : (int?)null;
+    }
+
+    public static double AsDouble(System.Data.DataRow r, string column, double fallback)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return fallback;
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return fallback;
+        return double.TryParse(Convert.ToString(v, CultureInfo.InvariantCulture), NumberStyles.Float,
+            CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
+    }
+
+    /// <summary>
+    /// Tolerant boolean reader: PostgreSQL's ODBC driver emits "0"/"1", "t"/"f", "true"/"false",
+    /// or real .NET bool depending on version. Same pattern as <c>StaffAccessStore.AsBool</c>.
+    /// </summary>
+    public static bool AsBool(System.Data.DataRow r, string column, bool fallback)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return fallback;
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return fallback;
+        if (v is bool b)
+            return b;
+        var s = Convert.ToString(v, CultureInfo.InvariantCulture)?.Trim() ?? "";
+        if (s.Length == 0)
+            return fallback;
+        if (bool.TryParse(s, out var parsed))
+            return parsed;
+        if (s == "1" || s.Equals("t", StringComparison.OrdinalIgnoreCase)
+                     || s.Equals("y", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (s == "0" || s.Equals("f", StringComparison.OrdinalIgnoreCase)
+                     || s.Equals("n", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return fallback;
+    }
+
+    public static DateTime AsUtc(System.Data.DataRow r, string column, DateTime fallback)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return fallback;
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return fallback;
+        var dt = Convert.ToDateTime(v, CultureInfo.InvariantCulture);
+        return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+    }
+
+    public static DateTime? AsNullableUtc(System.Data.DataRow r, string column)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return null;
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return null;
+        var dt = Convert.ToDateTime(v, CultureInfo.InvariantCulture);
+        return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+    }
+
+    public static DateOnly AsDate(System.Data.DataRow r, string column)
+    {
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return DateOnly.FromDateTime(DateTime.Today);
+        if (v is DateTime dt)
+            return DateOnly.FromDateTime(dt);
+        return DateOnly.Parse(Convert.ToString(v, CultureInfo.InvariantCulture) ?? "",
+            CultureInfo.InvariantCulture);
+    }
+
+    public static TimeOnly AsTime(System.Data.DataRow r, string column)
+    {
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return new TimeOnly(0, 0);
+        if (v is TimeSpan ts)
+            return TimeOnly.FromTimeSpan(ts);
+        if (v is DateTime dt)
+            return TimeOnly.FromDateTime(dt);
+        var s = Convert.ToString(v, CultureInfo.InvariantCulture) ?? "";
+        return TimeOnly.TryParse(s, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : new TimeOnly(0, 0);
+    }
+
+    public static Guid AsGuid(System.Data.DataRow r, string column)
+    {
+        if (!r.Table.Columns.Contains(column))
+            return Guid.Empty;
+        var v = r[column];
+        if (v == DBNull.Value || v == null)
+            return Guid.Empty;
+        if (v is Guid g)
+            return g;
+        return Guid.TryParse(Convert.ToString(v, CultureInfo.InvariantCulture), out var parsed)
+            ? parsed
+            : Guid.Empty;
+    }
+
+    public static OpsFloorTable MapTable(System.Data.DataRow r) =>
+        new()
+        {
+            Id = AsGuid(r, "table_id"),
+            Name = AsString(r, "name"),
+            LocationName = AsString(r, "location_name"),
+            SeatCount = AsInt(r, "seat_count", 4),
+            Shape = AsString(r, "shape"),
+            IsActive = AsBool(r, "is_active", true),
+            AssignedWaiterId = AsNullableInt(r, "assigned_waiter_id"),
+            Zone = AsInt(r, "zone", 1),
+            Station = AsInt(r, "station", 1),
+            TurnTimeMinutes = AsInt(r, "turn_time_minutes", 60),
+            Status = AsString(r, "status"),
+            Notes = AsString(r, "notes"),
+            Accessible = AsBool(r, "accessible", false),
+            VipPriority = AsBool(r, "vip_priority", false),
+            CanMerge = AsBool(r, "can_merge", true),
+            CreatedUtc = AsUtc(r, "created_ts", DateTime.UtcNow),
+            ModifiedUtc = AsUtc(r, "modified_ts", DateTime.UtcNow),
+            OpsStatus = AsString(r, "ops_status"),
+            OpsServerId = AsNullableInt(r, "ops_server_id"),
+            SeatedAtUtc = AsNullableUtc(r, "seated_at_ts"),
+            PartySize = AsNullableInt(r, "party_size")
+        };
+
+    public static OpsScheduledShift MapShift(System.Data.DataRow r)
+    {
+        var kindRaw = AsString(r, "source_kind");
+        var kind = Enum.TryParse<OpsShiftFrequencyKind>(kindRaw, ignoreCase: true, out var parsed)
+            ? parsed
+            : OpsShiftFrequencyKind.Daily;
+        return new OpsScheduledShift
+        {
+            Id = AsGuid(r, "shift_id"),
+            EmployeeId = AsInt(r, "employee_id", 0),
+            Date = AsDate(r, "shift_date"),
+            Start = AsTime(r, "start_time"),
+            End = AsTime(r, "end_time"),
+            SourceKind = kind
+        };
+    }
+
+    public static OpsReservation MapReservation(System.Data.DataRow r)
+    {
+        var statusRaw = AsString(r, "status");
+        var status = Enum.TryParse<OpsReservationStatus>(statusRaw, ignoreCase: true, out var parsed)
+            ? parsed
+            : OpsReservationStatus.Pending;
+        return new OpsReservation
+        {
+            Id = AsGuid(r, "reservation_id"),
+            TableId = AsGuid(r, "table_id"),
+            FloorName = AsString(r, "floor_name"),
+            Date = AsDate(r, "res_date"),
+            CustomerName = AsString(r, "customer_name"),
+            Phone = AsString(r, "phone"),
+            Email = AsString(r, "email") is { Length: > 0 } eNonEmpty ? eNonEmpty : null,
+            PartySize = AsInt(r, "party_size", 2),
+            Time = AsTime(r, "res_time"),
+            Status = status,
+            Notes = AsString(r, "notes"),
+            Reference = AsString(r, "reference")
+        };
+    }
 }

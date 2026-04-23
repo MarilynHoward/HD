@@ -51,6 +51,29 @@ public sealed class Sql
 
     public static string Ts(DateTime? utc) => utc.HasValue ? Ts(utc.Value) : "NULL";
 
+    /// <summary>PostgreSQL DATE literal: <c>'yyyy-MM-dd'</c>.</summary>
+    public static string Date(DateOnly d) =>
+        "'" + d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "'";
+
+    /// <summary>PostgreSQL TIME literal: <c>'HH:mm:ss'</c>.</summary>
+    public static string Time(TimeOnly t) =>
+        "'" + t.ToString("HH:mm:ss", CultureInfo.InvariantCulture) + "'";
+
+    /// <summary>
+    /// PostgreSQL <c>uuid</c> literal, explicitly cast with <c>::uuid</c> so the ODBC driver routes
+    /// the value into the <c>uuid</c> column type (ANSI driver versions otherwise send it as text
+    /// and PostgreSQL 9.3 rejects the implicit cast for column inserts).
+    /// </summary>
+    public static string Uuid(Guid id) =>
+        "'" + id.ToString("D", CultureInfo.InvariantCulture) + "'::uuid";
+
+    /// <summary>
+    /// Double-precision literal that always uses the invariant culture and never contains the
+    /// comma decimal separator. Used for x/y positions on the floor plan canvas.
+    /// </summary>
+    public static string Dbl(double value) =>
+        value.ToString("R", CultureInfo.InvariantCulture);
+
     // region: Roles ----------------------------------------------------------------------------------
 
     /// <summary>Active, non-deleted roles ordered by id. Columns: role_id, descr, active.</summary>
@@ -503,5 +526,494 @@ public sealed class Sql
         var whereClause = where.Length == 0 ? "" : " WHERE " + where;
         return "SELECT " + AuditTrailColumns + " FROM public.audit_trail" + whereClause +
                " ORDER BY inserted_ts DESC, audit_id DESC LIMIT " + Int(cap);
+    }
+
+    // region: Operations and Services — floors -------------------------------------------------------
+    //
+    // Backed by 2026-04-23_ops_services_init.sql. Reads exclude soft-deleted rows via
+    // COALESCE(deleted, FALSE) = FALSE so the UI never surfaces a floor the client removed; writes
+    // stamp auth_user_id + affected_ts through <see cref="AppStatus.signedOnUserId"/>.
+
+    private const string OpsFloorColumns =
+        "floor_id, name, active, COALESCE(deleted, FALSE) AS deleted, affected_ts, " +
+        "COALESCE(is_seed, FALSE) AS is_seed";
+
+    /// <summary>All floor names ordered by name (case-insensitive), excluding soft-deleted rows.</summary>
+    public string SelectAllOpsFloors() =>
+        "SELECT " + OpsFloorColumns + " FROM public.ops_floors " +
+        "WHERE COALESCE(deleted, FALSE) = FALSE ORDER BY LOWER(name)";
+
+    /// <summary>
+    /// Next floor_id above the current max. Starts at 1 when the table is empty; includes soft-
+    /// deleted rows so their floor_id values are never recycled (history stays stable).
+    /// </summary>
+    public string SelectNextOpsFloorId() =>
+        "SELECT COALESCE(MAX(floor_id), 0) + 1 AS next_id FROM public.ops_floors";
+
+    public string InsertOpsFloor(int floorId, string name, int authUserId, bool isSeed) =>
+        "INSERT INTO public.ops_floors " +
+        "(floor_id, name, auth_user_id, active, deleted, affected_ts, is_seed) " +
+        "SELECT " + Int(floorId) + ", " + Quote(name) + ", " + Int(authUserId) +
+        ", TRUE, FALSE, now(), " + Bool(isSeed) + " " +
+        "WHERE NOT EXISTS (SELECT 1 FROM public.ops_floors WHERE floor_id = " + Int(floorId) + ");";
+
+    public string RenameOpsFloor(int floorId, string newName, int authUserId) =>
+        "UPDATE public.ops_floors SET " +
+        "name = " + Quote(newName) + ", " +
+        "auth_user_id = " + Int(authUserId) + ", " +
+        "affected_ts = now() " +
+        "WHERE floor_id = " + Int(floorId) + ";";
+
+    /// <summary>
+    /// Soft delete a floor. UI enforces "no tables on this floor" before calling, so there is no
+    /// referential guard here — the store checks the in-memory cache first.
+    /// </summary>
+    public string SoftDeleteOpsFloor(int floorId, int actorUserId) =>
+        "UPDATE public.ops_floors SET " +
+        "deleted = TRUE, deleted_ts = now(), deleted_user_id = " + Int(actorUserId) + ", " +
+        "active = FALSE, auth_user_id = " + Int(actorUserId) + ", affected_ts = now() " +
+        "WHERE floor_id = " + Int(floorId) + " AND COALESCE(deleted, FALSE) = FALSE;";
+
+    /// <summary>Rename cascades to tables / reservations / layouts that carry the denormalized name.</summary>
+    public string RenameFloorNameInOpsTables(string oldName, string newName, int authUserId) =>
+        "UPDATE public.ops_tables SET " +
+        "location_name = " + Quote(newName) + ", " +
+        "auth_user_id = " + Int(authUserId) + ", affected_ts = now() " +
+        "WHERE location_name = " + Quote(oldName) + ";";
+
+    public string RenameFloorNameInOpsReservations(string oldName, string newName, int authUserId) =>
+        "UPDATE public.ops_reservations SET " +
+        "floor_name = " + Quote(newName) + ", " +
+        "auth_user_id = " + Int(authUserId) + ", affected_ts = now() " +
+        "WHERE floor_name = " + Quote(oldName) + ";";
+
+    public string RenameFloorNameInOpsLayouts(string oldName, string newName, int authUserId) =>
+        "UPDATE public.ops_floor_plan_layouts SET " +
+        "floor_name = " + Quote(newName) + ", " +
+        "auth_user_id = " + Int(authUserId) + ", affected_ts = now() " +
+        "WHERE floor_name = " + Quote(oldName) + ";";
+
+    // region: Operations and Services — tables -------------------------------------------------------
+
+    private const string OpsTableColumns =
+        "table_id, name, location_name, seat_count, shape, is_active, assigned_waiter_id, " +
+        "zone, station, turn_time_minutes, status, COALESCE(notes, '') AS notes, " +
+        "accessible, vip_priority, can_merge, created_ts, modified_ts, " +
+        "ops_status, ops_server_id, seated_at_ts, party_size, " +
+        "active, COALESCE(deleted, FALSE) AS deleted, affected_ts, " +
+        "COALESCE(is_seed, FALSE) AS is_seed";
+
+    public string SelectAllOpsTables() =>
+        "SELECT " + OpsTableColumns + " FROM public.ops_tables " +
+        "WHERE COALESCE(deleted, FALSE) = FALSE ORDER BY location_name, name";
+
+    /// <summary>Full row on insert. Stamps auth_user_id + affected_ts; lets created/modified mirror the app-supplied UTCs.</summary>
+    public sealed class OpsTableWrite
+    {
+        public Guid TableId { get; init; }
+        public string Name { get; init; } = "";
+        public string LocationName { get; init; } = "Main Floor";
+        public int SeatCount { get; init; } = 4;
+        public string Shape { get; init; } = "Square";
+        public bool IsActive { get; init; } = true;
+        public int? AssignedWaiterId { get; init; }
+        public int Zone { get; init; } = 1;
+        public int Station { get; init; } = 1;
+        public int TurnTimeMinutes { get; init; } = 60;
+        public string Status { get; init; } = "Available";
+        public string Notes { get; init; } = "";
+        public bool Accessible { get; init; }
+        public bool VipPriority { get; init; }
+        public bool CanMerge { get; init; } = true;
+        public DateTime CreatedUtc { get; init; } = DateTime.UtcNow;
+        public DateTime ModifiedUtc { get; init; } = DateTime.UtcNow;
+        public string OpsStatus { get; init; } = "Available";
+        public int? OpsServerId { get; init; }
+        public DateTime? SeatedAtUtc { get; init; }
+        public int? PartySize { get; init; }
+        public bool IsSeed { get; init; }
+    }
+
+    public string InsertOpsTable(OpsTableWrite t, int authUserId) =>
+        "INSERT INTO public.ops_tables " +
+        "(table_id, name, location_name, seat_count, shape, is_active, assigned_waiter_id, " +
+        " zone, station, turn_time_minutes, status, notes, " +
+        " accessible, vip_priority, can_merge, created_ts, modified_ts, " +
+        " ops_status, ops_server_id, seated_at_ts, party_size, " +
+        " auth_user_id, affected_ts, active, is_seed) " +
+        "VALUES (" +
+        Uuid(t.TableId) + ", " + Quote(t.Name) + ", " + Quote(t.LocationName) + ", " +
+        Int(t.SeatCount) + ", " + Quote(t.Shape) + ", " + Bool(t.IsActive) + ", " +
+        Int(t.AssignedWaiterId) + ", " +
+        Int(t.Zone) + ", " + Int(t.Station) + ", " + Int(t.TurnTimeMinutes) + ", " +
+        Quote(t.Status) + ", " + Nullable(t.Notes) + ", " +
+        Bool(t.Accessible) + ", " + Bool(t.VipPriority) + ", " + Bool(t.CanMerge) + ", " +
+        Ts(t.CreatedUtc) + ", " + Ts(t.ModifiedUtc) + ", " +
+        Quote(t.OpsStatus) + ", " + Int(t.OpsServerId) + ", " + Ts(t.SeatedAtUtc) + ", " +
+        Int(t.PartySize) + ", " +
+        Int(authUserId) + ", now(), TRUE, " + Bool(t.IsSeed) + ");";
+
+    public string UpdateOpsTable(OpsTableWrite t, int authUserId) =>
+        "UPDATE public.ops_tables SET " +
+        "name = " + Quote(t.Name) + ", " +
+        "location_name = " + Quote(t.LocationName) + ", " +
+        "seat_count = " + Int(t.SeatCount) + ", " +
+        "shape = " + Quote(t.Shape) + ", " +
+        "is_active = " + Bool(t.IsActive) + ", " +
+        "assigned_waiter_id = " + Int(t.AssignedWaiterId) + ", " +
+        "zone = " + Int(t.Zone) + ", " +
+        "station = " + Int(t.Station) + ", " +
+        "turn_time_minutes = " + Int(t.TurnTimeMinutes) + ", " +
+        "status = " + Quote(t.Status) + ", " +
+        "notes = " + Nullable(t.Notes) + ", " +
+        "accessible = " + Bool(t.Accessible) + ", " +
+        "vip_priority = " + Bool(t.VipPriority) + ", " +
+        "can_merge = " + Bool(t.CanMerge) + ", " +
+        "modified_ts = " + Ts(t.ModifiedUtc) + ", " +
+        "ops_status = " + Quote(t.OpsStatus) + ", " +
+        "ops_server_id = " + Int(t.OpsServerId) + ", " +
+        "seated_at_ts = " + Ts(t.SeatedAtUtc) + ", " +
+        "party_size = " + Int(t.PartySize) + ", " +
+        "auth_user_id = " + Int(authUserId) + ", " +
+        "affected_ts = now() " +
+        "WHERE table_id = " + Uuid(t.TableId) + ";";
+
+    /// <summary>
+    /// Soft delete a table. The store guards this against tables still referenced by shifts /
+    /// reservations before calling — shift_tables and reservations still carry the table_id for
+    /// history, but filtered reads (<c>COALESCE(deleted, FALSE) = FALSE</c>) hide it from the UI.
+    /// </summary>
+    public string SoftDeleteOpsTable(Guid tableId, int actorUserId) =>
+        "UPDATE public.ops_tables SET " +
+        "deleted = TRUE, deleted_ts = now(), deleted_user_id = " + Int(actorUserId) + ", " +
+        "active = FALSE, is_active = FALSE, " +
+        "auth_user_id = " + Int(actorUserId) + ", affected_ts = now() " +
+        "WHERE table_id = " + Uuid(tableId) + " AND COALESCE(deleted, FALSE) = FALSE;";
+
+    // region: Operations and Services — shifts -------------------------------------------------------
+
+    private const string OpsShiftColumns =
+        "shift_id, employee_id, shift_date, start_time, end_time, source_kind, " +
+        "active, COALESCE(deleted, FALSE) AS deleted, affected_ts, " +
+        "COALESCE(is_seed, FALSE) AS is_seed";
+
+    public string SelectAllOpsShifts() =>
+        "SELECT " + OpsShiftColumns + " FROM public.ops_shifts " +
+        "WHERE COALESCE(deleted, FALSE) = FALSE ORDER BY shift_date, start_time";
+
+    public string SelectAllOpsShiftTables() =>
+        "SELECT shift_id, table_id FROM public.ops_shift_tables";
+
+    public string InsertOpsShift(
+        Guid shiftId, int employeeId, DateOnly date, TimeOnly start, TimeOnly end,
+        string sourceKind, int authUserId, bool isSeed) =>
+        "INSERT INTO public.ops_shifts " +
+        "(shift_id, employee_id, shift_date, start_time, end_time, source_kind, " +
+        " auth_user_id, affected_ts, active, is_seed) " +
+        "VALUES (" +
+        Uuid(shiftId) + ", " + Int(employeeId) + ", " + Date(date) + ", " +
+        Time(start) + ", " + Time(end) + ", " + Quote(sourceKind) + ", " +
+        Int(authUserId) + ", now(), TRUE, " + Bool(isSeed) + ");";
+
+    public string InsertOpsShiftTableLink(Guid shiftId, Guid tableId, bool isSeed) =>
+        "INSERT INTO public.ops_shift_tables (shift_id, table_id, is_seed) " +
+        "SELECT " + Uuid(shiftId) + ", " + Uuid(tableId) + ", " + Bool(isSeed) + " " +
+        "WHERE NOT EXISTS (SELECT 1 FROM public.ops_shift_tables " +
+        "WHERE shift_id = " + Uuid(shiftId) + " AND table_id = " + Uuid(tableId) + ");";
+
+    // region: Operations and Services — reservations --------------------------------------------------
+
+    private const string OpsReservationColumns =
+        "reservation_id, table_id, floor_name, res_date, customer_name, " +
+        "COALESCE(phone, '') AS phone, email, party_size, res_time, status, " +
+        "COALESCE(notes, '') AS notes, COALESCE(reference, '') AS reference, " +
+        "active, COALESCE(deleted, FALSE) AS deleted, affected_ts, " +
+        "COALESCE(is_seed, FALSE) AS is_seed";
+
+    public string SelectAllOpsReservations() =>
+        "SELECT " + OpsReservationColumns + " FROM public.ops_reservations " +
+        "WHERE COALESCE(deleted, FALSE) = FALSE ORDER BY res_date, res_time";
+
+    public sealed class OpsReservationWrite
+    {
+        public Guid ReservationId { get; init; }
+        public Guid TableId { get; init; }
+        public string FloorName { get; init; } = "Main Floor";
+        public DateOnly Date { get; init; }
+        public string CustomerName { get; init; } = "";
+        public string Phone { get; init; } = "";
+        public string? Email { get; init; }
+        public int PartySize { get; init; } = 2;
+        public TimeOnly Time { get; init; }
+        /// <summary>Name of the OpsReservationStatus enum value (Pending, Confirmed, …).</summary>
+        public string Status { get; init; } = "Pending";
+        public string Notes { get; init; } = "";
+        public string Reference { get; init; } = "";
+        public bool IsSeed { get; init; }
+    }
+
+    public string InsertOpsReservation(OpsReservationWrite r, int authUserId) =>
+        "INSERT INTO public.ops_reservations " +
+        "(reservation_id, table_id, floor_name, res_date, customer_name, phone, email, " +
+        " party_size, res_time, status, notes, reference, " +
+        " auth_user_id, affected_ts, active, is_seed) " +
+        "VALUES (" +
+        Uuid(r.ReservationId) + ", " + Uuid(r.TableId) + ", " + Quote(r.FloorName) + ", " +
+        Date(r.Date) + ", " + Quote(r.CustomerName) + ", " + Nullable(r.Phone) + ", " +
+        Nullable(r.Email) + ", " + Int(r.PartySize) + ", " + Time(r.Time) + ", " +
+        Quote(r.Status) + ", " + Nullable(r.Notes) + ", " + Nullable(r.Reference) + ", " +
+        Int(authUserId) + ", now(), TRUE, " + Bool(r.IsSeed) + ");";
+
+    public string UpdateOpsReservation(OpsReservationWrite r, int authUserId) =>
+        "UPDATE public.ops_reservations SET " +
+        "table_id = " + Uuid(r.TableId) + ", " +
+        "floor_name = " + Quote(r.FloorName) + ", " +
+        "res_date = " + Date(r.Date) + ", " +
+        "customer_name = " + Quote(r.CustomerName) + ", " +
+        "phone = " + Nullable(r.Phone) + ", " +
+        "email = " + Nullable(r.Email) + ", " +
+        "party_size = " + Int(r.PartySize) + ", " +
+        "res_time = " + Time(r.Time) + ", " +
+        "status = " + Quote(r.Status) + ", " +
+        "notes = " + Nullable(r.Notes) + ", " +
+        "reference = " + Nullable(r.Reference) + ", " +
+        "auth_user_id = " + Int(authUserId) + ", affected_ts = now() " +
+        "WHERE reservation_id = " + Uuid(r.ReservationId) + ";";
+
+    public string SoftDeleteOpsReservation(Guid reservationId, int actorUserId) =>
+        "UPDATE public.ops_reservations SET " +
+        "deleted = TRUE, deleted_ts = now(), deleted_user_id = " + Int(actorUserId) + ", " +
+        "active = FALSE, auth_user_id = " + Int(actorUserId) + ", affected_ts = now() " +
+        "WHERE reservation_id = " + Uuid(reservationId) + " AND COALESCE(deleted, FALSE) = FALSE;";
+
+    // region: Operations and Services — floor plan layouts -------------------------------------------
+
+    private const string OpsLayoutColumns =
+        "layout_id, layout_date, floor_name, table_id, pos_x, pos_y, " +
+        "affected_ts, COALESCE(is_seed, FALSE) AS is_seed";
+
+    public string SelectAllOpsFloorPlanLayouts() =>
+        "SELECT " + OpsLayoutColumns + " FROM public.ops_floor_plan_layouts";
+
+    /// <summary>
+    /// Two-statement upsert for a per-(date, floor, table) position. PostgreSQL 9.3 has no
+    /// <c>ON CONFLICT</c>, so we UPDATE first (no-op if the row is missing) and then INSERT
+    /// guarded by <c>WHERE NOT EXISTS</c> on the UNIQUE key. Both statements batch together.
+    /// </summary>
+    public string UpsertOpsFloorPlanLayout(
+        Guid layoutId, DateOnly date, string floorName, Guid tableId,
+        double posX, double posY, int authUserId, bool isSeed)
+    {
+        var update =
+            "UPDATE public.ops_floor_plan_layouts SET " +
+            "pos_x = " + Dbl(posX) + ", pos_y = " + Dbl(posY) + ", " +
+            "auth_user_id = " + Int(authUserId) + ", affected_ts = now() " +
+            "WHERE layout_date = " + Date(date) + " AND floor_name = " + Quote(floorName) +
+            " AND table_id = " + Uuid(tableId) + ";";
+
+        var insert =
+            "INSERT INTO public.ops_floor_plan_layouts " +
+            "(layout_id, layout_date, floor_name, table_id, pos_x, pos_y, auth_user_id, affected_ts, is_seed) " +
+            "SELECT " + Uuid(layoutId) + ", " + Date(date) + ", " + Quote(floorName) + ", " +
+            Uuid(tableId) + ", " + Dbl(posX) + ", " + Dbl(posY) + ", " +
+            Int(authUserId) + ", now(), " + Bool(isSeed) + " " +
+            "WHERE NOT EXISTS (SELECT 1 FROM public.ops_floor_plan_layouts " +
+            "WHERE layout_date = " + Date(date) + " AND floor_name = " + Quote(floorName) +
+            " AND table_id = " + Uuid(tableId) + ");";
+
+        return update + " " + insert;
+    }
+
+    // region: Operations and Services — seed ---------------------------------------------------------
+    //
+    // Mirrors the Staff and Access pattern (<see cref="DeleteAllSeedRows"/> +
+    // <see cref="InsertSeedUsers"/>): when App.config's SeedDummyDataOnStartup is TRUE, the app
+    // wipes every is_seed = TRUE row and reinserts the canned demo dataset so reviewers always
+    // see the same shifts, tables, reservations, and floor-plan layout on launch.
+
+    /// <summary>
+    /// Delete every <c>is_seed = TRUE</c> row from the Operations and Services tables. Order
+    /// matters: ops_shift_tables and ops_floor_plan_layouts reference tables / shifts by UUID
+    /// (no FKs in DDL, but we keep the deletion order intuitive for readers of the audit log).
+    /// </summary>
+    public string DeleteAllOpsSeedRows() =>
+        "DELETE FROM public.ops_shift_tables WHERE is_seed = TRUE; " +
+        "DELETE FROM public.ops_shifts WHERE is_seed = TRUE; " +
+        "DELETE FROM public.ops_reservations WHERE is_seed = TRUE; " +
+        "DELETE FROM public.ops_floor_plan_layouts WHERE is_seed = TRUE; " +
+        "DELETE FROM public.ops_tables WHERE is_seed = TRUE; " +
+        "DELETE FROM public.ops_floors WHERE is_seed = TRUE;";
+
+    /// <summary>
+    /// Build the full demo INSERT batch for Operations and Services. All UUIDs are minted in C#
+    /// so the cross-references between seeded tables, shifts, reservations, and floor-plan layouts
+    /// resolve correctly inside a single transaction. The employee ids come from the seeded users
+    /// (1001..1006); see <see cref="InsertSeedUsers"/>. Floor ids start at 10001 so they sit
+    /// comfortably above any client-created floor.
+    /// </summary>
+    public string InsertSeedOpsServices()
+    {
+        var auth = AppStatus.SystemBootstrapUserId;
+        var today = DateTime.Today;
+        var b = new StringBuilder();
+
+        // Floors -------------------------------------------------------------------------------
+        const int mainFloorId = 10001;
+        const int patioFloorId = 10002;
+        const string mainFloor = "Main Floor";
+        const string patio = "Patio";
+        b.Append(InsertOpsFloor(mainFloorId, mainFloor, auth, isSeed: true));
+        b.Append(' ');
+        b.Append(InsertOpsFloor(patioFloorId, patio, auth, isSeed: true));
+        b.Append(' ');
+
+        // Tables -------------------------------------------------------------------------------
+        // Seed 7 tables mirroring the historical in-memory demo set. Waiter ids match the first
+        // two seeded users (1001 = John, 1002 = Sarah). Keep the UUIDs fresh each reseed cycle;
+        // the in-memory store is reloaded from DB so consumers see the new IDs immediately.
+        var tbl1 = Guid.NewGuid();
+        var tbl2 = Guid.NewGuid();
+        var tbl3 = Guid.NewGuid();
+        var tbl4 = Guid.NewGuid();
+        var tbl5 = Guid.NewGuid();
+        var tbl6 = Guid.NewGuid();
+        var tbl7 = Guid.NewGuid();
+
+        const int johnId = 1001;
+        const int sarahId = 1002;
+
+        AppendSeedTable(b, tbl1, "Table 1", mainFloor, 4, "Square", true, johnId, today, isOccupied: false, auth);
+        AppendSeedTable(b, tbl2, "Table 2", mainFloor, 6, "Square", true, sarahId, today, isOccupied: true, auth, johnId);
+        AppendSeedTable(b, tbl3, "Table 3", mainFloor, 4, "Square", true, null, today, isOccupied: false, auth);
+        AppendSeedTable(b, tbl4, "Table 4", mainFloor, 2, "Square", true, null, today, isOccupied: false, auth);
+        AppendSeedTable(b, tbl5, "Table 5", mainFloor, 4, "Square", false, null, today, isOccupied: false, auth);
+        AppendSeedTable(b, tbl6, "Table 6", patio, 8, "Square", true, null, today, isOccupied: false, auth);
+        AppendSeedTable(b, tbl7, "VIP Table", patio, 6, "Round", true, null, today, isOccupied: false, auth);
+
+        // Shifts -------------------------------------------------------------------------------
+        // Previous week through current week + 6 weeks (8 weeks total) so Week/Month views have
+        // content to render without the user paging around. Mirrors the previous in-memory seeder.
+        int[] empIds = { 1001, 1002, 1003, 1004, 1005, 1006 };
+        var week0 = DateOnly.FromDateTime(StartOfWeekMonday(today.AddDays(-7)));
+        for (var w = 0; w < 8; w++)
+        {
+            var monday = week0.AddDays(w * 7);
+
+            AppendSeedShift(b, empIds[0], monday.AddDays(0),
+                new TimeOnly(9, 0), new TimeOnly(17, 0),
+                new[] { tbl1, tbl2 }, "Weekly", auth);
+            AppendSeedShift(b, empIds[1], monday.AddDays(1),
+                new TimeOnly(10, 0), new TimeOnly(18, 0),
+                new[] { tbl2 }, "Weekly", auth);
+            AppendSeedShift(b, empIds[2], monday.AddDays(2),
+                new TimeOnly(12, 0), new TimeOnly(20, 0),
+                Array.Empty<Guid>(), "Daily", auth);
+            AppendSeedShift(b, empIds[3], monday.AddDays(3),
+                new TimeOnly(9, 0), new TimeOnly(15, 0),
+                new[] { tbl3, tbl4 }, "Daily", auth);
+            if (w % 2 == 0)
+            {
+                AppendSeedShift(b, empIds[4], monday.AddDays(4),
+                    new TimeOnly(9, 0), new TimeOnly(17, 0),
+                    new[] { tbl6 }, "Monthly", auth);
+            }
+            AppendSeedShift(b, empIds[5], monday.AddDays(5),
+                new TimeOnly(11, 0), new TimeOnly(19, 0),
+                new[] { tbl1 }, "Weekly", auth);
+        }
+
+        // Reservations --------------------------------------------------------------------------
+        var todayOnly = DateOnly.FromDateTime(today);
+        AppendSeedReservation(b, tbl3, mainFloor, todayOnly, new TimeOnly(19, 30),
+            "Robert Williams", "+44 078 890 0000", "robert@example.com", 4,
+            "Confirmed", "Special request for a vegetarian menu.", "RW-1042", auth);
+        AppendSeedReservation(b, tbl4, mainFloor, todayOnly, new TimeOnly(20, 15),
+            "Mike Brown", "+44 070 100 2000", null, 2,
+            "Seated", "", "MB-2211", auth);
+        AppendSeedReservation(b, tbl7, patio, todayOnly, new TimeOnly(20, 0),
+            "Barbara Miller", "+44 078 234 555", null, 2,
+            "Pending", "", "BM-8831", auth);
+        AppendSeedReservation(b, tbl2, mainFloor, todayOnly, new TimeOnly(20, 0),
+            "David Anderson", "+44 078 111 2222", null, 4,
+            "Confirmed", "", "DA-9901", auth);
+        AppendSeedReservation(b, tbl1, mainFloor, todayOnly.AddDays(-1), new TimeOnly(18, 0),
+            "Jennifer Taylor", "+44 078 000 3333", null, 3,
+            "Completed", "", "JT-7712", auth);
+
+        return b.ToString();
+    }
+
+    /// <summary>Monday-based start-of-week (client's roster week). Kept here to avoid pulling in OpsServicesStore from Sql.</summary>
+    private static DateTime StartOfWeekMonday(DateTime d)
+    {
+        var date = d.Date;
+        var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return date.AddDays(-diff);
+    }
+
+    private void AppendSeedTable(
+        StringBuilder b, Guid tableId, string name, string floor, int seats, string shape,
+        bool isActive, int? waiterId, DateTime today, bool isOccupied, int authUserId,
+        int? serverId = null)
+    {
+        var write = new OpsTableWrite
+        {
+            TableId = tableId,
+            Name = name,
+            LocationName = floor,
+            SeatCount = seats,
+            Shape = shape,
+            IsActive = isActive,
+            AssignedWaiterId = waiterId,
+            Status = "Available",
+            OpsStatus = isOccupied ? "Occupied" : (isActive ? "Available" : "Inactive"),
+            OpsServerId = isOccupied ? serverId : null,
+            SeatedAtUtc = isOccupied ? DateTime.UtcNow.AddMinutes(-106) : (DateTime?)null,
+            PartySize = isOccupied ? 4 : (int?)null,
+            CreatedUtc = today.AddDays(-120).ToUniversalTime(),
+            ModifiedUtc = today.AddDays(-1).ToUniversalTime(),
+            IsSeed = true
+        };
+        b.Append(InsertOpsTable(write, authUserId));
+        b.Append(' ');
+    }
+
+    private void AppendSeedShift(
+        StringBuilder b, int employeeId, DateOnly date, TimeOnly start, TimeOnly end,
+        Guid[] tableIds, string sourceKind, int authUserId)
+    {
+        var shiftId = Guid.NewGuid();
+        b.Append(InsertOpsShift(shiftId, employeeId, date, start, end, sourceKind, authUserId, isSeed: true));
+        b.Append(' ');
+        foreach (var tableId in tableIds)
+        {
+            b.Append(InsertOpsShiftTableLink(shiftId, tableId, isSeed: true));
+            b.Append(' ');
+        }
+    }
+
+    private void AppendSeedReservation(
+        StringBuilder b, Guid tableId, string floor, DateOnly date, TimeOnly time,
+        string name, string phone, string? email, int party, string status,
+        string notes, string reference, int authUserId)
+    {
+        var write = new OpsReservationWrite
+        {
+            ReservationId = Guid.NewGuid(),
+            TableId = tableId,
+            FloorName = floor,
+            Date = date,
+            Time = time,
+            CustomerName = name,
+            Phone = phone,
+            Email = email,
+            PartySize = party,
+            Status = status,
+            Notes = notes,
+            Reference = reference,
+            IsSeed = true
+        };
+        b.Append(InsertOpsReservation(write, authUserId));
+        b.Append(' ');
     }
 }
