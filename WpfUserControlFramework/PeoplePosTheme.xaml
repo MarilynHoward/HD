@@ -44,6 +44,8 @@
     <Color x:Key="Color.White">#FFFFFF</Color>
 
     <SolidColorBrush x:Key="HdrIconStrokeBrush" Color="#6B7280"/>
+    <!-- Staff password reveal + reporting Attention peek eye (Lucide-style outline + pupil) -->
+    <SolidColorBrush x:Key="Brush.PasswordRevealEyeStroke" Color="#64748B"/>
 
     <!-- Brushes from colours -->
     <SolidColorBrush x:Key="Brush.White"
@@ -140,7 +142,65 @@
                      Color="{StaticResource Color.DangerButtonBorderSoft}" />
     <SolidColorBrush x:Key="Brush.DangerRed"
                      Color="{StaticResource Color.DangerRed}" />
-    
+
+    <!-- Reporting dashboard (RptDashboardMain) — shared accents; keyed for code-behind resolution -->
+    <SolidColorBrush x:Key="Brush.RptDashboardPageBg" Color="#F8F9FB"/>
+    <SolidColorBrush x:Key="Brush.RptDashboardDividerStrong" Color="#E5E7EB"/>
+
+    <!-- Per-category accents (backdrop + icon ink + hover border/surface); chevron inactive uses BorderGrey -->
+    <SolidColorBrush x:Key="Brush.RptDailySalesIconBackdrop" Color="#DBEAFE"/>
+    <SolidColorBrush x:Key="Brush.RptDailySalesIconForeground" Color="#1D4ED8"/>
+    <SolidColorBrush x:Key="Brush.RptDailySalesHoverBorder" Color="#3B82F6"/>
+    <SolidColorBrush x:Key="Brush.RptDailySalesHoverSurface" Color="#E6F3FF"/>
+
+    <!-- VAT / purple report cards -->
+    <SolidColorBrush x:Key="Brush.RptVatIconBackdrop" Color="#EBE4FF"/>
+    <SolidColorBrush x:Key="Brush.RptVatIconForeground" Color="#7950F2"/>
+    <SolidColorBrush x:Key="Brush.RptVatHoverBorder" Color="#B197FC"/>
+    <SolidColorBrush x:Key="Brush.RptVatHoverSurface" Color="#F3F0FF"/>
+
+    <SolidColorBrush x:Key="Brush.RptTealMintIconBackdrop" Color="#CCFBF1"/>
+    <SolidColorBrush x:Key="Brush.RptTealMintIconForeground" Color="#0F766E"/>
+    <SolidColorBrush x:Key="Brush.RptTealMintHoverBorder" Color="#14B8A6"/>
+    <SolidColorBrush x:Key="Brush.RptTealMintHoverSurface" Color="#E8FFFA"/>
+
+    <SolidColorBrush x:Key="Brush.RptAlertRedIconBackdrop" Color="#FEE2E2"/>
+    <SolidColorBrush x:Key="Brush.RptAlertRedIconForeground" Color="#B91C1C"/>
+    <SolidColorBrush x:Key="Brush.RptAlertRedHoverBorder" Color="#EF4444"/>
+    <SolidColorBrush x:Key="Brush.RptAlertRedHoverSurface" Color="#FEF2F2"/>
+
+    <SolidColorBrush x:Key="Brush.RptOrangeIconBackdrop" Color="#FFEDD5"/>
+    <SolidColorBrush x:Key="Brush.RptOrangeIconForeground" Color="#9A3412"/>
+    <SolidColorBrush x:Key="Brush.RptOrangeHoverBorder" Color="#EA580C"/>
+    <SolidColorBrush x:Key="Brush.RptOrangeHoverSurface" Color="#FFF7ED"/>
+
+    <SolidColorBrush x:Key="Brush.RptGoldIconBackdrop" Color="#FEF9C3"/>
+    <SolidColorBrush x:Key="Brush.RptGoldIconForeground" Color="#A16207"/>
+    <SolidColorBrush x:Key="Brush.RptGoldHoverBorder" Color="#EAB308"/>
+    <SolidColorBrush x:Key="Brush.RptGoldHoverSurface" Color="#FEFCE8"/>
+
+    <SolidColorBrush x:Key="Brush.RptOperationalCtlIconBackdrop" Color="#FFE4E6"/>
+    <SolidColorBrush x:Key="Brush.RptOperationalCtlIconForeground" Color="#BE123C"/>
+    <SolidColorBrush x:Key="Brush.RptOperationalCtlHoverBorder" Color="#E02424"/>
+    <SolidColorBrush x:Key="Brush.RptOperationalCtlHoverSurface" Color="#FDF2F4"/>
+
+    <SolidColorBrush x:Key="Brush.RptProcurementIconBackdrop" Color="#FFEDD5"/>
+    <SolidColorBrush x:Key="Brush.RptProcurementIconForeground" Color="#C2410C"/>
+    <SolidColorBrush x:Key="Brush.RptProcurementHoverBorder" Color="#E8A05B"/>
+    <SolidColorBrush x:Key="Brush.RptProcurementHoverSurface" Color="#FDF8F2"/>
+
+    <SolidColorBrush x:Key="Brush.RptProfitIconBackdrop" Color="#EDE9FE"/>
+    <SolidColorBrush x:Key="Brush.RptProfitIconForeground" Color="#6D28D9"/>
+    <SolidColorBrush x:Key="Brush.RptProfitHoverBorder" Color="#8B5CF6"/>
+    <SolidColorBrush x:Key="Brush.RptProfitHoverSurface" Color="#F5F3FF"/>
+
+    <!-- Active chevron on dashboard cards (muted path uses Brush.BorderGrey) -->
+    <SolidColorBrush x:Key="Brush.RptChevronStrong" Color="#334155"/>
+
+    <Geometry x:Key="Geom.RptDashboardChevronRight">
+        M11,9 L17,17 L11,25
+    </Geometry>
+
     <Geometry x:Key="Icon.Cube">
                     M12,2 L21,7 L12,12 L3,7 Z
                 M3,7 L12,12 L12,22 L3,17 Z
@@ -427,6 +487,30 @@
                     </GeometryDrawing.Geometry>
                 </GeometryDrawing>
 
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- Same geometry as Export icon; pen white for blue / primary fills (VcPrimaryButtonStyle). -->
+    <DrawingImage x:Key="PeoplePOS.Icon.Download.White">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="{x:Null}">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="{StaticResource Brush.White}"
+                             Thickness="2"
+                             StartLineCap="Round"
+                             EndLineCap="Round"
+                             LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                    <GeometryDrawing.Geometry>
+                        <GeometryGroup>
+                            <LineGeometry StartPoint="12,15" EndPoint="12,3"/>
+                            <PathGeometry Figures="M21,15 L21,19 C21,20.1046 20.1046,21 19,21 L5,21 C3.89543,21 3,20.1046 3,19 L3,15"/>
+                            <PathGeometry Figures="M7,10 L12,15 L17,10"/>
+                        </GeometryGroup>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
             </DrawingGroup>
         </DrawingImage.Drawing>
     </DrawingImage>
@@ -1727,6 +1811,251 @@
                             <Setter TargetName="Chrome" Property="Opacity" Value="0.65"/>
                         </Trigger>
 
+                    </ControlTemplate.Triggers>
+
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Reporting dashboard date range: no visible DatePicker chrome; full-area transparent hit target opens calendar.
+         Pair with a sibling Border "pill" (icon + single-line caption) in RptDashboardMain. -->
+    <Style x:Key="RptDashboardDateRangePillDatePickerStyle" TargetType="{x:Type DatePicker}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="SelectedDateFormat" Value="Short" />
+        <Setter Property="FontSize">
+            <Setter.Value>
+                <Binding Source="{StaticResource UiScaleState}"
+                         Path="FontScale"
+                         Converter="{StaticResource FontScaleConverter}"
+                         ConverterParameter="1" />
+            </Setter.Value>
+        </Setter>
+
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DatePicker}">
+
+                    <ControlTemplate.Resources>
+                        <Style TargetType="{x:Type DatePickerTextBox}">
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                            <Setter Property="VerticalContentAlignment" Value="Center" />
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Setter Property="Width" Value="0" />
+                            <Setter Property="Height" Value="0" />
+                            <Setter Property="Opacity" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="{x:Type DatePickerTextBox}">
+                                        <Border Background="Transparent" SnapsToDevicePixels="True" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ControlTemplate.Resources>
+
+                    <Grid SnapsToDevicePixels="True" UseLayoutRounding="True">
+
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                SnapsToDevicePixels="True">
+                            <Border.CornerRadius>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource LayoutScaleConverter}"
+                                         ConverterParameter="10" />
+                            </Border.CornerRadius>
+                        </Border>
+
+                        <Border x:Name="FocusOuter"
+                                Visibility="Collapsed"
+                                Background="Transparent"
+                                BorderBrush="#C1DEFE"
+                                SnapsToDevicePixels="True"
+                                RenderOptions.EdgeMode="Aliased">
+                            <Border.CornerRadius>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource LayoutScaleConverter}"
+                                         ConverterParameter="12" />
+                            </Border.CornerRadius>
+                            <Border.Margin>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource ThicknessScaleConverter}"
+                                         ConverterParameter="-3,-3,-3,-3" />
+                            </Border.Margin>
+                            <Border.BorderThickness>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource LayoutScaleConverter}"
+                                         ConverterParameter="3" />
+                            </Border.BorderThickness>
+                        </Border>
+
+                        <Border x:Name="FocusInner"
+                                Visibility="Collapsed"
+                                Background="Transparent"
+                                BorderBrush="#93C5FD"
+                                SnapsToDevicePixels="True"
+                                RenderOptions.EdgeMode="Aliased">
+                            <Border.CornerRadius>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource LayoutScaleConverter}"
+                                         ConverterParameter="11" />
+                            </Border.CornerRadius>
+                            <Border.Margin>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource ThicknessScaleConverter}"
+                                         ConverterParameter="-1,-1,-1,-1" />
+                            </Border.Margin>
+                            <Border.BorderThickness>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource LayoutScaleConverter}"
+                                         ConverterParameter="1" />
+                            </Border.BorderThickness>
+                        </Border>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <DatePickerTextBox x:Name="PART_TextBox"
+                                               Grid.Column="0"
+                                               FocusVisualStyle="{x:Null}"
+                                               Padding="0"
+                                               Background="Transparent"
+                                               BorderThickness="0"
+                                               VerticalContentAlignment="Center" />
+
+                            <ToggleButton x:Name="PART_Button"
+                                          Grid.Column="0"
+                                          FocusVisualStyle="{x:Null}"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Margin="0"
+                                          Padding="0"
+                                          Focusable="False"
+                                          IsTabStop="False"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Stretch"
+                                          Opacity="0"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Border Background="Transparent" SnapsToDevicePixels="True" />
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                        </Grid>
+
+                        <Popup x:Name="PART_Popup"
+                               Placement="Bottom"
+                               PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               PopupAnimation="Fade"
+                               StaysOpen="False"
+                               HorizontalOffset="0">
+                            <Popup.VerticalOffset>
+                                <Binding Source="{StaticResource UiScaleState}"
+                                         Path="FontScale"
+                                         Converter="{StaticResource LayoutScaleConverter}"
+                                         ConverterParameter="6" />
+                            </Popup.VerticalOffset>
+
+                            <Border Background="Transparent"
+                                    SnapsToDevicePixels="True"
+                                    ClipToBounds="False">
+                                <Border.Width>
+                                    <Binding Source="{StaticResource UiScaleState}"
+                                             Path="FontScale"
+                                             Converter="{StaticResource LayoutScaleConverter}"
+                                             ConverterParameter="520" />
+                                </Border.Width>
+                                <Border.Height>
+                                    <Binding Source="{StaticResource UiScaleState}"
+                                             Path="FontScale"
+                                             Converter="{StaticResource LayoutScaleConverter}"
+                                             ConverterParameter="480" />
+                                </Border.Height>
+
+                                <Border Background="White"
+                                        BorderBrush="#FFE5E7EB"
+                                        SnapsToDevicePixels="True"
+                                        ClipToBounds="False">
+                                    <Border.BorderThickness>
+                                        <Binding Source="{StaticResource UiScaleState}"
+                                                 Path="FontScale"
+                                                 Converter="{StaticResource LayoutScaleConverter}"
+                                                 ConverterParameter="1" />
+                                    </Border.BorderThickness>
+                                    <Border.CornerRadius>
+                                        <Binding Source="{StaticResource UiScaleState}"
+                                                 Path="FontScale"
+                                                 Converter="{StaticResource LayoutScaleConverter}"
+                                                 ConverterParameter="12" />
+                                    </Border.CornerRadius>
+                                    <Grid RenderTransformOrigin="0,0">
+                                        <Grid.RenderTransform>
+                                            <ScaleTransform ScaleX="2" ScaleY="2" />
+                                        </Grid.RenderTransform>
+                                        <Calendar x:Name="PART_Calendar" />
+                                    </Grid>
+                                </Border>
+                            </Border>
+                        </Popup>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsKeyboardFocusWithin" Value="True" />
+                                <Condition Property="Validation.HasError" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="FocusOuter" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="FocusInner" Property="Visibility" Value="Visible" />
+                        </MultiTrigger>
+
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsDropDownOpen" Value="True" />
+                                <Condition Property="Validation.HasError" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="FocusOuter" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="FocusInner" Property="Visibility" Value="Visible" />
+                        </MultiTrigger>
+
+                        <Trigger Property="Validation.HasError" Value="True">
+                            <Setter TargetName="FocusOuter" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="FocusInner" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#E53E3E" />
+                            <Setter TargetName="Chrome" Property="BorderThickness">
+                                <Setter.Value>
+                                    <Binding Source="{StaticResource UiScaleState}"
+                                             Path="FontScale"
+                                             Converter="{StaticResource LayoutScaleConverter}"
+                                             ConverterParameter="1" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.65" />
+                        </Trigger>
                     </ControlTemplate.Triggers>
 
                 </ControlTemplate>
@@ -5183,6 +5512,103 @@ ConverterParameter="32" />
                         Value="{StaticResource Brush.RowSelectedBg}" />
             </MultiTrigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- ═════════════════ Reporting dashboard typography (RptDashboardMain) — wpf-usercontrol-framework-standards ladder:
+         page/main header 18 Bold; section 16 SemiBold; subtitle 15 Normal; button label 16;
+         table/header+row 14; badge 13 Bold — all FontSize via FontScaleConverter + UiScaleState.FontScale. -->
+    <Style x:Key="RptDashboardSectionHeadingStyle"
+           TargetType="TextBlock">
+        <Setter Property="Foreground"
+                Value="{StaticResource MainForeground}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize"
+                Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
+        <Setter Property="Margin"
+                Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,12'}"/>
+    </Style>
+
+    <!-- Row / list primary line (compact cards): table row tier 14, Bold for title emphasis. -->
+    <Style x:Key="RptDashboardCardTitleStyle"
+           TargetType="TextBlock">
+        <Setter Property="Foreground"
+                Value="{StaticResource MainForeground}"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="TextTrimming" Value="None"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="FontSize"
+                Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+    </Style>
+
+    <!-- Browse large tiles: group name = section tier (16 SemiBold). -->
+    <Style x:Key="RptDashboardBrowseGroupTitleStyle"
+           TargetType="TextBlock">
+        <Setter Property="Foreground"
+                Value="{StaticResource MainForeground}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="TextTrimming" Value="None"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="FontSize"
+                Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
+    </Style>
+
+    <Style x:Key="RptDashboardCardDetailStyle"
+           TargetType="TextBlock">
+        <Setter Property="Foreground"
+                Value="{StaticResource Brush.TextMuted}"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="TextTrimming" Value="None"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="FontSize"
+                Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"/>
+    </Style>
+
+    <!-- Browse tiles: descriptions wrap; height grows with content (dashboard strips size to viewport width). -->
+    <Style x:Key="RptDashboardBrowseDetailStyle"
+           TargetType="TextBlock"
+           BasedOn="{StaticResource RptDashboardCardDetailStyle}">
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
+    <Style x:Key="RptDashboardMutedMetaStyle"
+           TargetType="TextBlock">
+        <Setter Property="Foreground"
+                Value="{StaticResource Brush.TextMuted}"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="FontSize"
+                Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+    </Style>
+
+    <!-- Filter date-range pill caption: subtitle tier (15 Normal). Foreground set at use site if needed. -->
+    <Style x:Key="RptDashboardFilterDateRangeCaptionStyle"
+           TargetType="TextBlock">
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="FontSize"
+                Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"/>
+    </Style>
+
+    <!-- Toolbar / pill action labels: button label tier (16 SemiBold). Set Foreground at use site. -->
+    <Style x:Key="RptDashboardToolbarActionLabelStyle"
+           TargetType="TextBlock">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="FontSize"
+                Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
+    </Style>
+
+    <!-- Attention badge count: badge tier (13 Bold). Foreground from theme binding on control. -->
+    <Style x:Key="RptDashboardAttentionBadgeCountStyle"
+           TargetType="TextBlock">
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="FontSize"
+                Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
     </Style>
 
 </ResourceDictionary>

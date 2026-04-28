@@ -1,0 +1,1201 @@
+<UserControl x:Class="RestaurantPosWpf.RptDashboardMain"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:RestaurantPosWpf"
+             x:Name="Root">
+
+    <UserControl.Resources>
+
+        <!-- Card chrome templates below; typography for section headings lives in PeoplePosTheme.xaml -->
+
+        <!-- Recently used card -->
+        <Style x:Key="RecentlyUsedCardButtonStyle" TargetType="Button">
+            <Setter Property="Foreground"
+                    Value="{StaticResource MainForeground}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CardRoot"
+                                Background="{StaticResource Brush.White}"
+                                BorderBrush="{StaticResource Brush.SurfaceGrey}"
+                                BorderThickness="1"
+                                SnapsToDevicePixels="True"
+                                Padding="{Binding Source={StaticResource UiScaleState},
+                                                   Path=FontScale,
+                                                   Converter={StaticResource ThicknessScaleConverter},
+                                                   ConverterParameter='14,12,14,12'}">
+                            <Border.CornerRadius>
+                                <Binding Path="ActualHeight"
+                                         RelativeSource="{RelativeSource Self}"
+                                         Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                         ConverterParameter="10"/>
+                            </Border.CornerRadius>
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1"
+                                                  BlurRadius="4"
+                                                  Opacity="0.06"
+                                                  Direction="270"
+                                                  Color="#FF000000"/>
+                            </Border.Effect>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=15}"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border x:Name="IconTile"
+                                        Grid.Column="0"
+                                        SnapsToDevicePixels="True"
+                                        Width="{Binding Source={StaticResource UiScaleState},
+                                                         Path=FontScale,
+                                                         Converter={StaticResource LayoutScaleConverter},
+                                                         ConverterParameter=52}"
+                                        Height="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource LayoutScaleConverter},
+                                                          ConverterParameter=52}"
+                                        Background="{Binding Path=Theme.IconBackdrop}"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center">
+                                    <Border.CornerRadius>
+                                        <Binding Path="ActualHeight"
+                                                 RelativeSource="{RelativeSource Self}"
+                                                 Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                                 ConverterParameter="8"/>
+                                    </Border.CornerRadius>
+                                    <Border.RenderTransformOrigin>0.5,0.5</Border.RenderTransformOrigin>
+                                    <Border.RenderTransform>
+                                        <ScaleTransform ScaleX="0.9" ScaleY="0.9"/>
+                                    </Border.RenderTransform>
+
+                                    <Viewbox Stretch="Uniform"
+                                             Width="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource LayoutScaleConverter},
+                                                              ConverterParameter=26}"
+                                             Height="{Binding Source={StaticResource UiScaleState},
+                                                               Path=FontScale,
+                                                               Converter={StaticResource LayoutScaleConverter},
+                                                               ConverterParameter=26}">
+                                        <Path Data="{Binding Path=IconGeometry}"
+                                              Stroke="{Binding Path=Theme.IconForeground}"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              StrokeLineJoin="Round"
+                                              Stretch="Uniform">
+                                            <Path.StrokeThickness>
+                                                <Binding Source="{StaticResource UiScaleState}"
+                                                         Path="FontScale"
+                                                         Converter="{StaticResource LayoutScaleConverter}"
+                                                         ConverterParameter="2"/>
+                                            </Path.StrokeThickness>
+                                        </Path>
+                                    </Viewbox>
+                                </Border>
+
+                                <StackPanel Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RptDashboardCardTitleStyle}"
+                                               Foreground="{StaticResource MainForeground}"
+                                               FontWeight="SemiBold"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                               TextWrapping="Wrap"
+                                               Text="{Binding Path=Report.DisplayName}"/>
+                                    <TextBlock Style="{StaticResource RptDashboardCardDetailStyle}"
+                                               Foreground="{StaticResource Brush.TextMuted}"
+                                               FontWeight="Normal"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                               TextWrapping="Wrap"
+                                               Text="{Binding Path=LastRunDisplay}"
+                                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,4,0,0'}"/>
+                                </StackPanel>
+
+                                <Grid Grid.Column="4"
+                                      VerticalAlignment="Center"
+                                      Width="{Binding Path=FontScale,
+                                                      Source={StaticResource UiScaleState},
+                                                      Converter={StaticResource LayoutScaleConverter},
+                                                      ConverterParameter=14}"
+                                      Height="{Binding Path=FontScale,
+                                                       Source={StaticResource UiScaleState},
+                                                       Converter={StaticResource LayoutScaleConverter},
+                                                       ConverterParameter=22}">
+                                    <Path x:Name="ChevronMuted"
+                                          Stretch="Uniform"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Stroke="{StaticResource Brush.BorderGrey}"
+                                          StrokeEndLineCap="Round"
+                                          StrokeStartLineCap="Round"
+                                          Data="{StaticResource Geom.RptDashboardChevronRight}">
+                                        <Path.StrokeThickness>
+                                            <Binding Source="{StaticResource UiScaleState}"
+                                                     Path="FontScale"
+                                                     Converter="{StaticResource LayoutScaleConverter}"
+                                                     ConverterParameter="2"/>
+                                        </Path.StrokeThickness>
+                                    </Path>
+                                    <Path x:Name="ChevronHot"
+                                          Stretch="Uniform"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Opacity="0"
+                                          Stroke="{Binding Theme.ChevronHot}"
+                                          StrokeEndLineCap="Round"
+                                          StrokeStartLineCap="Round"
+                                          Data="{StaticResource Geom.RptDashboardChevronRight}">
+                                        <Path.StrokeThickness>
+                                            <Binding Source="{StaticResource UiScaleState}"
+                                                     Path="FontScale"
+                                                     Converter="{StaticResource LayoutScaleConverter}"
+                                                     ConverterParameter="2"/>
+                                        </Path.StrokeThickness>
+                                    </Path>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CardRoot" Property="Background">
+                                    <Setter.Value>
+                                        <Binding Path="DataContext.Theme.HoverBackground"
+                                                 RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="CardRoot" Property="BorderBrush">
+                                    <Setter.Value>
+                                        <Binding Path="DataContext.Theme.HoverBorder"
+                                                 RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="ChevronMuted" Property="Opacity" Value="0"/>
+                                <Setter TargetName="ChevronHot" Property="Opacity" Value="1"/>
+                                <Setter TargetName="IconTile" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.12" ScaleY="1.12"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="CardRoot" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="4"
+                                                          BlurRadius="12"
+                                                          Opacity="0.16"
+                                                          Direction="270"
+                                                          Color="#FF000000"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="IconTile" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.08" ScaleY="1.08"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Attention Needed card -->
+        <Style x:Key="AttentionCardButtonStyle" TargetType="Button">
+            <Setter Property="Foreground"
+                    Value="{StaticResource MainForeground}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CardRootAtt"
+                                Background="{StaticResource Brush.White}"
+                                BorderBrush="{StaticResource Brush.SurfaceGrey}"
+                                BorderThickness="1"
+                                Padding="{Binding Source={StaticResource UiScaleState},
+                                                   Path=FontScale,
+                                                   Converter={StaticResource ThicknessScaleConverter},
+                                                   ConverterParameter='14,12,14,12'}">
+                            <Border.CornerRadius>
+                                <Binding Path="ActualHeight"
+                                         RelativeSource="{RelativeSource Self}"
+                                         Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                         ConverterParameter="10"/>
+                            </Border.CornerRadius>
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1"
+                                                  BlurRadius="4"
+                                                  Opacity="0.06"
+                                                  Direction="270"
+                                                  Color="#FF000000"/>
+                            </Border.Effect>
+
+                            <Grid MinHeight="{Binding Path=FontScale,
+                                                       Source={StaticResource UiScaleState},
+                                                       Converter={StaticResource LayoutScaleConverter},
+                                                       ConverterParameter=56}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=12}"/>
+                                    <ColumnDefinition Width="*"
+                                                      MinWidth="0"/>
+                                    <ColumnDefinition Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=8}"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=10}"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=10}"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border x:Name="AttIconTile"
+                                        Grid.Column="0"
+                                        SnapsToDevicePixels="True"
+                                        Width="{Binding Source={StaticResource UiScaleState},
+                                                         Path=FontScale,
+                                                         Converter={StaticResource LayoutScaleConverter},
+                                                         ConverterParameter=52}"
+                                        Height="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource LayoutScaleConverter},
+                                                          ConverterParameter=52}"
+                                        Background="{Binding Path=IconTheme.IconBackdrop}"
+                                        VerticalAlignment="Center">
+                                    <Border.CornerRadius>
+                                        <Binding Path="ActualHeight"
+                                                 RelativeSource="{RelativeSource Self}"
+                                                 Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                                 ConverterParameter="8"/>
+                                    </Border.CornerRadius>
+                                    <Border.RenderTransformOrigin>0.5,0.5</Border.RenderTransformOrigin>
+                                    <Border.RenderTransform>
+                                        <ScaleTransform ScaleX="0.9" ScaleY="0.9"/>
+                                    </Border.RenderTransform>
+
+                                    <Viewbox Stretch="Uniform"
+                                             Width="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource LayoutScaleConverter},
+                                                              ConverterParameter=26}"
+                                             Height="{Binding Source={StaticResource UiScaleState},
+                                                               Path=FontScale,
+                                                               Converter={StaticResource LayoutScaleConverter},
+                                                               ConverterParameter=26}">
+                                        <Path Data="{Binding IconGeometry}"
+                                              Stroke="{Binding IconTheme.IconForeground}"
+                                              StrokeEndLineCap="Round"
+                                              StrokeStartLineCap="Round"
+                                              StrokeLineJoin="Round">
+                                            <Path.StrokeThickness>
+                                                <Binding Source="{StaticResource UiScaleState}"
+                                                         Path="FontScale"
+                                                         Converter="{StaticResource LayoutScaleConverter}"
+                                                         ConverterParameter="2"/>
+                                            </Path.StrokeThickness>
+                                        </Path>
+                                    </Viewbox>
+                                </Border>
+
+                                <TextBlock Grid.Column="2"
+                                           Style="{StaticResource RptDashboardCardTitleStyle}"
+                                           Foreground="{StaticResource MainForeground}"
+                                           FontWeight="SemiBold"
+                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                           HorizontalAlignment="Stretch"
+                                           TextAlignment="Left"
+                                           TextWrapping="Wrap"
+                                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,8,2'}"
+                                           Text="{Binding Report.DisplayName}"/>
+
+                                <Border Grid.Column="4"
+                                        VerticalAlignment="Center"
+                                        Background="{Binding BadgeTheme.IconBackdrop}"
+                                        Padding="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='10,6,10,6'}"
+                                        CornerRadius="{Binding ActualHeight,
+                                                               RelativeSource={RelativeSource Self},
+                                                               Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                               ConverterParameter=6}">
+                                    <TextBlock Style="{StaticResource RptDashboardAttentionBadgeCountStyle}"
+                                               Foreground="{Binding BadgeTheme.IconForeground}"
+                                               FontWeight="Bold"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}">
+                                        <Run Text="{Binding AttentionCount, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </Border>
+
+                                <!-- Same geometry as StaffAccessSecurity password “show” eye (outline + iris); scales like icon buttons -->
+                                <Viewbox x:Name="EyePeek"
+                                         Grid.Column="6"
+                                         Visibility="Collapsed"
+                                         VerticalAlignment="Center"
+                                         Opacity="0"
+                                         Stretch="Uniform"
+                                         Width="{Binding Source={StaticResource UiScaleState},
+                                                          Path=FontScale,
+                                                          Converter={StaticResource LayoutScaleConverter},
+                                                          ConverterParameter=18}"
+                                         Height="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource LayoutScaleConverter},
+                                                           ConverterParameter=18}">
+                                    <Canvas Width="24"
+                                            Height="24"
+                                            SnapsToDevicePixels="True">
+                                        <Path Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
+                                              StrokeThickness="2"
+                                              StrokeLineJoin="Round"
+                                              Fill="Transparent"
+                                              Data="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
+                                        <Path Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
+                                              StrokeThickness="2"
+                                              Fill="Transparent"
+                                              Data="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"/>
+                                    </Canvas>
+                                </Viewbox>
+
+                                <Grid Grid.Column="8"
+                                      VerticalAlignment="Center"
+                                      Width="{Binding Path=FontScale,
+                                                       Source={StaticResource UiScaleState},
+                                                       Converter={StaticResource LayoutScaleConverter},
+                                                       ConverterParameter=14}"
+                                      Height="{Binding Path=FontScale,
+                                                       Source={StaticResource UiScaleState},
+                                                       Converter={StaticResource LayoutScaleConverter},
+                                                       ConverterParameter=22}">
+                                    <Path x:Name="AttChevronMuted"
+                                          Stretch="Uniform"
+                                          Stroke="{StaticResource Brush.BorderGrey}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Data="{StaticResource Geom.RptDashboardChevronRight}"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round">
+                                        <Path.StrokeThickness>
+                                            <Binding Source="{StaticResource UiScaleState}"
+                                                     Path="FontScale"
+                                                     Converter="{StaticResource LayoutScaleConverter}"
+                                                     ConverterParameter="2"/>
+                                        </Path.StrokeThickness>
+                                    </Path>
+                                    <Path x:Name="AttChevronHot"
+                                          Stretch="Uniform"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Opacity="0"
+                                          Stroke="{Binding IconTheme.ChevronHot}"
+                                          Data="{StaticResource Geom.RptDashboardChevronRight}"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round">
+                                        <Path.StrokeThickness>
+                                            <Binding Source="{StaticResource UiScaleState}"
+                                                     Path="FontScale"
+                                                     Converter="{StaticResource LayoutScaleConverter}"
+                                                     ConverterParameter="2"/>
+                                        </Path.StrokeThickness>
+                                    </Path>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CardRootAtt" Property="Background">
+                                    <Setter.Value>
+                                        <Binding Path="DataContext.IconTheme.HoverBackground"
+                                                 RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="CardRootAtt" Property="BorderBrush">
+                                    <Setter.Value>
+                                        <Binding Path="DataContext.IconTheme.HoverBorder"
+                                                 RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="AttChevronMuted" Property="Opacity" Value="0"/>
+                                <Setter TargetName="AttChevronHot" Property="Opacity" Value="1"/>
+                                <Setter TargetName="EyePeek" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="EyePeek" Property="Opacity" Value="1"/>
+                                <Setter TargetName="AttIconTile" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.12" ScaleY="1.12"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="CardRootAtt" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="4"
+                                                          BlurRadius="12"
+                                                          Opacity="0.16"
+                                                          Direction="270"
+                                                          Color="#FF000000"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="False">
+                                <Setter TargetName="EyePeek" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="EyePeek" Property="Opacity" Value="0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- View Reports pill: same band height as reporting toolbar (LayoutScaleConverter · 28, OpsTableMgmtDetailPrimaryButtonStyle). -->
+        <Style x:Key="RptViewReportsPill" TargetType="Border">
+            <Setter Property="Background"
+                    Value="{StaticResource Brush.PrimaryBlue}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Padding"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource ThicknessScaleConverter},
+                                     ConverterParameter='10,4,10,4'}"/>
+            <Setter Property="CornerRadius"
+                    Value="{Binding Path=ActualHeight,
+                                    RelativeSource={RelativeSource Self},
+                                    Converter={StaticResource CornerRadiusFromHeightConverter},
+                                    ConverterParameter=8}"/>
+        </Style>
+
+        <Style x:Key="GroupBrowseCardButtonStyle" TargetType="Button">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="GroupRoot"
+                                Background="{StaticResource Brush.White}"
+                                BorderBrush="{StaticResource Brush.SurfaceGrey}"
+                                BorderThickness="1"
+                                Padding="{Binding Source={StaticResource UiScaleState},
+                                                   Path=FontScale,
+                                                   Converter={StaticResource ThicknessScaleConverter},
+                                                   ConverterParameter='18,16,18,18'}">
+                            <Border.CornerRadius>
+                                <Binding Path="ActualHeight"
+                                         RelativeSource="{RelativeSource Self}"
+                                         Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                         ConverterParameter="10"/>
+                            </Border.CornerRadius>
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1"
+                                                  BlurRadius="5"
+                                                  Opacity="0.07"
+                                                  Direction="270"
+                                                  Color="#FF000000"/>
+                            </Border.Effect>
+
+                            <DockPanel LastChildFill="True">
+                                <DockPanel DockPanel.Dock="Bottom"
+                                           LastChildFill="False"
+                                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,16,0,0'}">
+                                    <TextBlock DockPanel.Dock="Left"
+                                               Style="{StaticResource RptDashboardMutedMetaStyle}"
+                                               Foreground="{StaticResource Brush.TextMuted}"
+                                               FontWeight="Normal"
+                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                               VerticalAlignment="Center"
+                                               Text="{Binding Path=ReportCount, StringFormat='{}{0} reports'}"/>
+
+                                    <Border DockPanel.Dock="Right"
+                                            Style="{StaticResource RptViewReportsPill}"
+                                            Height="{Binding Path=FontScale,
+                                                            Source={StaticResource UiScaleState},
+                                                            Converter={StaticResource LayoutScaleConverter},
+                                                            ConverterParameter=28}"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Right"
+                                            MouseDown="BrowseViewReports_MouseDown">
+                                        <TextBlock Text="View Reports"
+                                                   Foreground="{StaticResource Brush.White}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Style="{StaticResource RptDashboardToolbarActionLabelStyle}"/>
+                                    </Border>
+                                </DockPanel>
+
+                                <DockPanel DockPanel.Dock="Top" LastChildFill="True">
+                                    <Border x:Name="GroupIconShell"
+                                            DockPanel.Dock="Left"
+                                            SnapsToDevicePixels="True"
+                                            Width="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource LayoutScaleConverter},
+                                                             ConverterParameter=52}"
+                                            Height="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource LayoutScaleConverter},
+                                                              ConverterParameter=52}"
+                                            VerticalAlignment="Top"
+                                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,0'}"
+                                            Background="{Binding Theme.IconBackdrop}">
+                                        <Border.CornerRadius>
+                                            <Binding Path="ActualHeight"
+                                                     RelativeSource="{RelativeSource Self}"
+                                                     Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                                     ConverterParameter="8"/>
+                                        </Border.CornerRadius>
+                                        <Border.RenderTransformOrigin>0.5,0.5</Border.RenderTransformOrigin>
+                                        <Border.RenderTransform>
+                                            <ScaleTransform ScaleX="0.9" ScaleY="0.9"/>
+                                        </Border.RenderTransform>
+
+                                        <Viewbox Stretch="Uniform"
+                                                 Width="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource LayoutScaleConverter},
+                                                                  ConverterParameter=26}"
+                                                 Height="{Binding Source={StaticResource UiScaleState},
+                                                                   Path=FontScale,
+                                                                   Converter={StaticResource LayoutScaleConverter},
+                                                                   ConverterParameter=26}">
+                                            <Path Data="{Binding IconGeometry}"
+                                                  Stroke="{Binding Theme.IconForeground}"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeLineJoin="Round">
+                                                <Path.StrokeThickness>
+                                                    <Binding Source="{StaticResource UiScaleState}"
+                                                             Path="FontScale"
+                                                             Converter="{StaticResource LayoutScaleConverter}"
+                                                             ConverterParameter="2"/>
+                                                </Path.StrokeThickness>
+                                            </Path>
+                                        </Viewbox>
+                                    </Border>
+
+                                    <StackPanel Orientation="Vertical">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                       Style="{StaticResource RptDashboardBrowseGroupTitleStyle}"
+                                                       Foreground="{StaticResource MainForeground}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                                       TextWrapping="Wrap"
+                                                       Text="{Binding Title}"/>
+
+                                            <TextBlock x:Name="TitleChevron"
+                                                       Grid.Column="1"
+                                                       Margin="{Binding Path=FontScale,
+                                                                        Source={StaticResource UiScaleState},
+                                                                        Converter={StaticResource ThicknessScaleConverter},
+                                                                        ConverterParameter='8,2,0,0'}"
+                                                       Foreground="{Binding Theme.IconForeground}"
+                                                       FontWeight="Bold"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                                       Visibility="Collapsed"
+                                                       VerticalAlignment="Top"
+                                                       Style="{StaticResource RptDashboardBrowseGroupTitleStyle}">
+                                                <Run Text="›"/>
+                                            </TextBlock>
+                                        </Grid>
+
+                                        <TextBlock Style="{StaticResource RptDashboardBrowseDetailStyle}"
+                                                   Foreground="{StaticResource Brush.TextMuted}"
+                                                   FontWeight="Normal"
+                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                                   Text="{Binding Description}"
+                                                   TextWrapping="Wrap"
+                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,6,0,0'}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="GroupRoot" Property="BorderBrush">
+                                    <Setter.Value>
+                                        <Binding Path="DataContext.Theme.HoverBorder"
+                                                 RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="GroupRoot" Property="Background">
+                                    <Setter.Value>
+                                        <Binding Path="DataContext.Theme.HoverBackground"
+                                                 RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="TitleChevron" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="GroupIconShell" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.1" ScaleY="1.1"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="GroupRoot" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="5"
+                                                          BlurRadius="14"
+                                                          Opacity="0.17"
+                                                          Direction="270"
+                                                          Color="#FF000000"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </UserControl.Resources>
+
+    <Border Background="Transparent" FocusVisualStyle="{x:Null}">
+        <Border BorderBrush="{StaticResource Brush.SurfaceGrey}"
+                BorderThickness="1"
+                Background="{StaticResource Brush.RptDashboardPageBg}"
+                SnapsToDevicePixels="True"
+                Margin="{Binding Source={StaticResource UiScaleState},
+                                 Path=FontScale,
+                                 Converter={StaticResource ThicknessScaleConverter},
+                                 ConverterParameter='16,14,16,16'}"
+                CornerRadius="{Binding ActualHeight,
+                                        RelativeSource={RelativeSource Self},
+                                        Converter={StaticResource CornerRadiusFromHeightConverter},
+                                        ConverterParameter=12}">
+
+            <ScrollViewer x:Name="PageScrollViewer"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          FocusVisualStyle="{x:Null}"
+                          Padding="{Binding Path=FontScale,
+                                             Source={StaticResource UiScaleState},
+                                             Converter={StaticResource ThicknessScaleConverter},
+                                             ConverterParameter='20,14,24,28'}">
+
+                <StackPanel>
+
+                    <!-- Filter row: star-sized combos + search share remaining width; date pill max width from strip (code); no horizontal scroll. -->
+                    <Grid x:Name="FilterStripHost"
+                          Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"
+                          VerticalAlignment="Center"
+                          SizeChanged="FilterStripHost_SizeChanged">
+                        <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <!-- Date pill -->
+                                    <ColumnDefinition Width="Auto"/>
+                                    <!-- Combos share one unit each; search column weighted 2× -->
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                            <!-- Toolbar strip heights: OpsTableMgmtDetailPrimaryButtonStyle · 28 (scaled). -->
+
+                            <!-- Left: date pill; caption wraps when narrow -->
+                            <Grid Grid.Column="0"
+                                  VerticalAlignment="Center"
+                                  Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}">
+                                <Border x:Name="DateRangePillChrome"
+                                        Background="{StaticResource Brush.White}"
+                                        BorderBrush="{StaticResource Brush.BorderSoft}"
+                                        BorderThickness="1"
+                                        SnapsToDevicePixels="True"
+                                        MaxWidth="{Binding FilterStripDateMaxWidth, ElementName=Root}"
+                                        MinHeight="{Binding Path=FontScale,
+                                                      Source={StaticResource UiScaleState},
+                                                      Converter={StaticResource LayoutScaleConverter},
+                                                      ConverterParameter=28}"
+                                        Padding="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='9,4,11,4'}">
+                                    <Border.CornerRadius>
+                                        <Binding Path="ActualHeight"
+                                                 RelativeSource="{RelativeSource Self}"
+                                                 Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                                 ConverterParameter="4"/>
+                                    </Border.CornerRadius>
+                                    <Grid SnapsToDevicePixels="True">
+                                        <Grid VerticalAlignment="Center" IsHitTestVisible="False">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Viewbox Grid.Column="0"
+                                                     Stretch="Uniform"
+                                                     Width="{Binding Source={StaticResource UiScaleState},
+                                                                      Path=FontScale,
+                                                                      Converter={StaticResource LayoutScaleConverter},
+                                                                      ConverterParameter=16}"
+                                                     Height="{Binding Source={StaticResource UiScaleState},
+                                                                       Path=FontScale,
+                                                                       Converter={StaticResource LayoutScaleConverter},
+                                                                       ConverterParameter=16}"
+                                                     VerticalAlignment="Top"
+                                                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}">
+                                                <Canvas Width="24"
+                                                        Height="24"
+                                                        SnapsToDevicePixels="True">
+                                                    <Path Stroke="{StaticResource HdrIconStrokeBrush}"
+                                                          StrokeLineJoin="Round"
+                                                          Fill="Transparent"
+                                                          Data="M8 2v2 M16 2v2 M3 7h18 M5 5h14
+                                                                a2 2 0 0 1 2 2v13
+                                                                a2 2 0 0 1-2 2H5
+                                                                a2 2 0 0 1-2-2V7
+                                                                a2 2 0 0 1 2-2z">
+                                                        <Path.StrokeThickness>
+                                                            <Binding Source="{StaticResource UiScaleState}"
+                                                                     Path="FontScale"
+                                                                     Converter="{StaticResource LayoutScaleConverter}"
+                                                                     ConverterParameter="2"/>
+                                                        </Path.StrokeThickness>
+                                                    </Path>
+                                                </Canvas>
+                                            </Viewbox>
+                                            <TextBlock x:Name="TxtReportDateRangePill"
+                                                       Grid.Column="1"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{StaticResource Brush.TextDark}"
+                                                       FontWeight="Normal"
+                                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"
+                                                       TextWrapping="Wrap"
+                                                       TextTrimming="None"
+                                                       Style="{StaticResource RptDashboardFilterDateRangeCaptionStyle}"/>
+                                        </Grid>
+                                        <DatePicker x:Name="DpReportRangeStart"
+                                                    VerticalAlignment="Stretch"
+                                                    HorizontalAlignment="Stretch"
+                                                    FontWeight="Normal"
+                                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=1}"
+                                                    Foreground="{StaticResource MainForeground}"
+                                                    Style="{StaticResource RptDashboardDateRangePillDatePickerStyle}"
+                                                    SelectedDateChanged="DpReportRangeStart_SelectedDateChanged"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                                <ComboBox x:Name="BranchFilterCombo"
+                                          Grid.Column="1"
+                                          Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
+                                          Foreground="{StaticResource MainForeground}"
+                                          FontWeight="Normal"
+                                          FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                          HorizontalAlignment="Stretch"
+                                          MinWidth="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource LayoutScaleConverter},
+                                                              ConverterParameter=72}"
+                                          Height="{Binding Path=FontScale,
+                                                          Source={StaticResource UiScaleState},
+                                                          Converter={StaticResource LayoutScaleConverter},
+                                                          ConverterParameter=28}"
+                                          VerticalAlignment="Center"
+                                          Margin="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='0,0,6,0'}"
+                                          SelectionChanged="FilterCombo_SelectionChanged"/>
+                                <ComboBox x:Name="ChannelFilterCombo"
+                                          Grid.Column="2"
+                                          Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
+                                          Foreground="{StaticResource MainForeground}"
+                                          FontWeight="Normal"
+                                          FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                          HorizontalAlignment="Stretch"
+                                          MinWidth="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource LayoutScaleConverter},
+                                                              ConverterParameter=72}"
+                                          Height="{Binding Path=FontScale,
+                                                          Source={StaticResource UiScaleState},
+                                                          Converter={StaticResource LayoutScaleConverter},
+                                                          ConverterParameter=28}"
+                                          VerticalAlignment="Center"
+                                          Margin="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='0,0,6,0'}"
+                                          SelectionChanged="FilterCombo_SelectionChanged"/>
+                                <ComboBox x:Name="RoleFilterCombo"
+                                          Grid.Column="3"
+                                          Style="{StaticResource IcOpsServicesEnabledComboBoxStyle}"
+                                          Foreground="{StaticResource MainForeground}"
+                                          FontWeight="Normal"
+                                          FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                          HorizontalAlignment="Stretch"
+                                          MinWidth="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource LayoutScaleConverter},
+                                                              ConverterParameter=72}"
+                                          Height="{Binding Path=FontScale,
+                                                          Source={StaticResource UiScaleState},
+                                                          Converter={StaticResource LayoutScaleConverter},
+                                                          ConverterParameter=28}"
+                                          VerticalAlignment="Center"
+                                          Margin="{Binding Source={StaticResource UiScaleState},
+                                                           Path=FontScale,
+                                                           Converter={StaticResource ThicknessScaleConverter},
+                                                           ConverterParameter='0,0,10,0'}"
+                                          SelectionChanged="FilterCombo_SelectionChanged"/>
+
+                            <Border x:Name="RptDashboardSearchBorder"
+                                    Grid.Column="4"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Stretch"
+                                    PreviewMouseLeftButtonDown="RptDashboardSearchBorder_PreviewMouseLeftButtonDown"
+                                    Height="{Binding Path=FontScale,
+                                                    Source={StaticResource UiScaleState},
+                                                    Converter={StaticResource LayoutScaleConverter},
+                                                    ConverterParameter=28}"
+                                    MinWidth="{Binding Path=FontScale,
+                                                       Source={StaticResource UiScaleState},
+                                                       Converter={StaticResource LayoutScaleConverter},
+                                                       ConverterParameter=120}"
+                                    Background="{StaticResource Brush.White}"
+                                    BorderBrush="{StaticResource Brush.BorderGrey}"
+                                    SnapsToDevicePixels="True"
+                                    ClipToBounds="True"
+                                    Margin="0"
+                                    BorderThickness="{Binding Source={StaticResource UiScaleState},
+                                                              Path=FontScale,
+                                                              Converter={StaticResource LayoutScaleConverter},
+                                                              ConverterParameter=1}">
+                                <Border.CornerRadius>
+                                    <Binding RelativeSource="{RelativeSource Self}"
+                                             Path="ActualHeight"
+                                             Converter="{StaticResource CornerRadiusFromHeightConverter}"
+                                             ConverterParameter="4"/>
+                                </Border.CornerRadius>
+                                <Grid>
+                                    <Border x:Name="RptSearchFocusOuter"
+                                            Panel.ZIndex="10"
+                                            Visibility="Collapsed"
+                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                             ConverterParameter='-3'}"
+                                            CornerRadius="{Binding Path=ActualHeight,
+                                                                     ElementName=RptDashboardSearchBorder,
+                                                                     Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                     ConverterParameter='9'}"
+                                            BorderThickness="3"
+                                            BorderBrush="#C1DEFE"
+                                            Background="Transparent"
+                                            SnapsToDevicePixels="True"
+                                            RenderOptions.EdgeMode="Aliased"
+                                            IsHitTestVisible="False">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin,
+                                                                                   ElementName=RptDashboardSearchBox}"
+                                                                Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                    <Border x:Name="RptSearchFocusInner"
+                                            Panel.ZIndex="11"
+                                            Visibility="Collapsed"
+                                            Margin="{Binding Source={StaticResource UiScaleState},
+                                                             Path=FontScale,
+                                                             Converter={StaticResource ThicknessScaleConverter},
+                                                             ConverterParameter='-1'}"
+                                            CornerRadius="{Binding Path=ActualHeight,
+                                                                     ElementName=RptDashboardSearchBorder,
+                                                                     Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                                     ConverterParameter='8'}"
+                                            BorderThickness="1"
+                                            BorderBrush="#93C5FD"
+                                            Background="Transparent"
+                                            SnapsToDevicePixels="True"
+                                            RenderOptions.EdgeMode="Aliased"
+                                            IsHitTestVisible="False">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin,
+                                                                                   ElementName=RptDashboardSearchBox}"
+                                                                Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                                 Path=FontScale,
+                                                                 Converter={StaticResource LayoutScaleConverter},
+                                                                 ConverterParameter=16}"
+                                                 Height="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource LayoutScaleConverter},
+                                                                  ConverterParameter=16}"
+                                                 Margin="{Binding Source={StaticResource UiScaleState},
+                                                                  Path=FontScale,
+                                                                  Converter={StaticResource ThicknessScaleConverter},
+                                                                  ConverterParameter='10,0,6,0'}"
+                                                 VerticalAlignment="Center">
+                                            <Canvas Width="16" Height="16" SnapsToDevicePixels="True">
+                                                <Ellipse Canvas.Left="2"
+                                                         Canvas.Top="2"
+                                                         Width="10"
+                                                         Height="10"
+                                                         Stroke="#9CA3AF"
+                                                         StrokeThickness="1.6"
+                                                         Fill="Transparent"/>
+                                                <Line X1="10.5"
+                                                      Y1="10.5"
+                                                      X2="15"
+                                                      Y2="15"
+                                                      Stroke="#9CA3AF"
+                                                      StrokeThickness="1.6"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"/>
+                                            </Canvas>
+                                        </Viewbox>
+                                        <TextBox x:Name="RptDashboardSearchBox"
+                                                 Grid.Column="1"
+                                                 Foreground="{StaticResource MainForeground}"
+                                                 FontWeight="Normal"
+                                                 FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                                 VerticalAlignment="Stretch"
+                                                 VerticalContentAlignment="Center"
+                                                 GotKeyboardFocus="RptDashboardSearchBox_GotKeyboardFocus"
+                                                 LostKeyboardFocus="RptDashboardSearchBox_LostKeyboardFocus"
+                                                 TextChanged="RptDashboardSearchBox_TextChanged"
+                                                 BorderThickness="0"
+                                                 Background="Transparent"
+                                                 Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
+                                                 Style="{StaticResource SearchWatermarkTextBox}"
+                                                 Tag="Search reports..."/>
+                                    </Grid>
+                                </Grid>
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="{StaticResource Brush.BorderGrey}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsKeyboardFocusWithin,
+                                                                          ElementName=RptDashboardSearchBox}"
+                                                        Value="True">
+                                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                            </Border>
+
+                                <Button x:Name="BtnExportDashboard"
+                                        Grid.Column="5"
+                                        VerticalAlignment="Center"
+                                        Foreground="{StaticResource Brush.White}"
+                                        FontWeight="SemiBold"
+                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                        Style="{StaticResource VcPrimaryButtonStyle}"
+                                        Height="{Binding Path=FontScale,
+                                                        Source={StaticResource UiScaleState},
+                                                        Converter={StaticResource LayoutScaleConverter},
+                                                        ConverterParameter=28}"
+                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,0'}"
+                                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}"
+                                        Click="ExportDashboard_Click"
+                                        FocusVisualStyle="{x:Null}">
+                                    <StackPanel Orientation="Horizontal"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center">
+                                        <Image Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
+                                               Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
+                                               Source="{StaticResource PeoplePOS.Icon.Download.White}"
+                                               SnapsToDevicePixels="True"/>
+                                        <TextBlock Text="Export"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,0,0,0'}"
+                                                   Foreground="{Binding Foreground,
+                                                                         RelativeSource={RelativeSource AncestorType=Button}}"
+                                                   Style="{StaticResource RptDashboardToolbarActionLabelStyle}"/>
+                                    </StackPanel>
+                                </Button>
+                        </Grid>
+                    </Grid>
+
+                    <Border Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=1}"
+                            Background="{StaticResource Brush.SurfaceGrey}"
+                            Margin="{Binding Path=FontScale,
+                                               Source={StaticResource UiScaleState},
+                                               Converter={StaticResource ThicknessScaleConverter},
+                                               ConverterParameter='0,16,0,14'}"/>
+
+                    <TextBlock Style="{StaticResource RptDashboardSectionHeadingStyle}"
+                               Foreground="{StaticResource MainForeground}"
+                               FontWeight="SemiBold"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                               Text="Recently Used"/>
+
+                    <Grid x:Name="RecentCardStripHost"
+                          HorizontalAlignment="Stretch"
+                          FocusVisualStyle="{x:Null}"
+                          Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,-10,-12'}"
+                          SizeChanged="DashboardCardStripHost_SizeChanged">
+                        <ItemsControl ItemsSource="{Binding ElementName=Root, Path=RecentReports}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="{Binding RecentCardUniformColumns, ElementName=Root}"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type local:RptDashboardMain+RecentUsedRow}">
+                                    <Button HorizontalAlignment="Stretch"
+                                            Foreground="{StaticResource MainForeground}"
+                                            FontWeight="Normal"
+                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                            MinWidth="0"
+                                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,12'}"
+                                            Style="{StaticResource RecentlyUsedCardButtonStyle}"
+                                            Click="RecentReport_Click"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+
+                    <TextBlock Style="{StaticResource RptDashboardSectionHeadingStyle}"
+                               Foreground="{StaticResource MainForeground}"
+                               FontWeight="SemiBold"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                               Text="Attention Needed"
+                               Margin="{Binding Path=FontScale,
+                                                Source={StaticResource UiScaleState},
+                                                Converter={StaticResource ThicknessScaleConverter},
+                                                ConverterParameter='0,20,0,0'}"/>
+
+                    <Grid x:Name="AttentionCardStripHost"
+                          HorizontalAlignment="Stretch"
+                          FocusVisualStyle="{x:Null}"
+                          Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,-10,-14'}"
+                          SizeChanged="DashboardCardStripHost_SizeChanged">
+                        <ItemsControl ItemsSource="{Binding ElementName=Root, Path=AttentionItems}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="{Binding AttentionCardUniformColumns, ElementName=Root}"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type local:RptDashboardMain+AttentionNeededRow}">
+                                    <Button HorizontalAlignment="Stretch"
+                                            Foreground="{StaticResource MainForeground}"
+                                            FontWeight="Normal"
+                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                            MinWidth="0"
+                                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,14'}"
+                                            Style="{StaticResource AttentionCardButtonStyle}"
+                                            Click="AttentionItem_Click"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+
+                    <TextBlock Style="{StaticResource RptDashboardSectionHeadingStyle}"
+                               Foreground="{StaticResource MainForeground}"
+                               FontWeight="SemiBold"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,22,0,10'}"
+                               Text="Browse reports"/>
+
+                    <!-- Row 1: grouping tiles (width from strip; columns from available width) -->
+                    <Grid x:Name="BrowseRow1CardStripHost"
+                          HorizontalAlignment="Stretch"
+                          FocusVisualStyle="{x:Null}"
+                          SizeChanged="DashboardCardStripHost_SizeChanged">
+                        <ItemsControl ItemsSource="{Binding ElementName=Root, Path=ReportGroupsRow1}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="{Binding BrowseRow1CardUniformColumns, ElementName=Root}"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type local:RptDashboardMain+BrowseGroupTile}">
+                                    <Button HorizontalAlignment="Stretch"
+                                            Foreground="{StaticResource MainForeground}"
+                                            FontWeight="Normal"
+                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                            MinWidth="0"
+                                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,14'}"
+                                            Style="{StaticResource GroupBrowseCardButtonStyle}"
+                                            Click="ReportGroupChrome_Click"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+
+                    <!-- Row 2 -->
+                    <Grid x:Name="BrowseRow2CardStripHost"
+                          HorizontalAlignment="Stretch"
+                          FocusVisualStyle="{x:Null}"
+                          SizeChanged="DashboardCardStripHost_SizeChanged">
+                        <ItemsControl ItemsSource="{Binding ElementName=Root, Path=ReportGroupsRow2}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="{Binding BrowseRow2CardUniformColumns, ElementName=Root}"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type local:RptDashboardMain+BrowseGroupTile}">
+                                    <Button HorizontalAlignment="Stretch"
+                                            Foreground="{StaticResource MainForeground}"
+                                            FontWeight="Normal"
+                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                                            MinWidth="0"
+                                            Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,14'}"
+                                            Style="{StaticResource GroupBrowseCardButtonStyle}"
+                                            Click="ReportGroupChrome_Click"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Border>
+</UserControl>

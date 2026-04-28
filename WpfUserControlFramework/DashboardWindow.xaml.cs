@@ -61,6 +61,7 @@ namespace RestaurantPosWpf
                 )),
                 new NavItem("Operations and Services", "Shift Scheduling", () => BuildOpsShiftScheduling()),
                 new NavItem("Staff and Access", "User details", () => new StaffAccessUserDetails()),
+                new NavItem("Reporting", "Dashboard", () => BuildRptDashboard()),
             };
 
             // Build distinct category list preserving registration order
@@ -232,6 +233,11 @@ namespace RestaurantPosWpf
         {
             return new ProcurementControl(
                 onViewDiscrepancies: context => NavigateToDiscrepancies(context));
+        }
+
+        private static RptDashboardMain BuildRptDashboard()
+        {
+            return new RptDashboardMain(null, null, null);
         }
 
         private ProcurementPOrders BuildPurchaseOrdersControl()

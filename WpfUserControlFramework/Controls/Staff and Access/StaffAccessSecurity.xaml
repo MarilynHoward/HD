@@ -183,18 +183,18 @@
                                      Stretch="Uniform">
                                 <Canvas x:Name="CanvasNewEye" Width="24" Height="24" SnapsToDevicePixels="True">
                                     <Path x:Name="PathNewEyeOutline"
-                                          Stroke="#64748B"
+                                          Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
                                           StrokeThickness="2"
                                           StrokeLineJoin="Round"
                                           Fill="Transparent"
                                           Data="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
                                     <Path x:Name="PathNewEyePupil"
-                                          Stroke="#64748B"
+                                          Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
                                           StrokeThickness="2"
                                           Fill="Transparent"
                                           Data="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z" />
                                     <Path x:Name="PathNewEyeSlash"
-                                          Stroke="#64748B"
+                                          Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
                                           StrokeThickness="2"
                                           StrokeStartLineCap="Round"
                                           StrokeEndLineCap="Round"
@@ -273,17 +273,17 @@
                                                       ConverterParameter=18}"
                                      Stretch="Uniform">
                                 <Canvas x:Name="CanvasConfirmEye" Width="24" Height="24" SnapsToDevicePixels="True">
-                                    <Path Stroke="#64748B"
+                                    <Path Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
                                           StrokeThickness="2"
                                           StrokeLineJoin="Round"
                                           Fill="Transparent"
                                           Data="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
-                                    <Path Stroke="#64748B"
+                                    <Path Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
                                           StrokeThickness="2"
                                           Fill="Transparent"
                                           Data="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z" />
                                     <Path x:Name="PathConfirmEyeSlash"
-                                          Stroke="#64748B"
+                                          Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
                                           StrokeThickness="2"
                                           StrokeStartLineCap="Round"
                                           StrokeEndLineCap="Round"
