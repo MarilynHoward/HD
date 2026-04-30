@@ -67,6 +67,8 @@ public partial class App : Application
             Debug.WriteLine("[App.OnStartup] AppStatus bootstrap failed: " + ex.Message);
         }
 
+        aps.StartRemoteControlLookupSync();
+
         base.OnStartup(e);
     }
 

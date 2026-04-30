@@ -235,9 +235,30 @@ namespace RestaurantPosWpf
                 onViewDiscrepancies: context => NavigateToDiscrepancies(context));
         }
 
-        private static RptDashboardMain BuildRptDashboard()
+        private RptDashboardMain BuildRptDashboard()
         {
-            return new RptDashboardMain(null, null, null);
+            return new RptDashboardMain(
+                onRecentlyUsedReportActivated: row =>
+                    MessageBox.Show(
+                        this,
+                        $"Opening: {row.Report.DisplayName}\r\nCode: {row.Report.Id}",
+                        "Reporting",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information),
+                onAttentionNeededActivated: row =>
+                    MessageBox.Show(
+                        this,
+                        $"Attention — {row.Report.DisplayName}\r\nCode: {row.Report.Id}",
+                        "Reporting",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information),
+                onBrowseGroupingActivated: tile =>
+                    MessageBox.Show(
+                        this,
+                        $"Browse group: {tile.Title}\r\nId: {tile.GroupId}",
+                        "Reporting",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information));
         }
 
         private ProcurementPOrders BuildPurchaseOrdersControl()

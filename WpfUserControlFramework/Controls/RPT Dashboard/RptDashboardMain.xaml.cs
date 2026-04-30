@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Data;
+using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,11 +16,33 @@ using System.Windows.Threading;
 namespace RestaurantPosWpf;
 
 /// <summary>
+/// Immutable filter state passed from <see cref="RptDashboardMain"/> into report overlays (e.g. Daily Sales Summary).
+/// </summary>
+public sealed record RptDashboardFilterSnapshot(
+        DateOnly RangeStart,
+        DateOnly RangeEnd,
+        string BranchFilterId,
+        string ChannelFilterId,
+        string UserRoleFilterId,
+        string DateRangeDisplay,
+        string BranchDisplay,
+        string ChannelDisplay,
+        string UserRoleDisplay);
+
+/// <summary>
 /// Reporting dashboard: filters, recently used report executions, attention queue, and browse groupings.
-/// Models, seed data, and geometry helpers are defined in this code-behind per framework standards.
+/// Recently Used is driven by <c>public.rpt_report_access_log</c>: distinct <c>report_code</c> per user,
+/// latest <c>accessed_ts</c>, capped at four rows (see <see cref="RecentlyUsedMaxDistinctReports"/>).
+/// Dev seed (<c>SeedDummyDataOnStartup</c>) truncates the log and inserts four demo access rows for the signed-on user.
+/// Card chrome comes from
+/// <c>public.rpt_reports</c>; browse tiles from <c>public.rpt_report_categories</c> (POS_CONTROL sync).
+/// Filter combos read local <c>rpt_branches</c>, <c>rpt_channels</c>, <c>rpt_user_roles</c>.
+/// Captions use <c>PeoplePosTheme.xaml</c> string keys. Missing SQL hex uses <see cref="CardAccent.FromKeys"/>.
 /// </summary>
 public sealed partial class RptDashboardMain : UserControl
 {
+    private const int RecentlyUsedMaxDistinctReports = 4;
+
     public static readonly DependencyProperty RecentCardUniformColumnsProperty =
         DependencyProperty.Register(
             nameof(RecentCardUniformColumns),
@@ -104,6 +129,11 @@ public sealed partial class RptDashboardMain : UserControl
     private string _searchQuery = string.Empty;
     private readonly DispatcherTimer _searchDebounce = new() { Interval = TimeSpan.FromMilliseconds(200) };
 
+    private bool _suppressReportDateChanged;
+
+    /// <summary>Matches <c>public.rpt_reports.report_code</c> for Daily Sales Summary.</summary>
+    public const string DailySalesReportCode = "rpt.daily_sales";
+
     public RptDashboardMain()
         : this(null, null, null, null)
     {
@@ -136,13 +166,26 @@ public sealed partial class RptDashboardMain : UserControl
         ReportGroupsRow2.CollectionChanged += DashboardReportCollections_Changed;
 
         ReloadDummyDataIntoCollections();
-        WireFilterDropdownsFromDummyData();
+        WireFilterDropdownsFromDatabase();
     }
+
+    private static DateTime YesterdayLocal => DateTime.Today.AddDays(-1).Date;
 
     private void RptDashboardMain_Loaded(object sender, RoutedEventArgs e)
     {
-        if (DpReportRangeStart.SelectedDate == null)
-            DpReportRangeStart.SelectedDate = DateTime.Today.AddDays(-30);
+        _suppressReportDateChanged = true;
+        try
+        {
+            var y = YesterdayLocal;
+            DpReportRangeEnd.SelectedDate ??= y;
+            DpReportRangeStart.SelectedDate ??= y.AddDays(-29);
+        }
+        finally
+        {
+            _suppressReportDateChanged = false;
+        }
+
+        ClampReportDateRange();
         UpdateDateRangeLine();
 
         if (Application.Current.TryFindResource("UiScaleState") is UiScaleState st)
@@ -209,7 +252,8 @@ public sealed partial class RptDashboardMain : UserControl
         if (w <= 1)
             return;
 
-        var maxDate = Math.Min(440 * scale, Math.Max(148 * scale, w * 0.34));
+        // Wider strip: start + end date pickers share one capped width.
+        var maxDate = Math.Min(560 * scale, Math.Max(240 * scale, w * 0.52));
         if (Math.Abs(maxDate - FilterStripDateMaxWidth) > 0.5)
             FilterStripDateMaxWidth = maxDate;
     }
@@ -220,23 +264,19 @@ public sealed partial class RptDashboardMain : UserControl
     /// </summary>
     private void RefreshDashboardCardUniformColumns()
     {
-        var recentW = RecentCardStripHost?.ActualWidth ?? 0;
-        var nextRecent = ComputeUniformColumns(recentW, RecentReports.Count, minCardBaseWidth: 268, horizontalGapBase: 10);
+        var nextRecent = ComputePinnedUniformColumns(RecentReports.Count, 4);
         if (nextRecent != RecentCardUniformColumns)
             RecentCardUniformColumns = nextRecent;
 
-        var attW = AttentionCardStripHost?.ActualWidth ?? 0;
-        var nextAtt = ComputeUniformColumns(attW, AttentionItems.Count, minCardBaseWidth: 292, horizontalGapBase: 10);
+        var nextAtt = ComputePinnedUniformColumns(AttentionItems.Count, 4);
         if (nextAtt != AttentionCardUniformColumns)
             AttentionCardUniformColumns = nextAtt;
 
-        var b1W = BrowseRow1CardStripHost?.ActualWidth ?? 0;
-        var nextB1 = ComputeUniformColumns(b1W, ReportGroupsRow1.Count, minCardBaseWidth: 340, horizontalGapBase: 10);
+        var nextB1 = ComputePinnedUniformColumns(ReportGroupsRow1.Count, 3);
         if (nextB1 != BrowseRow1CardUniformColumns)
             BrowseRow1CardUniformColumns = nextB1;
 
-        var b2W = BrowseRow2CardStripHost?.ActualWidth ?? 0;
-        var nextB2 = ComputeUniformColumns(b2W, ReportGroupsRow2.Count, minCardBaseWidth: 340, horizontalGapBase: 10);
+        var nextB2 = ComputePinnedUniformColumns(ReportGroupsRow2.Count, 3);
         if (nextB2 != BrowseRow2CardUniformColumns)
             BrowseRow2CardUniformColumns = nextB2;
     }
@@ -258,21 +298,110 @@ public sealed partial class RptDashboardMain : UserControl
         return Math.Min(itemCount, maxCols);
     }
 
+    private static Int32 ComputePinnedUniformColumns(Int32 itemCount, Int32 maxColumns)
+    {
+        if (itemCount <= 0)
+            return 1;
+
+        if (maxColumns <= 0)
+            return 1;
+
+        return Math.Min(itemCount, maxColumns);
+    }
+
     private static double ReadUiFontScale()
     {
         return Application.Current?.TryFindResource("UiScaleState") is UiScaleState s ? s.FontScale : 1.25;
     }
 
-    private void DpReportRangeStart_SelectedDateChanged(object? sender, SelectionChangedEventArgs e)
+    private void ReportRangeDatePicker_SelectedDateChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (_suppressReportDateChanged)
+            return;
+
+        ClampReportDateRange();
         UpdateDateRangeLine();
+    }
+
+    private void ClampReportDateRange()
+    {
+        var y = YesterdayLocal;
+        var end = DpReportRangeEnd.SelectedDate?.Date ?? y;
+        if (end > y)
+            end = y;
+
+        var start = DpReportRangeStart.SelectedDate?.Date ?? end.AddDays(-29);
+        if (start > end)
+            start = end;
+
+        _suppressReportDateChanged = true;
+        try
+        {
+            if (DpReportRangeEnd.SelectedDate?.Date != end)
+                DpReportRangeEnd.SelectedDate = end;
+            if (DpReportRangeStart.SelectedDate?.Date != start)
+                DpReportRangeStart.SelectedDate = start;
+
+            DpReportRangeEnd.DisplayDateEnd = y;
+            DpReportRangeStart.DisplayDateEnd = y;
+        }
+        finally
+        {
+            _suppressReportDateChanged = false;
+        }
     }
 
     private void UpdateDateRangeLine()
     {
-        var start = DpReportRangeStart.SelectedDate?.Date ?? DateTime.Today.AddDays(-30);
-        var end = start.AddDays(30);
-        TxtReportDateRangePill.Text = $"Date Range: {start:MMM d} - {end:MMM d, yyyy}";
+        var y = YesterdayLocal;
+        var end = DpReportRangeEnd.SelectedDate?.Date ?? y;
+        var start = DpReportRangeStart.SelectedDate?.Date ?? end.AddDays(-29);
+        TxtReportDateRangeStartPill.Text = start.ToString("MMM d, yyyy", CultureInfo.CurrentCulture);
+        TxtReportDateRangeEndPill.Text = end.ToString("MMM d, yyyy", CultureInfo.CurrentCulture);
+    }
+
+    /// <summary>Current dashboard filters for report overlays and SQL.</summary>
+    public RptDashboardFilterSnapshot BuildFilterSnapshot()
+    {
+        ClampReportDateRange();
+        var endDt = DpReportRangeEnd.SelectedDate ?? YesterdayLocal;
+        var startDt = DpReportRangeStart.SelectedDate ?? endDt.AddDays(-29);
+        var start = DateOnly.FromDateTime(startDt.Date);
+        var end = DateOnly.FromDateTime(endDt.Date);
+
+        var branch = BranchFilterCombo.SelectedItem as FilterOption
+                     ?? new FilterOption("all", RptThemeString("Rpt.Filter.AllBranchesCaption"));
+        var channel = ChannelFilterCombo.SelectedItem as FilterOption
+                      ?? new FilterOption("all", RptThemeString("Rpt.Filter.AllChannelsCaption"));
+        var role = RoleFilterCombo.SelectedItem as RoleFilterOption
+                   ?? new RoleFilterOption("all", RptThemeString("Rpt.Filter.AllUsersCaption"));
+
+        var dateDisp = start.ToString("MMM d, yyyy", CultureInfo.CurrentCulture) + " – "
+                       + end.ToString("MMM d, yyyy", CultureInfo.CurrentCulture);
+
+        return new RptDashboardFilterSnapshot(
+            start,
+            end,
+            branch.Id,
+            channel.Id,
+            role.RoleId,
+            dateDisp,
+            branch.Label,
+            channel.Label,
+            role.Label);
+    }
+
+    private void CloseReportOverlay()
+    {
+        RptOverlayLayer.Visibility = Visibility.Collapsed;
+        RptOverlayContentHost.Content = null;
+    }
+
+    private void OpenDailySalesOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptDailySalesSummaryOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
     public ObservableCollection<RecentUsedRow> RecentReports { get; } = new();
@@ -285,11 +414,7 @@ public sealed partial class RptDashboardMain : UserControl
 
     public void ReloadDummyDataIntoCollections()
     {
-        ReloadCore(BuildRecentRows(), _seedRecent);
-        ReloadCore(BuildAttentionRows(), _seedAttention);
-        ReloadCore(BuildBrowseRow1(), _seedBrowse1);
-        ReloadCore(BuildBrowseRow2(), _seedBrowse2);
-        ApplyFilters();
+        ReloadDashboardCollectionsFromDatabase();
     }
 
     private static void ReloadCore<T>(IEnumerable<T> source, ICollection<T> target)
@@ -299,22 +424,117 @@ public sealed partial class RptDashboardMain : UserControl
             target.Add(row);
     }
 
-    private void WireFilterDropdownsFromDummyData()
+    private void WireFilterDropdownsFromDatabase()
     {
         BranchFilterCombo.DisplayMemberPath = nameof(FilterOption.Label);
-        BranchFilterCombo.ItemsSource = BranchOptions.ToList();
+        BranchFilterCombo.ItemsSource = LoadBranchFilterOptions();
         BranchFilterCombo.SelectedIndex = 0;
 
         ChannelFilterCombo.DisplayMemberPath = nameof(FilterOption.Label);
-        ChannelFilterCombo.ItemsSource = ChannelOptions.ToList();
+        ChannelFilterCombo.ItemsSource = LoadChannelFilterOptions();
         ChannelFilterCombo.SelectedIndex = 0;
 
         RoleFilterCombo.DisplayMemberPath = nameof(RoleFilterOption.Label);
-        RoleFilterCombo.ItemsSource = RoleOptions.ToList();
+        RoleFilterCombo.ItemsSource = LoadRoleFilterOptions();
         RoleFilterCombo.SelectedIndex = 0;
     }
 
-    /// <summary>Search filters dummy lists; combo filters reserved for branch/channel/role once reporting data is wired.</summary>
+    private static List<FilterOption> LoadBranchFilterOptions()
+    {
+        var list = new List<FilterOption> { new("all", RptThemeString("Rpt.Filter.AllBranchesCaption")) };
+        try
+        {
+            var dt = App.aps.pda.GetDataTable(
+                App.aps.LocalConnectionstring(App.aps.propertyBranchCode),
+                App.aps.sql.SelectLocalRptBranchesForFilters(),
+                60);
+            foreach (DataRow r in dt.Rows)
+            {
+                var code = Convert.ToString(r["branch_code"], CultureInfo.InvariantCulture)?.Trim();
+                var descr = Convert.ToString(r["descr"], CultureInfo.InvariantCulture)?.Trim();
+                if (string.IsNullOrWhiteSpace(code))
+                    continue;
+                list.Add(new FilterOption(code, string.IsNullOrWhiteSpace(descr) ? code : descr));
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[RptDashboardMain] SelectLocalRptBranchesForFilters failed: " + ex.Message);
+        }
+
+        return list;
+    }
+
+    private static List<FilterOption> LoadChannelFilterOptions()
+    {
+        var list = new List<FilterOption> { new("all", RptThemeString("Rpt.Filter.AllChannelsCaption")) };
+        try
+        {
+            var dt = App.aps.pda.GetDataTable(
+                App.aps.LocalConnectionstring(App.aps.propertyBranchCode),
+                App.aps.sql.SelectLocalRptChannelsForFilters(),
+                60);
+            foreach (DataRow r in dt.Rows)
+            {
+                var code = Convert.ToString(r["channel_code"], CultureInfo.InvariantCulture)?.Trim();
+                var descr = Convert.ToString(r["descr"], CultureInfo.InvariantCulture)?.Trim();
+                if (string.IsNullOrWhiteSpace(code))
+                    continue;
+                list.Add(new FilterOption(code, string.IsNullOrWhiteSpace(descr) ? code : descr));
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[RptDashboardMain] SelectLocalRptChannelsForFilters failed: " + ex.Message);
+        }
+
+        return list;
+    }
+
+    private static List<RoleFilterOption> LoadRoleFilterOptions()
+    {
+        var list = new List<RoleFilterOption> { new("all", RptThemeString("Rpt.Filter.AllUsersCaption")) };
+        try
+        {
+            var dt = App.aps.pda.GetDataTable(
+                App.aps.LocalConnectionstring(App.aps.propertyBranchCode),
+                App.aps.sql.SelectLocalRptUserRolesForFilters(),
+                60);
+            foreach (DataRow r in dt.Rows)
+            {
+                var code = Convert.ToString(r["userrole_code"], CultureInfo.InvariantCulture)?.Trim();
+                var descr = Convert.ToString(r["descr"], CultureInfo.InvariantCulture)?.Trim();
+                if (string.IsNullOrWhiteSpace(code))
+                    continue;
+                list.Add(new RoleFilterOption(code, string.IsNullOrWhiteSpace(descr) ? code : descr));
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[RptDashboardMain] SelectLocalRptUserRolesForFilters failed: " + ex.Message);
+        }
+
+        return list;
+    }
+
+    /// <summary>Records branch-local report open for future Recently Used ordering; failures are ignored.</summary>
+    private static void TryRecordReportAccess(string reportCode)
+    {
+        if (string.IsNullOrWhiteSpace(reportCode))
+            return;
+        try
+        {
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            var uid = App.aps.signedOnUserId;
+            App.aps.Execute(cn, App.aps.sql.InsertReportAccessLog(uid, reportCode.Trim(), uid));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[RptDashboardMain] InsertReportAccessLog failed: " + ex.Message);
+        }
+    }
+
+    /// <summary>Search filters in-memory dashboard rows; branch/channel/role combos are populated from local <c>rpt_*</c> tables (POS_CONTROL sync).</summary>
     private void ApplyFilters()
     {
         var q = (_searchQuery ?? string.Empty).Trim();
@@ -397,6 +617,24 @@ public sealed partial class RptDashboardMain : UserControl
         if (Application.Current?.TryFindResource(key) is Brush b)
             return b;
         return Brushes.Magenta;
+    }
+
+    private static string RptThemeString(string resourceKey) =>
+        Application.Current?.TryFindResource(resourceKey) is string s ? s : string.Empty;
+
+    private static string RptThemeFormat(string resourceKey, params object[] args)
+    {
+        var fmt = RptThemeString(resourceKey);
+        if (string.IsNullOrEmpty(fmt))
+            return string.Empty;
+        try
+        {
+            return string.Format(CultureInfo.InvariantCulture, fmt, args);
+        }
+        catch (FormatException)
+        {
+            return string.Empty;
+        }
     }
 
     /// <summary>Parses WPF web colour strings (#RGB / #RRGGBB / #AARRGGBB). Used by <see cref="CardAccent.FromHex"/>.</summary>
@@ -560,8 +798,8 @@ public sealed partial class RptDashboardMain : UserControl
     }
 
     /// <summary>
-    /// Card colours as ARGB/RGB hex strings — shape matches five SQL text columns. Does not use
-    /// <see cref="PeoplePosTheme"/>; report tiles get colours from seed/data only.
+    /// Card colours as ARGB/RGB hex strings — maps to <c>ui_*_hex</c> columns on
+    /// <c>public.rpt_reports</c> / <c>public.rpt_report_categories</c>. Does not use <see cref="PeoplePosTheme"/>.
     /// </summary>
     public readonly record struct RptDashboardCardThemeHex(
             string IconBackdropHex,
@@ -675,45 +913,6 @@ public sealed partial class RptDashboardMain : UserControl
         }
     }
 
-    /// <summary>Seed row for Recently Used — expand <see cref="RecentReportSeedCatalog"/> to add reports.</summary>
-    public sealed record RptRecentReportSeed(
-            string ReportId,
-            string DisplayName,
-            string LastRunDisplay,
-            string? CategoryId,
-            TimeSpan LastAccessedUtcOffsetFromNow,
-            /// <summary>Five hex colours per card — same fields can be loaded from PostgreSQL later; no XAML theme edits.</summary>
-            RptDashboardCardThemeHex ThemeHex,
-            /// <summary><see cref="RptDashboardIconCatalog"/> id (e.g. <c>staff_documents_tab</c>).</summary>
-            string IconGlyphId,
-            bool LastAccessedAtStartOfTodayUtc = false);
-
-    /// <summary>Seed row for Attention Needed.</summary>
-    public sealed record RptAttentionReportSeed(
-            string ReportId,
-            string DisplayName,
-            int AttentionCount,
-            RptDashboardCardThemeHex IconThemeHex,
-            RptDashboardCardThemeHex BadgeThemeHex,
-            string IconGlyphId);
-
-    /// <summary>Nested report under a browse group — include icon for each row when UI lists expand.</summary>
-    public sealed record RptBrowseReportSeed(
-            string ReportId,
-            string DisplayName,
-            string IconGlyphId);
-
-    /// <summary>Seed row for Browse grouping tiles.</summary>
-    public sealed record RptBrowseGroupSeed(
-            string GroupId,
-            string Title,
-            string Description,
-            int ReportCount,
-            RptDashboardCardThemeHex ThemeHex,
-            string IconGlyphId,
-            bool ShowChevronNextToTitle,
-            IReadOnlyList<RptBrowseReportSeed>? ReportsInGroup);
-
     public sealed class RecentUsedRow
     {
         public RecentUsedRow(ExecutableReportRef report, string lastRunDisplay, CardAccent theme)
@@ -826,244 +1025,326 @@ public sealed partial class RptDashboardMain : UserControl
 
     #endregion
 
-    #region Seed lists (full hex literals per row below — five strings per report, same shape as future PostgreSQL columns)
+    #region Dashboard DB loaders (Recently Used / Attention / Browse — themes from PostgreSQL)
 
-    private static readonly FilterOption[] BranchOptions =
-    {
-        new("all", "All Branches"),
-        new("sandton", "Sandton"),
-        new("cpt", "Cape Town CBD"),
-        new("umhlanga", "Umhlanga"),
-        new("pta", "Pretoria"),
-        new("jhb", "Johannesburg"),
-        new("durban", "Durban"),
-    };
+    /// <summary>When SQL hex columns are missing/invalid, use shared theme keys (not literals in C#).</summary>
+    private static CardAccent DashboardUiFallbackAccentFromTheme() =>
+        CardAccent.FromKeys(
+            "Brush.SurfaceGreySoft",
+            "Brush.TextMuted",
+            "Brush.BorderGrey",
+            "Brush.SurfaceOffWhite",
+            "Brush.RptChevronStrong");
 
-    private static readonly FilterOption[] ChannelOptions =
+    private void ReloadDashboardCollectionsFromDatabase()
     {
-        new("all", "All Channels"),
-        new("dinein", "Dine-In"),
-        new("takeaway", "Takeaway"),
-        new("delivery", "Delivery"),
-        new("online", "Online Orders"),
-        new("ubereats", "Uber Eats"),
-        new("mrd", "Mr D Food"),
-    };
+        const int timeoutSeconds = 60;
+        var recent = new List<RecentUsedRow>();
+        var attention = new List<AttentionNeededRow>();
+        var browse1 = new List<BrowseGroupTile>();
+        var browse2 = new List<BrowseGroupTile>();
 
-    private static readonly RoleFilterOption[] RoleOptions =
-    {
-        new("all", "All Users"),
-        new("waiters", "Waiters"),
-        new("cashiers", "Cashiers"),
-        new("managers", "Managers"),
-        new("kitchen", "Kitchen Staff"),
-        new("drivers", "Drivers"),
-    };
-
-    private static readonly RptRecentReportSeed[] RecentReportSeedCatalog =
-    {
-        new(
-            "rpt.daily_sales",
-            "Daily Sales Summary",
-            "Last run: 2 hours ago",
-            "grp.sales",
-            TimeSpan.FromHours(-2),
-            new RptDashboardCardThemeHex("#DBEAFE", "#1D4ED8", "#3B82F6", "#E6F3FF", "#334155"),
-            "bar_chart"),
-        new(
-            "rpt.vat_summary",
-            "VAT Summary",
-            "Last run: Yesterday",
-            "grp.financial",
-            TimeSpan.FromDays(-1),
-            new RptDashboardCardThemeHex("#E6D5FF", "#C95BFF", "#C7B1DA", "#F7F6FC", "#334155"),
-            "staff_documents_tab"),
-        new(
-            "rpt.wastage",
-            "Wastage Report",
-            "Last run: 3 days ago",
-            "grp.stock",
-            TimeSpan.FromDays(-3),
-            new RptDashboardCardThemeHex("#CCFBF1", "#0F766E", "#14B8A6", "#E8FFFA", "#334155"),
-            "staff_delete_user_trash"),
-        new(
-            "rpt.voids",
-            "Voids Report",
-            "Last run: Today",
-            "grp.ops",
-            TimeSpan.Zero,
-            new RptDashboardCardThemeHex("#FEE2E2", "#B91C1C", "#EF4444", "#FEF2F2", "#334155"),
-            "alert_circle",
-            LastAccessedAtStartOfTodayUtc: true),
-    };
-
-    private static readonly RptAttentionReportSeed[] AttentionReportSeedCatalog =
-    {
-        new(
-            "rpt.high_value_voids",
-            "High-Value Voids",
-            3,
-            new RptDashboardCardThemeHex("#FEE2E2", "#B91C1C", "#EF4444", "#FEF2F2", "#334155"),
-            new RptDashboardCardThemeHex("#FEE2E2", "#B91C1C", "#EF4444", "#FEF2F2", "#334155"),
-            "alert_circle"),
-        new(
-            "rpt.low_stock",
-            "Low Stock Items",
-            8,
-            new RptDashboardCardThemeHex("#FFEDD5", "#9A3412", "#EA580C", "#FFF7ED", "#334155"),
-            new RptDashboardCardThemeHex("#FFEDD5", "#9A3412", "#EA580C", "#FFF7ED", "#334155"),
-            "package"),
-        new(
-            "rpt.delivery_variances",
-            "Delivery Variances",
-            2,
-            new RptDashboardCardThemeHex("#CCFBF1", "#0F766E", "#14B8A6", "#E8FFFA", "#334155"),
-            new RptDashboardCardThemeHex("#FFEDD5", "#9A3412", "#EA580C", "#FFF7ED", "#334155"),
-            "trend_down"),
-        new(
-            "rpt.till_balance",
-            "Till Not Balanced",
-            1,
-            new RptDashboardCardThemeHex("#FEF9C3", "#A16207", "#EAB308", "#FEFCE8", "#334155"),
-            new RptDashboardCardThemeHex("#FEE2E2", "#B91C1C", "#EF4444", "#FEF2F2", "#334155"),
-            "coins"),
-    };
-
-    private static readonly RptBrowseGroupSeed[] BrowseGroupsRow1SeedCatalog =
-    {
-        new(
-            "grp.sales",
-            "Sales Reports",
-            "Track daily sales, revenue and product performance.",
-            5,
-            new RptDashboardCardThemeHex("#DBEAFE", "#1D4ED8", "#3B82F6", "#E6F3FF", "#334155"),
-            "bar_chart",
-            false,
-            new RptBrowseReportSeed[]
-            {
-                new("rpt.daily_sales", "Daily Sales Summary", "bar_chart"),
-                new("rpt.revenue", "Revenue", "pie_chart"),
-            }),
-        new(
-            "grp.stock",
-            "Stock Reports",
-            "Monitor inventory levels, usage and variance.",
-            5,
-            new RptDashboardCardThemeHex("#CCFBF1", "#0F766E", "#14B8A6", "#E8FFFA", "#334155"),
-            "package",
-            true,
-            new RptBrowseReportSeed[] { new("rpt.wastage", "Wastage Report", "staff_delete_user_trash"), }),
-        new(
-            "grp.ops",
-            "Operational Control",
-            "Monitor voids, refunds and operational compliance.",
-            5,
-            new RptDashboardCardThemeHex("#FFE4E6", "#BE123C", "#E02424", "#FDF2F4", "#334155"),
-            "shield_check",
-            false,
-            new RptBrowseReportSeed[] { new("rpt.voids", "Voids Report", "alert_circle"), }),
-    };
-
-    private static readonly RptBrowseGroupSeed[] BrowseGroupsRow2SeedCatalog =
-    {
-        new(
-            "grp.procurement",
-            "Supplier & Procurement",
-            "Track purchases, supplier performance and delivery.",
-            5,
-            new RptDashboardCardThemeHex("#FFEDD5", "#C2410C", "#E8A05B", "#FDF8F2", "#334155"),
-            "truck",
-            false,
-            Array.Empty<RptBrowseReportSeed>()),
-        new(
-            "grp.profitability",
-            "Profitability Reports",
-            "Analyse margins, costs and profitability metrics.",
-            5,
-            new RptDashboardCardThemeHex("#EDE9FE", "#6D28D9", "#8B5CF6", "#F5F3FF", "#334155"),
-            "pie_chart",
-            true,
-            Array.Empty<RptBrowseReportSeed>()),
-    };
-
-    private static IEnumerable<RecentUsedRow> BuildRecentRows()
-    {
-        foreach (var s in RecentReportSeedCatalog)
+        try
         {
-            var lastAccessedUtc = s.LastAccessedAtStartOfTodayUtc
-                ? DateTime.UtcNow.Date
-                : DateTime.UtcNow + s.LastAccessedUtcOffsetFromNow;
-
-            var icon = RptDashboardIconCatalog.ResolveGlyph(s.IconGlyphId);
-            yield return new RecentUsedRow(
-                    new ExecutableReportRef(s.ReportId, s.DisplayName, icon),
-                    s.LastRunDisplay,
-                    s.ThemeHex.ToCardAccent())
+            var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
+            var dtRecent = App.aps.pda.GetDataTable(
+                cn,
+                App.aps.sql.SelectLocalRptRecentlyUsedReportsForUser(
+                    App.aps.signedOnUserId,
+                    RecentlyUsedMaxDistinctReports),
+                timeoutSeconds);
+            foreach (DataRow row in dtRecent.Rows)
             {
-                LastAccessedUtc = lastAccessedUtc,
-                CategoryId = s.CategoryId,
+                var code = DbCellString(row, "report_code").Trim();
+                if (code.Length == 0)
+                    continue;
+                var title = DbCellString(row, "descr").Trim();
+                if (title.Length == 0)
+                    title = code;
+                var glyph = RptDashboardIconCatalog.ResolveGlyph(DbCellString(row, "icon_glyph_id"));
+                var accessedUtc = DbCellDateTimeUtc(row, "last_accessed_ts");
+                var lastRun = FormatLastRunCaptionUtc(accessedUtc);
+                if (lastRun.Length == 0)
+                    lastRun = RptThemeString("Rpt.LastRun.UnknownCaption");
+                var cat = DbCellString(row, "category_code").Trim();
+                recent.Add(new RecentUsedRow(new ExecutableReportRef(code, title, glyph), lastRun, AccentFromReportPrimaryHexRow(row))
+                {
+                    LastAccessedUtc = accessedUtc,
+                    CategoryId = cat.Length == 0 ? null : cat,
+                });
+            }
+
+            var dtAttention = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectLocalRptReportsForDashboardAttention(), timeoutSeconds);
+            foreach (DataRow row in dtAttention.Rows)
+            {
+                var code = DbCellString(row, "report_code").Trim();
+                if (code.Length == 0)
+                    continue;
+                var title = DbCellString(row, "descr").Trim();
+                if (title.Length == 0)
+                    title = code;
+                var cnt = DbCellNullableInt(row, "dashboard_attention_count");
+                if (!cnt.HasValue || cnt.Value < 1)
+                    continue;
+                var glyph = RptDashboardIconCatalog.ResolveGlyph(DbCellString(row, "icon_glyph_id"));
+                attention.Add(new AttentionNeededRow(
+                    new ExecutableReportRef(code, title, glyph),
+                    cnt.Value,
+                    AccentFromReportPrimaryHexRow(row),
+                    AccentFromReportBadgeHexRow(row)));
+            }
+
+            browse1.AddRange(LoadBrowseRowFromDb(cn, browseRow: 1, timeoutSeconds));
+            browse2.AddRange(LoadBrowseRowFromDb(cn, browseRow: 2, timeoutSeconds));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("[RptDashboardMain] ReloadDashboardCollectionsFromDatabase: " + ex.Message);
+        }
+
+        ReloadCore(recent, _seedRecent);
+        ReloadCore(attention, _seedAttention);
+        ReloadCore(browse1, _seedBrowse1);
+        ReloadCore(browse2, _seedBrowse2);
+        ApplyFilters();
+    }
+
+    private static List<BrowseGroupTile> LoadBrowseRowFromDb(string cn, int browseRow, int timeoutSeconds)
+    {
+        var list = new List<BrowseGroupTile>();
+        var dt = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectLocalRptCategoriesForDashboardBrowseRow(browseRow), timeoutSeconds);
+        foreach (DataRow cat in dt.Rows)
+        {
+            var groupId = DbCellString(cat, "category_code").Trim();
+            if (groupId.Length == 0)
+                continue;
+            var title = DbCellString(cat, "descr").Trim();
+            if (title.Length == 0)
+                title = groupId;
+            var panel = DbCellString(cat, "browse_panel_descr").Trim();
+            if (panel.Length == 0)
+                panel = title;
+            var tile = new BrowseGroupTile(
+                groupId,
+                title,
+                panel,
+                DbCellInt(cat, "browse_tile_report_count", 0),
+                AccentFromCategoryHexRow(cat),
+                RptDashboardIconCatalog.ResolveGlyph(DbCellString(cat, "browse_icon_glyph_id")),
+                DbCellBool(cat, "browse_show_chevron", fallback: false));
+            var sub = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectLocalRptReportsForBrowseSubgroup(groupId), timeoutSeconds);
+            tile.ReportsInGroup = MapBrowseReportsFromDataTable(sub);
+            list.Add(tile);
+        }
+
+        return list;
+    }
+
+    private static IReadOnlyList<ExecutableReportRef> MapBrowseReportsFromDataTable(DataTable dt)
+    {
+        var list = new List<ExecutableReportRef>();
+        foreach (DataRow r in dt.Rows)
+        {
+            var id = DbCellString(r, "report_code").Trim();
+            if (id.Length == 0)
+                continue;
+            var dn = DbCellString(r, "descr").Trim();
+            if (dn.Length == 0)
+                dn = id;
+            list.Add(new ExecutableReportRef(id, dn, RptDashboardIconCatalog.ResolveGlyph(DbCellString(r, "icon_glyph_id"))));
+        }
+
+        return list;
+    }
+
+    private static DateTime DbCellDateTimeUtc(DataRow r, string columnName)
+    {
+        var v = DbRaw(r, columnName);
+        if (v == null || v == DBNull.Value)
+            return DateTime.UtcNow;
+        if (v is DateTime dt)
+        {
+            return dt.Kind switch
+            {
+                DateTimeKind.Utc => dt,
+                DateTimeKind.Local => dt.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
             };
         }
+
+        var s = Convert.ToString(v, CultureInfo.InvariantCulture)?.Trim();
+        if (!string.IsNullOrEmpty(s) && DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed))
+            return parsed.ToUniversalTime();
+        return DateTime.UtcNow;
     }
 
-    private static IEnumerable<AttentionNeededRow> BuildAttentionRows()
+    /// <summary>Human-readable &quot;Last run: …&quot; line from audit timestamp (UTC).</summary>
+    private static string FormatLastRunCaptionUtc(DateTime accessedUtc)
     {
-        foreach (var s in AttentionReportSeedCatalog)
+        var prefix = RptThemeString("Rpt.LastRun.Prefix");
+        var a = accessedUtc.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(accessedUtc, DateTimeKind.Utc)
+            : accessedUtc.ToUniversalTime();
+        var now = DateTime.UtcNow;
+
+        if (a.TimeOfDay == TimeSpan.Zero && a.Date == now.Date)
+            return prefix + RptThemeString("Rpt.LastRun.Today");
+
+        var delta = now - a;
+        if (delta < TimeSpan.Zero)
+            delta = TimeSpan.Zero;
+
+        if (delta.TotalMinutes < 2)
+            return prefix + RptThemeString("Rpt.LastRun.JustNow");
+
+        if (a.Date == now.Date.AddDays(-1))
+            return prefix + RptThemeString("Rpt.LastRun.Yesterday");
+
+        if (a.Date == now.Date && delta.TotalHours < 24)
         {
-            var icon = RptDashboardIconCatalog.ResolveGlyph(s.IconGlyphId);
-            yield return new AttentionNeededRow(
-                    new ExecutableReportRef(s.ReportId, s.DisplayName, icon),
-                    s.AttentionCount,
-                    s.IconThemeHex.ToCardAccent(),
-                    s.BadgeThemeHex.ToCardAccent());
-        }
-    }
+            if (delta.TotalHours >= 1)
+            {
+                var h = Math.Max(1, (int)Math.Floor(delta.TotalHours));
+                var hs = RptThemeFormat("Rpt.LastRun.HoursAgoFormat", h);
+                return hs.Length > 0 ? prefix + hs : prefix + h.ToString(CultureInfo.InvariantCulture) + "h";
+            }
 
-    private static IEnumerable<BrowseGroupTile> BuildBrowseRow1()
-    {
-        foreach (var s in BrowseGroupsRow1SeedCatalog)
+            var m = Math.Max(1, (int)Math.Floor(delta.TotalMinutes));
+            var ms = RptThemeFormat("Rpt.LastRun.MinutesAgoFormat", m);
+            return ms.Length > 0 ? prefix + ms : prefix + m.ToString(CultureInfo.InvariantCulture) + "m";
+        }
+
+        var calDays = (now.Date - a.Date).Days;
+        if (calDays >= 1)
         {
-            var tile = new BrowseGroupTile(
-                    s.GroupId,
-                    s.Title,
-                    s.Description,
-                    s.ReportCount,
-                    s.ThemeHex.ToCardAccent(),
-                    RptDashboardIconCatalog.ResolveGlyph(s.IconGlyphId),
-                    s.ShowChevronNextToTitle);
-
-            tile.ReportsInGroup = MapBrowseReportsInGroup(s.ReportsInGroup);
-            yield return tile;
+            var ds = RptThemeFormat("Rpt.LastRun.DaysAgoFormat", calDays);
+            return ds.Length > 0 ? prefix + ds : prefix + calDays.ToString(CultureInfo.InvariantCulture) + "d";
         }
+
+        return prefix + a.ToString("MMM d", CultureInfo.InvariantCulture);
     }
 
-    private static IEnumerable<BrowseGroupTile> BuildBrowseRow2()
+    private static CardAccent AccentFromReportPrimaryHexRow(DataRow r)
     {
-        foreach (var s in BrowseGroupsRow2SeedCatalog)
+        var h1 = DbCellString(r, "ui_icon_backdrop_hex");
+        var h2 = DbCellString(r, "ui_icon_foreground_hex");
+        var h3 = DbCellString(r, "ui_hover_border_hex");
+        var h4 = DbCellString(r, "ui_hover_surface_hex");
+        var ch = DbCellString(r, "ui_chevron_hot_hex");
+        var chOpt = string.IsNullOrWhiteSpace(ch) ? null : ch;
+        if (CardAccent.TryFromHex(h1, h2, h3, h4, chOpt, out var ac) && ac != null)
+            return ac;
+        return DashboardUiFallbackAccentFromTheme();
+    }
+
+    private static CardAccent AccentFromReportBadgeHexRow(DataRow r)
+    {
+        var h1 = DbCellString(r, "ui_badge_icon_backdrop_hex");
+        if (string.IsNullOrWhiteSpace(h1))
+            return AccentFromReportPrimaryHexRow(r);
+        var h2 = DbCellString(r, "ui_badge_icon_foreground_hex");
+        var h3 = DbCellString(r, "ui_badge_hover_border_hex");
+        var h4 = DbCellString(r, "ui_badge_hover_surface_hex");
+        var ch = DbCellString(r, "ui_badge_chevron_hot_hex");
+        var chOpt = string.IsNullOrWhiteSpace(ch) ? null : ch;
+        if (CardAccent.TryFromHex(h1, h2, h3, h4, chOpt, out var ac) && ac != null)
+            return ac;
+        return AccentFromReportPrimaryHexRow(r);
+    }
+
+    private static CardAccent AccentFromCategoryHexRow(DataRow r)
+    {
+        var h1 = DbCellString(r, "ui_icon_backdrop_hex");
+        var h2 = DbCellString(r, "ui_icon_foreground_hex");
+        var h3 = DbCellString(r, "ui_hover_border_hex");
+        var h4 = DbCellString(r, "ui_hover_surface_hex");
+        var ch = DbCellString(r, "ui_chevron_hot_hex");
+        var chOpt = string.IsNullOrWhiteSpace(ch) ? null : ch;
+        if (CardAccent.TryFromHex(h1, h2, h3, h4, chOpt, out var ac) && ac != null)
+            return ac;
+        return DashboardUiFallbackAccentFromTheme();
+    }
+
+    private static object? DbRaw(DataRow r, string columnName)
+    {
+        foreach (DataColumn c in r.Table.Columns)
         {
-            var tile = new BrowseGroupTile(
-                    s.GroupId,
-                    s.Title,
-                    s.Description,
-                    s.ReportCount,
-                    s.ThemeHex.ToCardAccent(),
-                    RptDashboardIconCatalog.ResolveGlyph(s.IconGlyphId),
-                    s.ShowChevronNextToTitle);
-
-            tile.ReportsInGroup = MapBrowseReportsInGroup(s.ReportsInGroup);
-            yield return tile;
+            if (string.Equals(c.ColumnName, columnName, StringComparison.OrdinalIgnoreCase))
+                return r.IsNull(c) ? null : r[c];
         }
+
+        return null;
     }
 
-    private static IReadOnlyList<ExecutableReportRef>? MapBrowseReportsInGroup(
-            IReadOnlyList<RptBrowseReportSeed>? reportsInGroup)
+    private static string DbCellString(DataRow r, string columnName)
     {
-        if (reportsInGroup == null || reportsInGroup.Count == 0)
-            return Array.Empty<ExecutableReportRef>();
+        var v = DbRaw(r, columnName);
+        return v == null ? "" : Convert.ToString(v, CultureInfo.InvariantCulture) ?? "";
+    }
 
-        return reportsInGroup
-            .Select(p => new ExecutableReportRef(p.ReportId, p.DisplayName, RptDashboardIconCatalog.ResolveGlyph(p.IconGlyphId)))
-            .ToList();
+    private static bool DbCellBool(DataRow r, string columnName, bool fallback)
+    {
+        var v = DbRaw(r, columnName);
+        if (v == null)
+            return fallback;
+        if (v is bool b)
+            return b;
+        var s = Convert.ToString(v, CultureInfo.InvariantCulture)?.Trim() ?? "";
+        if (s.Length == 0)
+            return fallback;
+        if (bool.TryParse(s, out var p))
+            return p;
+        if (s == "1" || s.Equals("t", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (s == "0" || s.Equals("f", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return fallback;
+    }
+
+    private static int DbCellInt(DataRow r, string columnName, int fallback)
+    {
+        var v = DbRaw(r, columnName);
+        if (v == null)
+            return fallback;
+        if (v is int i)
+            return i;
+        if (v is long l)
+        {
+            try
+            {
+                return checked((int)l);
+            }
+            catch
+            {
+                return fallback;
+            }
+        }
+
+        var s = Convert.ToString(v, CultureInfo.InvariantCulture)?.Trim() ?? "";
+        return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : fallback;
+    }
+
+    private static int? DbCellNullableInt(DataRow r, string columnName)
+    {
+        var v = DbRaw(r, columnName);
+        if (v == null)
+            return null;
+        if (v is int i)
+            return i;
+        if (v is long l)
+        {
+            try
+            {
+                return checked((int)l);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        var s = Convert.ToString(v, CultureInfo.InvariantCulture)?.Trim() ?? "";
+        return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : null;
     }
 
     #endregion
@@ -1178,6 +1459,13 @@ public sealed partial class RptDashboardMain : UserControl
         if (sender is not Button btn || btn.DataContext is not RecentUsedRow m)
             return;
 
+        TryRecordReportAccess(m.Report.Id);
+        if (string.Equals(m.Report.Id, DailySalesReportCode, StringComparison.Ordinal))
+        {
+            OpenDailySalesOverlay();
+            return;
+        }
+
         InvokeIfNotNull(_onRecentReport, m);
     }
 
@@ -1185,6 +1473,13 @@ public sealed partial class RptDashboardMain : UserControl
     {
         if (sender is not Button btn || btn.DataContext is not AttentionNeededRow m)
             return;
+
+        TryRecordReportAccess(m.Report.Id);
+        if (string.Equals(m.Report.Id, DailySalesReportCode, StringComparison.Ordinal))
+        {
+            OpenDailySalesOverlay();
+            return;
+        }
 
         InvokeIfNotNull(_onAttentionItem, m);
     }

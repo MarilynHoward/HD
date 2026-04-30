@@ -74,6 +74,10 @@ public sealed class Sql
     public static string Dbl(double value) =>
         value.ToString("R", CultureInfo.InvariantCulture);
 
+    /// <summary>PostgreSQL <c>numeric</c> literal using invariant formatting (no comma decimals).</summary>
+    public static string Num(decimal value) =>
+        value.ToString(CultureInfo.InvariantCulture);
+
     // region: Roles ----------------------------------------------------------------------------------
 
     /// <summary>Active, non-deleted roles ordered by id. Columns: role_id, descr, active.</summary>
@@ -823,6 +827,510 @@ public sealed class Sql
 
         return update + " " + insert;
     }
+
+    // region: Remote control (POS_CONTROL) → local RPT lookups --------------------------------------
+
+    /// <summary>
+    /// Remote <c>public.branches</c>: all branches in the same <c>branch_group</c> as the row whose
+    /// <c>branch_code</c> matches this terminal (from <c>Branch.txt</c>). Executed against
+    /// <see cref="AppStatus.ServerConnectionstring()"/>; <paramref name="localBranchCode"/> must be
+    /// passed from <see cref="AppStatus.propertyBranchCode"/> and composed only via <see cref="Quote"/>.
+    /// </summary>
+    public string SelectRemoteBranchesForBranchGroup(string localBranchCode) =>
+        "SELECT b.branch_code, b.descr, b.active, b.auth_user_id " +
+        "FROM public.branches b " +
+        "WHERE b.branch_group IN (" +
+        "SELECT b2.branch_group FROM public.branches b2 WHERE b2.branch_code = " + Quote(localBranchCode) +
+        ") ORDER BY b.branch_code";
+
+    /// <summary>Remote <c>public.rpt_channels</c> full row set for lookup sync.</summary>
+    public string SelectRemoteRptChannels() =>
+        "SELECT channel_code, descr, active, auth_user_id FROM public.rpt_channels ORDER BY channel_code";
+
+    /// <summary>Remote <c>public.rpt_user_roles</c> full row set for lookup sync.</summary>
+    public string SelectRemoteRptUserRoles() =>
+        "SELECT userrole_code, descr, active, auth_user_id FROM public.rpt_user_roles ORDER BY userrole_code";
+
+    /// <summary>
+    /// PostgreSQL 9.3-safe upsert into local <c>public.rpt_branches</c>: <c>UPDATE</c> then
+    /// <c>INSERT ... WHERE NOT EXISTS</c> (no <c>ON CONFLICT</c>).
+    /// </summary>
+    public string UpsertLocalRptBranch(string branchCode, string descr, bool active, int authUserId)
+    {
+        var d = descr ?? "";
+        return
+            "UPDATE public.rpt_branches SET descr = " + Quote(d) + ", active = " + Bool(active) +
+            ", auth_user_id = " + Int(authUserId) + ", modified_ts = now() WHERE branch_code = " + Quote(branchCode) + "; " +
+            "INSERT INTO public.rpt_branches (branch_code, descr, active, auth_user_id) SELECT " +
+            Quote(branchCode) + ", " + Quote(d) + ", " + Bool(active) + ", " + Int(authUserId) +
+            " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_branches WHERE branch_code = " + Quote(branchCode) + "); ";
+    }
+
+    /// <summary>PostgreSQL 9.3-safe upsert into local <c>public.rpt_channels</c>.</summary>
+    public string UpsertLocalRptChannel(string channelCode, string descr, bool active, int authUserId)
+    {
+        var d = descr ?? "";
+        return
+            "UPDATE public.rpt_channels SET descr = " + Quote(d) + ", active = " + Bool(active) +
+            ", auth_user_id = " + Int(authUserId) + ", modified_ts = now() WHERE channel_code = " + Quote(channelCode) + "; " +
+            "INSERT INTO public.rpt_channels (channel_code, descr, active, auth_user_id) SELECT " +
+            Quote(channelCode) + ", " + Quote(d) + ", " + Bool(active) + ", " + Int(authUserId) +
+            " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_channels WHERE channel_code = " + Quote(channelCode) + "); ";
+    }
+
+    /// <summary>PostgreSQL 9.3-safe upsert into local <c>public.rpt_user_roles</c>.</summary>
+    public string UpsertLocalRptUserRole(string userroleCode, string descr, bool active, int authUserId)
+    {
+        var d = descr ?? "";
+        return
+            "UPDATE public.rpt_user_roles SET descr = " + Quote(d) + ", active = " + Bool(active) +
+            ", auth_user_id = " + Int(authUserId) + ", modified_ts = now() WHERE userrole_code = " + Quote(userroleCode) + "; " +
+            "INSERT INTO public.rpt_user_roles (userrole_code, descr, active, auth_user_id) SELECT " +
+            Quote(userroleCode) + ", " + Quote(d) + ", " + Bool(active) + ", " + Int(authUserId) +
+            " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_user_roles WHERE userrole_code = " + Quote(userroleCode) + "); ";
+    }
+
+    /// <summary>
+    /// Deletes local <c>public.rpt_branches</c> rows whose <c>branch_code</c> is not in the remote snapshot.
+    /// Returns an empty string when <paramref name="remoteKeys"/> is empty or has no usable values —
+    /// otherwise <c>NOT IN ()</c> would remove every row.
+    /// </summary>
+    public string DeleteLocalRptBranchesNotInRemoteKeys(IReadOnlyCollection<string> remoteKeys)
+    {
+        if (remoteKeys == null || remoteKeys.Count == 0)
+            return "";
+        var b = new StringBuilder();
+        b.Append("DELETE FROM public.rpt_branches WHERE branch_code NOT IN (");
+        var any = false;
+        foreach (var code in remoteKeys)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                continue;
+            if (any)
+                b.Append(", ");
+            any = true;
+            b.Append(Quote(code.Trim()));
+        }
+
+        if (!any)
+            return "";
+        b.Append("); ");
+        return b.ToString();
+    }
+
+    /// <summary>
+    /// Deletes local <c>public.rpt_channels</c> rows whose <c>channel_code</c> is not in the remote snapshot.
+    /// Returns empty when there are no remote keys to retain (same guard as branches).
+    /// </summary>
+    public string DeleteLocalRptChannelsNotInRemoteKeys(IReadOnlyCollection<string> remoteKeys)
+    {
+        if (remoteKeys == null || remoteKeys.Count == 0)
+            return "";
+        var b = new StringBuilder();
+        b.Append("DELETE FROM public.rpt_channels WHERE channel_code NOT IN (");
+        var any = false;
+        foreach (var code in remoteKeys)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                continue;
+            if (any)
+                b.Append(", ");
+            any = true;
+            b.Append(Quote(code.Trim()));
+        }
+
+        if (!any)
+            return "";
+        b.Append("); ");
+        return b.ToString();
+    }
+
+    /// <summary>
+    /// Deletes local <c>public.rpt_user_roles</c> rows whose <c>userrole_code</c> is not in the remote snapshot.
+    /// Returns empty when there are no remote keys to retain (same guard as branches).
+    /// </summary>
+    public string DeleteLocalRptUserRolesNotInRemoteKeys(IReadOnlyCollection<string> remoteKeys)
+    {
+        if (remoteKeys == null || remoteKeys.Count == 0)
+            return "";
+        var b = new StringBuilder();
+        b.Append("DELETE FROM public.rpt_user_roles WHERE userrole_code NOT IN (");
+        var any = false;
+        foreach (var code in remoteKeys)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                continue;
+            if (any)
+                b.Append(", ");
+            any = true;
+            b.Append(Quote(code.Trim()));
+        }
+
+        if (!any)
+            return "";
+        b.Append("); ");
+        return b.ToString();
+    }
+
+    /// <summary>Local <c>public.rpt_branches</c> rows for dashboard filter combo (<c>active = TRUE</c>).</summary>
+    public string SelectLocalRptBranchesForFilters() =>
+        "SELECT branch_code, descr FROM public.rpt_branches WHERE active = TRUE ORDER BY branch_code";
+
+    /// <summary>Local <c>public.rpt_channels</c> rows for dashboard filter combo (<c>active = TRUE</c>).</summary>
+    public string SelectLocalRptChannelsForFilters() =>
+        "SELECT channel_code, descr FROM public.rpt_channels WHERE active = TRUE ORDER BY descr";
+
+    /// <summary>Local <c>public.rpt_user_roles</c> rows for dashboard filter combo (<c>active = TRUE</c>).</summary>
+    public string SelectLocalRptUserRolesForFilters() =>
+        "SELECT userrole_code, descr FROM public.rpt_user_roles WHERE active = TRUE ORDER BY descr";
+
+    /// <summary>Remote <c>public.rpt_report_categories</c> full row set for lookup sync (includes dashboard UI columns).</summary>
+    public string SelectRemoteRptReportCategories() =>
+        "SELECT category_code, descr, active, auth_user_id, " +
+        "browse_panel_descr, browse_icon_glyph_id, browse_show_chevron, browse_tile_report_count, " +
+        "dashboard_browse_row, dashboard_browse_sort_order, " +
+        "ui_icon_backdrop_hex, ui_icon_foreground_hex, ui_hover_border_hex, ui_hover_surface_hex, ui_chevron_hot_hex " +
+        "FROM public.rpt_report_categories ORDER BY category_code";
+
+    /// <summary>Remote <c>public.rpt_reports</c> full row set for lookup sync (includes dashboard UI columns).</summary>
+    public string SelectRemoteRptReports() =>
+        "SELECT report_code, category_code, descr, long_descr, icon_glyph_id, active, auth_user_id, " +
+        "ui_icon_backdrop_hex, ui_icon_foreground_hex, ui_hover_border_hex, ui_hover_surface_hex, ui_chevron_hot_hex, " +
+        "ui_badge_icon_backdrop_hex, ui_badge_icon_foreground_hex, ui_badge_hover_border_hex, ui_badge_hover_surface_hex, ui_badge_chevron_hot_hex, " +
+        "dashboard_recent_sort_order, recent_last_run_display, recent_last_accessed_offset_hours, recent_last_accessed_start_of_today_utc, " +
+        "dashboard_attention_sort_order, dashboard_attention_count, dashboard_browse_in_group_sort_order " +
+        "FROM public.rpt_reports ORDER BY report_code";
+
+    /// <summary>
+    /// Local branch: Recently Used — up to <paramref name="maxDistinctReports"/> distinct <c>report_code</c>
+    /// for <paramref name="userId"/>, ordered by latest <c>accessed_ts</c> in <c>rpt_report_access_log</c>.
+    /// </summary>
+    public string SelectLocalRptRecentlyUsedReportsForUser(int userId, int maxDistinctReports) =>
+        "SELECT r.report_code, r.category_code, r.descr, r.icon_glyph_id, " +
+        "r.ui_icon_backdrop_hex, r.ui_icon_foreground_hex, r.ui_hover_border_hex, r.ui_hover_surface_hex, r.ui_chevron_hot_hex, " +
+        "x.last_accessed_ts " +
+        "FROM (" +
+        "SELECT report_code, MAX(accessed_ts) AS last_accessed_ts " +
+        "FROM public.rpt_report_access_log WHERE user_id = " + Int(userId) + " GROUP BY report_code" +
+        ") x " +
+        "INNER JOIN public.rpt_reports r ON r.report_code = x.report_code AND COALESCE(r.active, TRUE) = TRUE " +
+        "ORDER BY x.last_accessed_ts DESC LIMIT " + Int(maxDistinctReports);
+
+    /// <summary>
+    /// Dev-only (<see cref="AppStatus.SeedDummyDataOnStartup"/>): clear report access history before reinserting demo rows.
+    /// </summary>
+    public string TruncateRptReportAccessLog() =>
+        "TRUNCATE TABLE public.rpt_report_access_log; ";
+
+    /// <summary>
+    /// Dev-only: seed <c>rpt_report_access_log</c> after <see cref="TruncateRptReportAccessLog"/> so Recently Used shows four demo reports.
+    /// </summary>
+    public string InsertSeedRptReportAccessLog(int userId, int authUserId)
+    {
+        var now = DateTime.UtcNow;
+        var u = Int(userId);
+        var a = Int(authUserId);
+        var tSales = Ts(now.AddHours(-2));
+        var tVat = Ts(now.AddHours(-24));
+        var tWaste = Ts(now.AddDays(-3));
+        var tVoids = Ts(now.Date);
+        return
+            "INSERT INTO public.rpt_report_access_log (user_id, report_code, accessed_ts, auth_user_id) VALUES " +
+            "(" + u + ", " + Quote("rpt.daily_sales") + ", " + tSales + ", " + a + "), " +
+            "(" + u + ", " + Quote("rpt.vat_summary") + ", " + tVat + ", " + a + "), " +
+            "(" + u + ", " + Quote("rpt.wastage") + ", " + tWaste + ", " + a + "), " +
+            "(" + u + ", " + Quote("rpt.voids") + ", " + tVoids + ", " + a + "); ";
+    }
+
+    /// <summary>Local branch: Attention Needed strip rows (ordered).</summary>
+    public string SelectLocalRptReportsForDashboardAttention() =>
+        "SELECT report_code, descr, icon_glyph_id, " +
+        "ui_icon_backdrop_hex, ui_icon_foreground_hex, ui_hover_border_hex, ui_hover_surface_hex, ui_chevron_hot_hex, " +
+        "ui_badge_icon_backdrop_hex, ui_badge_icon_foreground_hex, ui_badge_hover_border_hex, ui_badge_hover_surface_hex, ui_badge_chevron_hot_hex, " +
+        "dashboard_attention_count " +
+        "FROM public.rpt_reports WHERE active = TRUE AND dashboard_attention_sort_order IS NOT NULL " +
+        "ORDER BY dashboard_attention_sort_order";
+
+    /// <summary>Local branch: Browse grouping tiles for one horizontal row (<paramref name="browseRow"/> is 1 or 2).</summary>
+    public string SelectLocalRptCategoriesForDashboardBrowseRow(int browseRow) =>
+        "SELECT category_code, descr, browse_panel_descr, browse_icon_glyph_id, browse_show_chevron, browse_tile_report_count, " +
+        "ui_icon_backdrop_hex, ui_icon_foreground_hex, ui_hover_border_hex, ui_hover_surface_hex, ui_chevron_hot_hex " +
+        "FROM public.rpt_report_categories WHERE active = TRUE AND dashboard_browse_row = " + Int(browseRow) +
+        " ORDER BY dashboard_browse_sort_order";
+
+    /// <summary>Reports listed inside a browse category tile.</summary>
+    public string SelectLocalRptReportsForBrowseSubgroup(string categoryCode) =>
+        "SELECT report_code, descr, icon_glyph_id FROM public.rpt_reports WHERE active = TRUE AND category_code = " +
+        Quote(categoryCode) + " AND dashboard_browse_in_group_sort_order IS NOT NULL " +
+        "ORDER BY dashboard_browse_in_group_sort_order";
+
+    /// <summary>PostgreSQL 9.3-safe upsert into local <c>public.rpt_report_categories</c> (dashboard UI included).</summary>
+    public string UpsertLocalRptReportCategory(
+        string categoryCode,
+        string descr,
+        bool active,
+        int authUserId,
+        string? browsePanelDescr,
+        string? browseIconGlyphId,
+        bool browseShowChevron,
+        int browseTileReportCount,
+        int? dashboardBrowseRow,
+        int? dashboardBrowseSortOrder,
+        string? uiIconBackdropHex,
+        string? uiIconForegroundHex,
+        string? uiHoverBorderHex,
+        string? uiHoverSurfaceHex,
+        string? uiChevronHotHex)
+    {
+        var d = descr ?? "";
+        return
+            "UPDATE public.rpt_report_categories SET descr = " + Quote(d) + ", active = " + Bool(active) +
+            ", auth_user_id = " + Int(authUserId) + ", modified_ts = now(), " +
+            "browse_panel_descr = " + Nullable(browsePanelDescr) + ", " +
+            "browse_icon_glyph_id = " + Nullable(browseIconGlyphId) + ", " +
+            "browse_show_chevron = " + Bool(browseShowChevron) + ", " +
+            "browse_tile_report_count = " + Int(browseTileReportCount) + ", " +
+            "dashboard_browse_row = " + Int(dashboardBrowseRow) + ", " +
+            "dashboard_browse_sort_order = " + Int(dashboardBrowseSortOrder) + ", " +
+            "ui_icon_backdrop_hex = " + Nullable(uiIconBackdropHex) + ", " +
+            "ui_icon_foreground_hex = " + Nullable(uiIconForegroundHex) + ", " +
+            "ui_hover_border_hex = " + Nullable(uiHoverBorderHex) + ", " +
+            "ui_hover_surface_hex = " + Nullable(uiHoverSurfaceHex) + ", " +
+            "ui_chevron_hot_hex = " + Nullable(uiChevronHotHex) +
+            " WHERE category_code = " + Quote(categoryCode) + "; " +
+            "INSERT INTO public.rpt_report_categories (" +
+            "category_code, descr, active, auth_user_id, browse_panel_descr, browse_icon_glyph_id, browse_show_chevron, browse_tile_report_count, " +
+            "dashboard_browse_row, dashboard_browse_sort_order, ui_icon_backdrop_hex, ui_icon_foreground_hex, ui_hover_border_hex, ui_hover_surface_hex, ui_chevron_hot_hex) SELECT " +
+            Quote(categoryCode) + ", " + Quote(d) + ", " + Bool(active) + ", " + Int(authUserId) + ", " +
+            Nullable(browsePanelDescr) + ", " + Nullable(browseIconGlyphId) + ", " + Bool(browseShowChevron) + ", " + Int(browseTileReportCount) + ", " +
+            Int(dashboardBrowseRow) + ", " + Int(dashboardBrowseSortOrder) + ", " +
+            Nullable(uiIconBackdropHex) + ", " + Nullable(uiIconForegroundHex) + ", " + Nullable(uiHoverBorderHex) + ", " +
+            Nullable(uiHoverSurfaceHex) + ", " + Nullable(uiChevronHotHex) +
+            " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_report_categories WHERE category_code = " + Quote(categoryCode) + "); ";
+    }
+
+    /// <summary>PostgreSQL 9.3-safe upsert into local <c>public.rpt_reports</c> (dashboard UI included).</summary>
+    public string UpsertLocalRptReport(
+        string reportCode,
+        string categoryCode,
+        string descr,
+        string? longDescr,
+        string? iconGlyphId,
+        bool active,
+        int authUserId,
+        string? uiIconBackdropHex,
+        string? uiIconForegroundHex,
+        string? uiHoverBorderHex,
+        string? uiHoverSurfaceHex,
+        string? uiChevronHotHex,
+        string? uiBadgeIconBackdropHex,
+        string? uiBadgeIconForegroundHex,
+        string? uiBadgeHoverBorderHex,
+        string? uiBadgeHoverSurfaceHex,
+        string? uiBadgeChevronHotHex,
+        int? dashboardRecentSortOrder,
+        string? recentLastRunDisplay,
+        int? recentLastAccessedOffsetHours,
+        bool recentLastAccessedStartOfTodayUtc,
+        int? dashboardAttentionSortOrder,
+        int? dashboardAttentionCount,
+        int? dashboardBrowseInGroupSortOrder)
+    {
+        var d = descr ?? "";
+        var cat = categoryCode ?? "";
+        return
+            "UPDATE public.rpt_reports SET category_code = " + Quote(cat) + ", descr = " + Quote(d) +
+            ", long_descr = " + Nullable(longDescr) +
+            ", icon_glyph_id = " + Nullable(iconGlyphId) +
+            ", active = " + Bool(active) +
+            ", auth_user_id = " + Int(authUserId) + ", modified_ts = now(), " +
+            "ui_icon_backdrop_hex = " + Nullable(uiIconBackdropHex) + ", " +
+            "ui_icon_foreground_hex = " + Nullable(uiIconForegroundHex) + ", " +
+            "ui_hover_border_hex = " + Nullable(uiHoverBorderHex) + ", " +
+            "ui_hover_surface_hex = " + Nullable(uiHoverSurfaceHex) + ", " +
+            "ui_chevron_hot_hex = " + Nullable(uiChevronHotHex) + ", " +
+            "ui_badge_icon_backdrop_hex = " + Nullable(uiBadgeIconBackdropHex) + ", " +
+            "ui_badge_icon_foreground_hex = " + Nullable(uiBadgeIconForegroundHex) + ", " +
+            "ui_badge_hover_border_hex = " + Nullable(uiBadgeHoverBorderHex) + ", " +
+            "ui_badge_hover_surface_hex = " + Nullable(uiBadgeHoverSurfaceHex) + ", " +
+            "ui_badge_chevron_hot_hex = " + Nullable(uiBadgeChevronHotHex) + ", " +
+            "dashboard_recent_sort_order = " + Int(dashboardRecentSortOrder) + ", " +
+            "recent_last_run_display = " + Nullable(recentLastRunDisplay) + ", " +
+            "recent_last_accessed_offset_hours = " + Int(recentLastAccessedOffsetHours) + ", " +
+            "recent_last_accessed_start_of_today_utc = " + Bool(recentLastAccessedStartOfTodayUtc) + ", " +
+            "dashboard_attention_sort_order = " + Int(dashboardAttentionSortOrder) + ", " +
+            "dashboard_attention_count = " + Int(dashboardAttentionCount) + ", " +
+            "dashboard_browse_in_group_sort_order = " + Int(dashboardBrowseInGroupSortOrder) +
+            " WHERE report_code = " + Quote(reportCode) + "; " +
+            "INSERT INTO public.rpt_reports (" +
+            "report_code, category_code, descr, long_descr, icon_glyph_id, active, auth_user_id, " +
+            "ui_icon_backdrop_hex, ui_icon_foreground_hex, ui_hover_border_hex, ui_hover_surface_hex, ui_chevron_hot_hex, " +
+            "ui_badge_icon_backdrop_hex, ui_badge_icon_foreground_hex, ui_badge_hover_border_hex, ui_badge_hover_surface_hex, ui_badge_chevron_hot_hex, " +
+            "dashboard_recent_sort_order, recent_last_run_display, recent_last_accessed_offset_hours, recent_last_accessed_start_of_today_utc, " +
+            "dashboard_attention_sort_order, dashboard_attention_count, dashboard_browse_in_group_sort_order) SELECT " +
+            Quote(reportCode) + ", " + Quote(cat) + ", " + Quote(d) + ", " + Nullable(longDescr) + ", " +
+            Nullable(iconGlyphId) + ", " + Bool(active) + ", " + Int(authUserId) + ", " +
+            Nullable(uiIconBackdropHex) + ", " + Nullable(uiIconForegroundHex) + ", " + Nullable(uiHoverBorderHex) + ", " +
+            Nullable(uiHoverSurfaceHex) + ", " + Nullable(uiChevronHotHex) + ", " +
+            Nullable(uiBadgeIconBackdropHex) + ", " + Nullable(uiBadgeIconForegroundHex) + ", " + Nullable(uiBadgeHoverBorderHex) + ", " +
+            Nullable(uiBadgeHoverSurfaceHex) + ", " + Nullable(uiBadgeChevronHotHex) + ", " +
+            Int(dashboardRecentSortOrder) + ", " + Nullable(recentLastRunDisplay) + ", " + Int(recentLastAccessedOffsetHours) + ", " +
+            Bool(recentLastAccessedStartOfTodayUtc) + ", " +
+            Int(dashboardAttentionSortOrder) + ", " + Int(dashboardAttentionCount) + ", " + Int(dashboardBrowseInGroupSortOrder) +
+            " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_reports WHERE report_code = " + Quote(reportCode) + "); ";
+    }
+
+    /// <summary>
+    /// Deletes local <c>public.rpt_reports</c> rows whose <c>report_code</c> is not in the remote snapshot.
+    /// Returns empty when there are no remote keys (same guard as <see cref="DeleteLocalRptChannelsNotInRemoteKeys"/>).
+    /// </summary>
+    public string DeleteLocalRptReportsNotInRemoteKeys(IReadOnlyCollection<string> remoteKeys)
+    {
+        if (remoteKeys == null || remoteKeys.Count == 0)
+            return "";
+        var b = new StringBuilder();
+        b.Append("DELETE FROM public.rpt_reports WHERE report_code NOT IN (");
+        var any = false;
+        foreach (var code in remoteKeys)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                continue;
+            if (any)
+                b.Append(", ");
+            any = true;
+            b.Append(Quote(code.Trim()));
+        }
+
+        if (!any)
+            return "";
+        b.Append("); ");
+        return b.ToString();
+    }
+
+    /// <summary>
+    /// Deletes local <c>public.rpt_report_categories</c> rows whose <c>category_code</c> is not in the remote snapshot.
+    /// Call only after <see cref="DeleteLocalRptReportsNotInRemoteKeys"/> so FK parents are not referenced.
+    /// </summary>
+    public string DeleteLocalRptReportCategoriesNotInRemoteKeys(IReadOnlyCollection<string> remoteKeys)
+    {
+        if (remoteKeys == null || remoteKeys.Count == 0)
+            return "";
+        var b = new StringBuilder();
+        b.Append("DELETE FROM public.rpt_report_categories WHERE category_code NOT IN (");
+        var any = false;
+        foreach (var code in remoteKeys)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                continue;
+            if (any)
+                b.Append(", ");
+            any = true;
+            b.Append(Quote(code.Trim()));
+        }
+
+        if (!any)
+            return "";
+        b.Append("); ");
+        return b.ToString();
+    }
+
+    /// <summary>
+    /// Append-only access log on the branch DB (<c>accessed_ts</c> defaults to <c>now()</c>).
+    /// </summary>
+    public string InsertReportAccessLog(int userId, string reportCode, int authUserId) =>
+        "INSERT INTO public.rpt_report_access_log (user_id, report_code, auth_user_id) VALUES (" +
+        Int(userId) + ", " + Quote(reportCode.Trim()) + ", " + Int(authUserId) + "); ";
+
+    /// <summary>
+    /// Local DB: active branch codes after lookup sync; drives which remote branch databases receive
+    /// dev-only <c>rpt_daily_sales</c> seed when <see cref="AppStatus.SeedDummyDataOnStartup"/> is true.
+    /// </summary>
+    public string SelectLocalRptBranchCodesActive() =>
+        "SELECT branch_code FROM public.rpt_branches WHERE active = TRUE ORDER BY branch_code";
+
+    /// <summary>
+    /// Per-branch DB: active channel codes for cartesian seed (must match keys used in facts).
+    /// </summary>
+    public string SelectBranchDbActiveChannelCodes() =>
+        "SELECT channel_code FROM public.rpt_channels WHERE active = TRUE ORDER BY channel_code";
+
+    /// <summary>
+    /// Per-branch DB: active user-role codes for cartesian seed.
+    /// </summary>
+    public string SelectBranchDbActiveUserRoleCodes() =>
+        "SELECT userrole_code FROM public.rpt_user_roles WHERE active = TRUE ORDER BY userrole_code";
+
+    /// <summary>
+    /// Dev-only: remove all rows from <c>public.rpt_daily_sales</c> before reload. If <c>TRUNCATE</c>
+    /// fails (e.g. FK), replace with <see cref="DeleteAllRptDailySales"/> in application code.
+    /// </summary>
+    public string TruncateRptDailySales() =>
+        "TRUNCATE TABLE public.rpt_daily_sales; ";
+
+    /// <summary>Fallback wipe when <c>TRUNCATE</c> is not permitted.</summary>
+    public string DeleteAllRptDailySales() =>
+        "DELETE FROM public.rpt_daily_sales; ";
+
+    /// <summary>
+    /// Remote branch DB: daily sales for one branch (ignores rows whose <c>branch_code</c> does not match).
+    /// Executed against <see cref="AppStatus.ServerConnectionstring(string)"/>.
+    /// </summary>
+    public string SelectRemoteRptDailySalesForBranch(string branchCode) =>
+        "SELECT report_date, branch_code, channel_code, userrole_code, sales, nr_transactions " +
+        "FROM public.rpt_daily_sales WHERE branch_code = " + Quote(branchCode) +
+        " ORDER BY report_date, channel_code, userrole_code";
+
+    /// <summary>
+    /// Local DB: remove replicated slice for a peer branch before reloading from remote (home branch excluded by caller).
+    /// </summary>
+    public string DeleteLocalRptDailySalesForBranch(string branchCode) =>
+        "DELETE FROM public.rpt_daily_sales WHERE branch_code = " + Quote(branchCode) + "; ";
+
+    /// <summary>
+    /// Local branch DB: aggregate daily sales by branch for the Daily Sales Summary report.
+    /// Filters use sentinel <c>all</c> (case-insensitive) for unrestricted branch/channel/user role.
+    /// </summary>
+    public string SelectLocalRptDailySalesAggregatedByBranch(
+            DateOnly rangeStart,
+            DateOnly rangeEnd,
+            string branchFilterCode,
+            string channelFilterCode,
+            string userRoleFilterCode)
+    {
+        var sb = new StringBuilder(512);
+        sb.Append(
+                "SELECT d.branch_code, MAX(COALESCE(b.descr, d.branch_code)) AS branch_descr, " +
+                "SUM(d.sales) AS sum_sales, SUM(d.nr_transactions) AS sum_transactions " +
+                "FROM public.rpt_daily_sales d " +
+                "LEFT JOIN public.rpt_branches b ON b.branch_code = d.branch_code AND COALESCE(b.active, TRUE) = TRUE " +
+                "WHERE d.report_date >= ").Append(Date(rangeStart)).Append(" AND d.report_date <= ").Append(Date(rangeEnd));
+
+        if (!string.Equals(branchFilterCode?.Trim(), "all", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(branchFilterCode))
+            sb.Append(" AND d.branch_code = ").Append(Quote(branchFilterCode.Trim()));
+
+        if (!string.Equals(channelFilterCode?.Trim(), "all", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(channelFilterCode))
+            sb.Append(" AND d.channel_code = ").Append(Quote(channelFilterCode.Trim()));
+
+        if (!string.Equals(userRoleFilterCode?.Trim(), "all", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(userRoleFilterCode))
+            sb.Append(" AND d.userrole_code = ").Append(Quote(userRoleFilterCode.Trim()));
+
+        sb.Append(
+                " GROUP BY d.branch_code ORDER BY MAX(COALESCE(b.descr, d.branch_code)); ");
+        return sb.ToString();
+    }
+
+    /// <summary>Prefix for a multi-row <c>INSERT</c> into <c>public.rpt_daily_sales</c>.</summary>
+    public string InsertRptDailySalesBatchPrefix() =>
+        "INSERT INTO public.rpt_daily_sales (report_date, branch_code, channel_code, userrole_code, sales, nr_transactions) VALUES ";
+
+    /// <summary>One parenthesized row for batched <c>INSERT</c> into <c>public.rpt_daily_sales</c>.</summary>
+    public static string InsertRptDailySalesValuesRow(
+        DateOnly reportDate, string branchCode, string channelCode, string userroleCode, decimal sales, int nrTransactions) =>
+        "(" + Date(reportDate) + ", " + Quote(branchCode) + ", " + Quote(channelCode) + ", " + Quote(userroleCode) + ", " +
+        Num(sales) + ", " + Int(nrTransactions) + ")";
 
     // region: Operations and Services — seed ---------------------------------------------------------
     //

@@ -197,6 +197,40 @@
     <!-- Active chevron on dashboard cards (muted path uses Brush.BorderGrey) -->
     <SolidColorBrush x:Key="Brush.RptChevronStrong" Color="#334155"/>
 
+    <!-- RptDashboardMain: filter sentinel labels + empty last-run text (not hard-coded in code-behind) -->
+    <sys:String x:Key="Rpt.Filter.AllBranchesCaption">All branches</sys:String>
+    <sys:String x:Key="Rpt.Filter.AllChannelsCaption">All channels</sys:String>
+    <sys:String x:Key="Rpt.Filter.AllUsersCaption">All users</sys:String>
+    <sys:String x:Key="Rpt.LastRun.UnknownCaption">Last run: —</sys:String>
+    <sys:String x:Key="Rpt.LastRun.Prefix">Last run: </sys:String>
+    <sys:String x:Key="Rpt.LastRun.Today">Today</sys:String>
+    <sys:String x:Key="Rpt.LastRun.Yesterday">Yesterday</sys:String>
+    <sys:String x:Key="Rpt.LastRun.JustNow">just now</sys:String>
+    <sys:String x:Key="Rpt.LastRun.MinutesAgoFormat">{0} minutes ago</sys:String>
+    <sys:String x:Key="Rpt.LastRun.HoursAgoFormat">{0} hours ago</sys:String>
+    <sys:String x:Key="Rpt.LastRun.DaysAgoFormat">{0} days ago</sys:String>
+
+    <!-- Daily Sales Summary overlay -->
+    <sys:String x:Key="Rpt.Report.DashEm">—</sys:String>
+    <sys:String x:Key="Rpt.Report.DailySales.Title">Daily Sales Summary</sys:String>
+    <sys:String x:Key="Rpt.Report.Refresh">Refresh</sys:String>
+    <sys:String x:Key="Rpt.Report.Print">Print</sys:String>
+    <sys:String x:Key="Rpt.Report.Export">Export</sys:String>
+    <sys:String x:Key="Rpt.Report.Close">Close</sys:String>
+    <sys:String x:Key="Rpt.Report.TotalRecords">Total records</sys:String>
+    <sys:String x:Key="Rpt.Report.Generated">Generated</sys:String>
+    <sys:String x:Key="Rpt.Report.Period">Period</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Branch">Branch</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Sales">Sales</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Transactions">Transactions</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.AvgTicket">Avg Ticket</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Growth">Growth</sys:String>
+    <sys:String x:Key="Rpt.Report.TotalRowLabel">Total</sys:String>
+    <sys:String x:Key="Rpt.Report.StubPrintTitle">Print</sys:String>
+    <sys:String x:Key="Rpt.Report.StubPrintBody">Printing is not available in this build.</sys:String>
+    <sys:String x:Key="Rpt.Report.StubExportTitle">Export</sys:String>
+    <sys:String x:Key="Rpt.Report.StubExportBody">Export is not available in this build.</sys:String>
+
     <Geometry x:Key="Geom.RptDashboardChevronRight">
         M11,9 L17,17 L11,25
     </Geometry>
