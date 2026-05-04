@@ -4,6 +4,7 @@ using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RestaurantPosWpf;
@@ -30,7 +31,7 @@ namespace RestaurantPosWpf;
 /// <item><description>Read <c>SeedDummyDataOnStartup</c> from App.config.</description></item>
 /// <item><description><see cref="EnsureRolesAndBootstrapUser"/> to guarantee the five fixed roles and the bootstrap <c>user_id = 1</c> exist.</description></item>
 /// <item><description>If seeding is enabled, <see cref="ReseedDummyDataIfEnabled"/> wipes demo users/ops (<c>is_seed = true</c>), <c>TRUNCATE</c>s <c>rpt_report_access_log</c>, and reinserts the demo sets.</description></item>
-/// <item><description>Best-effort async <see cref="StartRemoteControlLookupSync"/> runs one pipeline: when <see cref="SeedDummyDataOnStartup"/> is true, first dev-only <c>TRUNCATE</c>/reload of <c>public.rpt_daily_sales</c> on each remote branch DB (via <see cref="ServerConnectionstring(string)"/>); then pulls <c>rpt_*</c> lookups (branches, channels, user roles, report categories, reports) from <c>POS_CONTROL</c> into local; then consolidates peers&apos; <c>rpt_daily_sales</c> into local (home <see cref="propertyBranchCode"/> excluded). Failures are logged only.</description></item>
+/// <item><description><see cref="RegisterReportingSyncCoordinator"/> starts a background loop on the designated sync terminal (see <c>POS_CONTROL.public.branches.rpt_sync_terminal</c> vs <c>Environment.MachineName</c>): at <c>RptSyncDailyTime</c>, with startup catch-up and optional staleness retries, runs the reporting pipeline — when <see cref="SeedDummyDataOnStartup"/> is true, first dev-only <c>TRUNCATE</c>/reload of <c>public.rpt_daily_sales</c> on each remote branch DB; then pulls <c>rpt_*</c> lookups from <c>POS_CONTROL</c> into local; then consolidates peers&apos; <c>rpt_daily_sales</c> (incremental by <c>modified_ts</c> when possible). Other terminals skip automatic sync.</description></item>
 /// </list>
 /// </summary>
 public sealed class AppStatus
@@ -107,6 +108,15 @@ public sealed class AppStatus
     /// startup, seed, and <c>StaffAccessStore.LoadFromDb</c> traces. Default: <c>false</c> on live installs.
     /// </summary>
     public static bool DiagnosticLoggingEnabled { get; private set; }
+
+    private readonly TimeSpan _rptSyncDailyTime;
+    private readonly int _rptSyncStalenessMinutes;
+    private readonly int _rptSyncPollSeconds;
+    private readonly int _rptSyncIncrementalFullReconcileDays;
+    private CancellationTokenSource? _rptSyncCoordinatorCts;
+    private readonly SemaphoreSlim _rptSyncGate = new(1, 1);
+    private DateTime _rptSyncCoordinatorStartedUtc;
+    private bool _rptSyncLoggedNonDesignated;
 
     /// <summary>
     /// Primary IPv4 address of the terminal (e.g. <c>"10.1.2.17"</c>), stamped into
@@ -198,12 +208,18 @@ public sealed class AppStatus
     {
         SeedDummyDataOnStartup = ReadBool("SeedDummyDataOnStartup", defaultValue: false);
         DiagnosticLoggingEnabled = ReadBool("DiagnosticLogging", defaultValue: false);
+        _rptSyncDailyTime = ParseDailyTimeSpan(ReadString("RptSyncDailyTime", "06:30"));
+        _rptSyncStalenessMinutes = ReadInt("RptSyncStalenessCheckMinutes", 60);
+        _rptSyncPollSeconds = Math.Max(15, ReadInt("RptSyncCoordinatorPollSeconds", 60));
+        _rptSyncIncrementalFullReconcileDays = Math.Max(1, ReadInt("RptSyncIncrementalFullReconcileDays", 7));
+
         if (DiagnosticLoggingEnabled)
         {
             TruncateStartupLog();
             Log("AppStatus ctor: SeedDummyDataOnStartup=" + SeedDummyDataOnStartup +
                 ", DiagnosticLogging=true, driver=" + PosDataAccess.DefaultDriver +
-                ", LocalIpAddress=" + (string.IsNullOrEmpty(LocalIpAddress) ? "<none>" : LocalIpAddress));
+                ", LocalIpAddress=" + (string.IsNullOrEmpty(LocalIpAddress) ? "<none>" : LocalIpAddress) +
+                ", RptSyncDailyTime=" + _rptSyncDailyTime);
         }
     }
 
@@ -226,6 +242,30 @@ public sealed class AppStatus
         if (string.IsNullOrWhiteSpace(v))
             return defaultValue;
         return bool.TryParse(v.Trim(), out var b) ? b : defaultValue;
+    }
+
+    private static int ReadInt(string key, int defaultValue)
+    {
+        var v = ConfigurationManager.AppSettings[key];
+        if (string.IsNullOrWhiteSpace(v))
+            return defaultValue;
+        return int.TryParse(v.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : defaultValue;
+    }
+
+    private static string ReadString(string key, string defaultValue)
+    {
+        var v = ConfigurationManager.AppSettings[key];
+        return string.IsNullOrWhiteSpace(v) ? defaultValue : v.Trim();
+    }
+
+    private static TimeSpan ParseDailyTimeSpan(string raw)
+    {
+        var s = raw.Trim();
+        if (TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out var ts))
+            return ts;
+        if (TimeOnly.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var to))
+            return to.ToTimeSpan();
+        return new TimeSpan(6, 30, 0);
     }
 
     /// <summary>
@@ -391,28 +431,360 @@ public sealed class AppStatus
         }
     }
 
-    /// <summary>
-    /// Starts a background sync of <c>public.rpt_branches</c>, <c>public.rpt_channels</c>, and
-    /// <c>public.rpt_user_roles</c> from the central control database into the local branch DB.
-    /// Reads use <see cref="ServerConnectionstring()"/> (no branch substitution). Writes use
-    /// <see cref="LocalConnectionstring(string)"/> with <see cref="propertyBranchCode"/>.
-    /// Pipeline order: optional dev remote <c>rpt_daily_sales</c> seed when <see cref="SeedDummyDataOnStartup"/>;
-    /// then POS_CONTROL lookup sync to local; then peer <c>rpt_daily_sales</c> into local (home branch excluded).
-    /// Safe to call on every startup: failures are logged only.
-    /// </summary>
-    public void StartRemoteControlLookupSync()
+    private readonly record struct RptSyncCoreResult(bool Ok, string? AbortReason);
+
+    private sealed class PeerReplState
     {
-        _ = Task.Run(() =>
+        public DateTime? LastRemoteMaxModified;
+        public DateTime? LastFullReconcileUtc;
+    }
+
+    /// <summary>
+    /// Starts the daily reporting sync coordinator (designated terminal only). Non-designated machines
+    /// log once and re-check designation periodically. Call <see cref="CancelReportingSyncCoordinator"/> on shutdown.
+    /// </summary>
+    public void RegisterReportingSyncCoordinator()
+    {
+        if (_rptSyncCoordinatorCts != null)
+            return;
+        _rptSyncCoordinatorStartedUtc = DateTime.UtcNow;
+        _rptSyncCoordinatorCts = new CancellationTokenSource();
+        var ct = _rptSyncCoordinatorCts.Token;
+        _ = Task.Run(() => ReportingSyncCoordinatorLoop(ct), ct);
+    }
+
+    /// <summary>Cancels the background reporting sync loop (e.g. from <c>App.OnExit</c>).</summary>
+    public void CancelReportingSyncCoordinator()
+    {
+        try
+        {
+            _rptSyncCoordinatorCts?.Cancel();
+        }
+        catch
+        {
+            // ignored
+        }
+
+        _rptSyncCoordinatorCts?.Dispose();
+        _rptSyncCoordinatorCts = null;
+    }
+
+    private void ReportingSyncCoordinatorLoop(CancellationToken ct)
+    {
+        Log("RptSync coordinator: loop started");
+        var firstWait = true;
+        while (!ct.IsCancellationRequested)
         {
             try
             {
-                SyncRemoteControlLookupsCore();
+                if (!TryGetIsDesignatedRptSyncTerminal(out var designationReason))
+                {
+                    if (!_rptSyncLoggedNonDesignated)
+                    {
+                        Log("RptSync: not designated — " + designationReason);
+                        _rptSyncLoggedNonDesignated = true;
+                    }
+
+                    try
+                    {
+                        Task.Delay(TimeSpan.FromMinutes(30), ct).GetAwaiter().GetResult();
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                _rptSyncLoggedNonDesignated = false;
+
+                if (firstWait)
+                {
+                    try
+                    {
+                        Task.Delay(TimeSpan.FromSeconds(15), ct).GetAwaiter().GetResult();
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+
+                    firstWait = false;
+                }
+
+                var localCn = LocalConnectionstring(propertyBranchCode);
+                if (!PosDataAccess.CheckBranchConnection(localCn))
+                {
+                    DelayPoll(ct);
+                    continue;
+                }
+
+                var now = DateTime.Now;
+                var today = DateOnly.FromDateTime(now);
+                var scheduledToday = now.Date + _rptSyncDailyTime;
+                if (now < scheduledToday)
+                {
+                    DelayPoll(ct);
+                    continue;
+                }
+
+                if (HasSuccessfulRptSyncForDate(localCn, today))
+                {
+                    DelayPoll(ct);
+                    continue;
+                }
+
+                if (!ShouldAttemptRptSyncRetry(localCn, today, now))
+                {
+                    DelayPoll(ct);
+                    continue;
+                }
+
+                if (IsRptSyncProbablyInProgress(localCn, today, now))
+                {
+                    DelayPoll(ct);
+                    continue;
+                }
+
+                var trigger = ResolveRptSyncTrigger(now, scheduledToday, today, localCn);
+                RunReportingSyncPipelineWithAudit(trigger, today);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
             }
             catch (Exception ex)
             {
-                Log("StartRemoteControlLookupSync: unhandled - " + ex.GetType().Name + " - " + ex.Message);
+                Log("RptSync coordinator: " + ex.GetType().Name + " — " + ex.Message);
             }
-        });
+
+            try
+            {
+                DelayPoll(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+
+        Log("RptSync coordinator: loop ended");
+    }
+
+    private void DelayPoll(CancellationToken ct) =>
+        Task.Delay(TimeSpan.FromSeconds(_rptSyncPollSeconds), ct).GetAwaiter().GetResult();
+
+    private bool TryGetIsDesignatedRptSyncTerminal(out string reason)
+    {
+        reason = "";
+        if (string.IsNullOrWhiteSpace(propertyBranchCode))
+        {
+            reason = "propertyBranchCode empty";
+            return false;
+        }
+
+        string serverCn;
+        try
+        {
+            serverCn = ServerConnectionstring();
+        }
+        catch (Exception ex)
+        {
+            reason = "ServerConnectionstring failed: " + ex.Message;
+            return false;
+        }
+
+        if (!PosDataAccess.CheckBranchConnection(serverCn))
+        {
+            reason = "POS_Control connection invalid or empty";
+            return false;
+        }
+
+        DataTable dt;
+        try
+        {
+            dt = pda.GetDataTable(serverCn, sql.SelectRptSyncTerminalForBranch(propertyBranchCode.Trim()), 30);
+        }
+        catch (Exception ex)
+        {
+            reason = "read POS_Control.branches failed: " + ex.Message;
+            return false;
+        }
+
+        if (dt.Rows.Count == 0)
+        {
+            reason = "branch row not found in POS_Control (Option A — skip sync)";
+            return false;
+        }
+
+        var terminal = RowString(dt.Rows[0], "rpt_sync_terminal").Trim();
+        if (terminal.Length == 0)
+        {
+            reason = "rpt_sync_terminal not set (Option A — skip sync)";
+            return false;
+        }
+
+        var machine = Environment.MachineName?.Trim() ?? "";
+        if (machine.Length == 0)
+        {
+            reason = "Environment.MachineName empty";
+            return false;
+        }
+
+        if (!terminal.Equals(machine, StringComparison.OrdinalIgnoreCase))
+        {
+            reason = "this PC is not the designated sync terminal (expected " + terminal + ")";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool HasSuccessfulRptSyncForDate(string localCn, DateOnly today)
+    {
+        try
+        {
+            var dt = pda.GetDataTable(localCn, sql.SelectHasSuccessfulRptSyncForSyncDate(today), 30);
+            return dt.Rows.Count > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool ShouldAttemptRptSyncRetry(string localCn, DateOnly today, DateTime now)
+    {
+        try
+        {
+            var dt = pda.GetDataTable(localCn, sql.SelectRptSyncRunLastForSyncDate(today), 30);
+            if (dt.Rows.Count == 0)
+                return true;
+            var r = dt.Rows[0];
+            var fin = RowOptDateTime(r, "finished_ts");
+            if (fin == null)
+            {
+                var started = RowOptDateTime(r, "started_ts");
+                if (started == null)
+                    return true;
+                return (now - started.Value).TotalMinutes >= 240;
+            }
+
+            if (RowAsBool(r, "success", false))
+                return false;
+
+            if (_rptSyncStalenessMinutes <= 0)
+                return true;
+            return (now - fin.Value).TotalMinutes >= _rptSyncStalenessMinutes;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private bool IsRptSyncProbablyInProgress(string localCn, DateOnly today, DateTime now)
+    {
+        try
+        {
+            var dt = pda.GetDataTable(localCn, sql.SelectRptSyncRunLastForSyncDate(today), 30);
+            if (dt.Rows.Count == 0)
+                return false;
+            if (RowOptDateTime(dt.Rows[0], "finished_ts") != null)
+                return false;
+            var started = RowOptDateTime(dt.Rows[0], "started_ts");
+            if (started == null)
+                return true;
+            return (now - started.Value).TotalMinutes < 240;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private string ResolveRptSyncTrigger(DateTime now, DateTime scheduledToday, DateOnly today, string localCn)
+    {
+        if ((DateTime.UtcNow - _rptSyncCoordinatorStartedUtc).TotalMinutes < 10 && now > scheduledToday)
+            return "startup_catchup";
+
+        try
+        {
+            var dt = pda.GetDataTable(localCn, sql.SelectRptSyncRunLastForSyncDate(today), 15);
+            if (dt.Rows.Count > 0
+                && RowOptDateTime(dt.Rows[0], "finished_ts") != null
+                && !RowAsBool(dt.Rows[0], "success", true))
+                return "staleness";
+        }
+        catch
+        {
+            // ignored
+        }
+
+        return "scheduled";
+    }
+
+    private void RunReportingSyncPipelineWithAudit(string trigger, DateOnly syncDate)
+    {
+        if (!_rptSyncGate.Wait(0))
+        {
+            Log("RptSync: skipped — pipeline already running");
+            return;
+        }
+
+        try
+        {
+            var localCn = LocalConnectionstring(propertyBranchCode);
+            if (!PosDataAccess.CheckBranchConnection(localCn))
+            {
+                Log("RptSync: skip audit — local connection invalid");
+                return;
+            }
+
+            var machine = Environment.MachineName?.Trim() ?? "";
+            var runId = 0;
+            try
+            {
+                var dtIns = pda.GetDataTable(localCn, sql.InsertRptSyncRunStart(machine, trigger, syncDate), 30);
+                if (dtIns.Rows.Count > 0)
+                {
+                    var raw = dtIns.Rows[0][0];
+                    if (raw != null && raw != DBNull.Value)
+                        runId = Convert.ToInt32(raw, CultureInfo.InvariantCulture);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("RptSync audit start failed (continuing pipeline): " + ex.GetType().Name + " — " + ex.Message);
+            }
+
+            RptSyncCoreResult result;
+            try
+            {
+                result = SyncRemoteControlLookupsCore();
+            }
+            catch (Exception ex)
+            {
+                result = new RptSyncCoreResult(false, ex.GetType().Name + " — " + ex.Message);
+            }
+
+            if (runId > 0)
+            {
+                try
+                {
+                    Execute(localCn, sql.UpdateRptSyncRunFinish(runId, result.Ok, result.AbortReason));
+                }
+                catch (Exception ex)
+                {
+                    Log("RptSync audit finish failed: " + ex.GetType().Name + " — " + ex.Message);
+                }
+            }
+        }
+        finally
+        {
+            _rptSyncGate.Release();
+        }
     }
 
     /// <summary>
@@ -420,13 +792,13 @@ public sealed class AppStatus
     /// (branches, channels, roles, report catalog), then peer <c>rpt_daily_sales</c> consolidation into local.
     /// Report sync order: upsert categories, upsert reports, delete orphan reports, delete orphan categories (FK-safe).
     /// </summary>
-    private void SyncRemoteControlLookupsCore()
+    private RptSyncCoreResult SyncRemoteControlLookupsCore()
     {
         Log("SyncRemoteControlLookupsCore: start");
         if (string.IsNullOrWhiteSpace(propertyBranchCode))
         {
             Log("SyncRemoteControlLookupsCore: skip — propertyBranchCode empty");
-            return;
+            return new RptSyncCoreResult(false, "propertyBranchCode empty");
         }
 
         string serverCn;
@@ -437,20 +809,20 @@ public sealed class AppStatus
         catch (Exception ex)
         {
             Log("SyncRemoteControlLookupsCore: ServerConnectionstring failed - " + ex.GetType().Name + " - " + ex.Message);
-            return;
+            return new RptSyncCoreResult(false, "ServerConnectionstring: " + ex.Message);
         }
 
         if (!PosDataAccess.CheckBranchConnection(serverCn))
         {
             Log("SyncRemoteControlLookupsCore: skip — remote compact invalid or empty");
-            return;
+            return new RptSyncCoreResult(false, "POS_Control connection invalid");
         }
 
         var localCn = LocalConnectionstring(propertyBranchCode);
         if (!PosDataAccess.CheckBranchConnection(localCn))
         {
             Log("SyncRemoteControlLookupsCore: skip — local compact invalid or empty");
-            return;
+            return new RptSyncCoreResult(false, "local connection invalid");
         }
 
         if (SeedDummyDataOnStartup)
@@ -473,7 +845,7 @@ public sealed class AppStatus
         catch (Exception ex)
         {
             Log("SyncRemoteControlLookupsCore: remote read failed - " + ex.GetType().Name + " - " + ex.Message);
-            return;
+            return new RptSyncCoreResult(false, "remote lookup read: " + ex.Message);
         }
 
         var branchKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -608,18 +980,19 @@ public sealed class AppStatus
 
         if (batch.Length == 0)
             Log("SyncRemoteControlLookupsCore: no rows to apply (remote empty or all keys blank)");
-        else
-            RunTransactionalSilent("SyncRemoteControlLookups", batch.ToString(), localCn);
+        else if (!RunTransactionalSilent("SyncRemoteControlLookups", batch.ToString(), localCn))
+            return new RptSyncCoreResult(false, "SyncRemoteControlLookups transactional apply failed");
 
         Log("SyncRemoteControlLookupsCore: done");
 
         SyncRemoteRptDailySalesIntoLocalCore(localCn);
+        return new RptSyncCoreResult(true, null);
     }
 
     /// <summary>
-    /// Replaces local <c>public.rpt_daily_sales</c> rows for each peer branch with data read from that
-    /// branch&apos;s database (<see cref="ServerConnectionstring(string)"/>). Skips <see cref="propertyBranchCode"/>
-    /// (local is authoritative for home slice). Remote query filters <c>WHERE branch_code = peer</c>.
+    /// Replicates peer branches&apos; <c>public.rpt_daily_sales</c> into the shared local DB. Full reload
+    /// periodically (<see cref="_rptSyncIncrementalFullReconcileDays"/>); otherwise incremental by remote
+    /// <c>modified_ts</c>. Home <see cref="propertyBranchCode"/> is excluded (authoritative locally).
     /// </summary>
     private void SyncRemoteRptDailySalesIntoLocalCore(string localCn)
     {
@@ -662,48 +1035,106 @@ public sealed class AppStatus
         }
 
         const int readTimeout = 240;
-        const int rowsPerInsert = 120;
+        const int rowsPerChunk = 120;
 
-        foreach (var b in peerCodes)
+        foreach (var peerBranch in peerCodes)
         {
-            string branchCn;
             try
             {
-                branchCn = ServerConnectionstring(b);
+                SyncOnePeerBranchRptDailySales(localCn, peerBranch, readTimeout, rowsPerChunk);
             }
             catch (Exception ex)
             {
-                Log("SyncRemoteRptDailySalesIntoLocalCore: ServerConnectionstring(" + b + ") - " + ex.GetType().Name + " - " + ex.Message);
-                continue;
+                Log("SyncRemoteRptDailySalesIntoLocalCore: peer " + peerBranch + " — " + ex.GetType().Name + " - " + ex.Message);
             }
+        }
 
-            if (!PosDataAccess.CheckBranchConnection(branchCn))
+        Log("SyncRemoteRptDailySalesIntoLocalCore: done");
+    }
+
+    private void SyncOnePeerBranchRptDailySales(string localCn, string peerBranch, int readTimeout, int rowsPerChunk)
+    {
+        string branchCn;
+        try
+        {
+            branchCn = ServerConnectionstring(peerBranch);
+        }
+        catch (Exception ex)
+        {
+            Log("SyncRemoteRptDailySalesIntoLocalCore: ServerConnectionstring(" + peerBranch + ") - " + ex.GetType().Name + " - " + ex.Message);
+            return;
+        }
+
+        if (!PosDataAccess.CheckBranchConnection(branchCn))
+        {
+            Log("SyncRemoteRptDailySalesIntoLocalCore: skip peer " + peerBranch + " — invalid compact");
+            return;
+        }
+
+        PeerReplState? state = null;
+        try
+        {
+            var dtSt = pda.GetDataTable(localCn, sql.SelectRptReplicationPeerState(peerBranch), 30);
+            if (dtSt.Rows.Count > 0)
             {
-                Log("SyncRemoteRptDailySalesIntoLocalCore: skip peer " + b + " — invalid compact");
+                var sr = dtSt.Rows[0];
+                state = new PeerReplState
+                {
+                    LastRemoteMaxModified = RowOptDateTime(sr, "last_remote_max_modified_ts"),
+                    LastFullReconcileUtc = RowOptDateTime(sr, "last_full_reconcile_utc")
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Log("SyncRemoteRptDailySalesIntoLocalCore: peer state read failed " + peerBranch + " — " + ex.Message);
+        }
+
+        var doFull = state == null
+            || !state.LastFullReconcileUtc.HasValue
+            || (DateTime.UtcNow - state.LastFullReconcileUtc.Value).TotalDays >= _rptSyncIncrementalFullReconcileDays;
+
+        string remoteSql;
+        if (doFull)
+            remoteSql = sql.SelectRemoteRptDailySalesForBranch(peerBranch);
+        else if (state!.LastRemoteMaxModified.HasValue)
+            remoteSql = sql.SelectRemoteRptDailySalesModifiedAfter(peerBranch, state.LastRemoteMaxModified.Value);
+        else
+            remoteSql = sql.SelectRemoteRptDailySalesForBranch(peerBranch);
+
+        DataTable dtSales;
+        try
+        {
+            dtSales = pda.GetDataTable(branchCn, remoteSql, readTimeout);
+        }
+        catch (Exception ex)
+        {
+            Log("SyncRemoteRptDailySalesIntoLocalCore: remote read failed " + peerBranch + " - " + ex.GetType().Name + " - " + ex.Message);
+            return;
+        }
+
+        DateTime? maxModifiedFromRows = null;
+        foreach (DataRow row in dtSales.Rows)
+        {
+            if (!TryRowModifiedTs(row, out var mt))
                 continue;
-            }
+            if (maxModifiedFromRows == null || mt > maxModifiedFromRows.Value)
+                maxModifiedFromRows = mt;
+        }
 
-            DataTable dtSales;
-            try
-            {
-                dtSales = pda.GetDataTable(branchCn, sql.SelectRemoteRptDailySalesForBranch(b), readTimeout);
-            }
-            catch (Exception ex)
-            {
-                Log("SyncRemoteRptDailySalesIntoLocalCore: remote read failed " + b + " - " + ex.GetType().Name + " - " + ex.Message);
-                continue;
-            }
+        var batch = new StringBuilder();
+        if (doFull)
+            batch.Append(sql.DeleteLocalRptDailySalesForBranch(peerBranch));
 
-            var batch = new StringBuilder();
-            batch.Append(sql.DeleteLocalRptDailySalesForBranch(b));
+        if (doFull)
+        {
+            var rowChunk = new List<string>(rowsPerChunk);
 
-            var rowChunk = new List<string>(rowsPerInsert);
-
-            void FlushChunk()
+            void FlushChunkFull()
             {
                 if (rowChunk.Count == 0)
                     return;
-                batch.Append(sql.InsertRptDailySalesBatchPrefix());
+                batch.Append(sql.InsertRptDailySalesBatchPrefixWithModifiedTs());
                 batch.Append(string.Join(", ", rowChunk));
                 batch.Append("; ");
                 rowChunk.Clear();
@@ -711,32 +1142,69 @@ public sealed class AppStatus
 
             foreach (DataRow row in dtSales.Rows)
             {
-                if (!TryRowReportDate(row, out var reportDate))
+                if (!TryBuildRptDailySalesRowArgs(row, peerBranch, out var reportDate, out var bc, out var ch, out var ur, out var sales, out var nr))
                     continue;
-                var branchCode = RowString(row, "branch_code").Trim();
-                if (branchCode.Length == 0)
-                    branchCode = b;
-                var channelCode = RowString(row, "channel_code").Trim();
-                var userroleCode = RowString(row, "userrole_code").Trim();
-                if (channelCode.Length == 0 || userroleCode.Length == 0)
-                    continue;
-                if (!TryRowDecimal(row, "sales", out var sales))
-                    continue;
-                var nr = RowInt32(row, "nr_transactions", 0);
-                if (nr < 0)
-                    nr = 0;
+                if (!TryRowModifiedTs(row, out var modTs))
+                    modTs = DateTime.SpecifyKind(reportDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
 
-                rowChunk.Add(Sql.InsertRptDailySalesValuesRow(reportDate, branchCode, channelCode, userroleCode, sales, nr));
-                if (rowChunk.Count >= rowsPerInsert)
-                    FlushChunk();
+                rowChunk.Add(Sql.InsertRptDailySalesValuesRowWithModifiedTs(reportDate, bc, ch, ur, sales, nr, modTs));
+                if (rowChunk.Count >= rowsPerChunk)
+                    FlushChunkFull();
             }
 
-            FlushChunk();
-
-            RunTransactionalSilent("SyncRptDailySalesIntoLocal:" + b, batch.ToString(), localCn);
+            FlushChunkFull();
+        }
+        else
+        {
+            foreach (DataRow row in dtSales.Rows)
+            {
+                if (!TryBuildRptDailySalesRowArgs(row, peerBranch, out var reportDate, out var bc, out var ch, out var ur, out var sales, out var nr))
+                    continue;
+                if (!TryRowModifiedTs(row, out var modTs))
+                    modTs = DateTime.SpecifyKind(reportDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
+                batch.Append(sql.UpsertLocalRptDailySalesRow(reportDate, bc, ch, ur, sales, nr, modTs));
+            }
         }
 
-        Log("SyncRemoteRptDailySalesIntoLocalCore: done");
+        var newMaxModified = maxModifiedFromRows ?? state?.LastRemoteMaxModified;
+        var lastFull = doFull ? DateTime.UtcNow : state?.LastFullReconcileUtc;
+        batch.Append(sql.UpsertRptReplicationPeerState(peerBranch, DateTime.UtcNow, newMaxModified, lastFull));
+
+        if (!RunTransactionalSilent("SyncRptDailySalesIntoLocal:" + peerBranch, batch.ToString(), localCn))
+            Log("SyncRemoteRptDailySalesIntoLocalCore: apply failed for peer " + peerBranch);
+    }
+
+    private static bool TryBuildRptDailySalesRowArgs(
+        DataRow row,
+        string peerBranchFallback,
+        out DateOnly reportDate,
+        out string branchCode,
+        out string channelCode,
+        out string userroleCode,
+        out decimal sales,
+        out int nr)
+    {
+        reportDate = default;
+        branchCode = "";
+        channelCode = "";
+        userroleCode = "";
+        sales = 0;
+        nr = 0;
+        if (!TryRowReportDate(row, out reportDate))
+            return false;
+        branchCode = RowString(row, "branch_code").Trim();
+        if (branchCode.Length == 0)
+            branchCode = peerBranchFallback;
+        channelCode = RowString(row, "channel_code").Trim();
+        userroleCode = RowString(row, "userrole_code").Trim();
+        if (channelCode.Length == 0 || userroleCode.Length == 0)
+            return false;
+        if (!TryRowDecimal(row, "sales", out sales))
+            return false;
+        nr = RowInt32(row, "nr_transactions", 0);
+        if (nr < 0)
+            nr = 0;
+        return true;
     }
 
     /// <summary>
@@ -1062,6 +1530,48 @@ public sealed class AppStatus
 
         var s = Convert.ToString(v, CultureInfo.InvariantCulture)?.Trim() ?? "";
         return decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static DateTime? RowOptDateTime(DataRow r, string logicalName)
+    {
+        var c = FindColumnIgnoreCase(r.Table, logicalName);
+        if (c == null)
+            return null;
+        var v = r[c];
+        if (v == DBNull.Value || v == null)
+            return null;
+        if (v is DateTime dt)
+            return dt;
+        var s = Convert.ToString(v, CultureInfo.InvariantCulture)?.Trim() ?? "";
+        return DateTime.TryParse(
+            s,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeLocal,
+            out var p)
+            ? p
+            : null;
+    }
+
+    private static bool TryRowModifiedTs(DataRow r, out DateTime ts) =>
+        TryRowDateTimeUnspecified(r, "modified_ts", out ts);
+
+    private static bool TryRowDateTimeUnspecified(DataRow r, string logicalName, out DateTime ts)
+    {
+        ts = default;
+        var c = FindColumnIgnoreCase(r.Table, logicalName);
+        if (c == null)
+            return false;
+        var v = r[c];
+        if (v == DBNull.Value || v == null)
+            return false;
+        if (v is DateTime dt)
+        {
+            ts = dt;
+            return true;
+        }
+
+        var s = Convert.ToString(v, CultureInfo.InvariantCulture)?.Trim() ?? "";
+        return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out ts);
     }
 
     private int CountSeedUsers(string compactConnectionString)

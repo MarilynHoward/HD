@@ -48,11 +48,14 @@ union all select 'kitchen', 'Kitchen Staff', 0
 union all select 'drivers', 'Drivers', 0
 
 
+-- add field to have 1 devise be responsible for sync on Branch
+ALTER TABLE public.branches ADD COLUMN rpt_sync_terminal text COLLATE pg_catalog."default";
+
 -- load test branches
-insert into public.branches (branch_code, descr, auth_user_id, branch_group)
-select 'grp1_sandton', 'Sandton', 0, 'Group 1'
-union all select 'grp1_cpt', 'Cape Town CBD', 0, 'Group 1'
-union all select 'grp1_umhlanga', 'Umhlanga', 0, 'Group 1'
-union all select 'grp1_pta', 'Pretoria', 0, 'Group 1'
-union all select 'grp1_jhb', 'Johannesburg', 0, 'Group 1'
-union all select 'grp1_durban', 'Durban', 0, 'Group 1'
+insert into public.branches (branch_code, descr, auth_user_id, branch_group, rpt_sync_terminal)
+select 'grp1_sandton', 'Sandton', 0, 'Group 1', 'MH-TMS-01'
+union all select 'grp1_cpt', 'Cape Town CBD', 0, 'Group 1', 'MH-TMS-01'
+union all select 'grp1_umhlanga', 'Umhlanga', 0, 'Group 1', 'MH-TMS-01'
+union all select 'grp1_pta', 'Pretoria', 0, 'Group 1', 'MH-TMS-01'
+union all select 'grp1_jhb', 'Johannesburg', 0, 'Group 1', 'MH-TMS-01'
+union all select 'grp1_durban', 'Durban', 0, 'Group 1', 'MH-TMS-01'

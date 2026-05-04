@@ -8,6 +8,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace RestaurantPosWpf;
 
@@ -20,7 +21,11 @@ public sealed class DailySalesBranchRow
     public string Sales { get; set; } = "";
     public string Transactions { get; set; } = "";
     public string AvgTicket { get; set; } = "";
+    /// <summary>Compared to portfolio average ticket (total sales / total transactions). Same visual rules as <see cref="GrowthVariant"/>.</summary>
+    public string AvgTicketVariant { get; set; } = "Default";
     public string Growth { get; set; } = "";
+    /// <summary>Default: dash or exactly 0% — no trend icon. Positive / Negative match Procurement dashboard trend styling.</summary>
+    public string GrowthVariant { get; set; } = "Default";
 }
 
 /// <summary>
@@ -58,7 +63,7 @@ public partial class RptDailySalesSummaryOverlay : UserControl
 
     private void ApplyStaticChrome()
     {
-        var sep = " | ";
+        var sep = "   |   ";
         TxtFilterSummary.Text =
                 _filters.DateRangeDisplay + sep + _filters.BranchDisplay + sep + _filters.ChannelDisplay + sep + _filters.UserRoleDisplay;
         TxtPeriod.Text = _filters.DateRangeDisplay;
@@ -69,6 +74,7 @@ public partial class RptDailySalesSummaryOverlay : UserControl
     private void ReloadData()
     {
         TxtGenerated.Text = DateTime.Now.ToString("g", CultureInfo.CurrentCulture);
+        var reportNfi = CloneReportNumberFormat();
 
         var prev = ComputePreviousWindow(_filters.RangeStart, _filters.RangeEnd);
         var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
@@ -107,7 +113,7 @@ public partial class RptDailySalesSummaryOverlay : UserControl
             TxtTotalSales.Text = Dash;
             TxtTotalTransactions.Text = Dash;
             TxtTotalAvgTicket.Text = Dash;
-            TxtTotalGrowth.Text = Dash;
+            ApplyGrowthFooterVisual(Dash, "Default");
             return;
         }
 
@@ -127,6 +133,16 @@ public partial class RptDailySalesSummaryOverlay : UserControl
 
         foreach (DataRow r in current.Rows)
         {
+            var sales = DbCellDecimal(r, "sum_sales");
+            var txn = DbCellInt(r, "sum_transactions");
+            sumSales += sales;
+            sumTxn += txn;
+        }
+
+        var portfolioAvgTicket = sumTxn > 0 ? sumSales / sumTxn : (decimal?)null;
+
+        foreach (DataRow r in current.Rows)
+        {
             var code = DbCellString(r, "branch_code").Trim();
             var branchLabel = DbCellString(r, "branch_descr").Trim();
             if (branchLabel.Length == 0)
@@ -135,44 +151,63 @@ public partial class RptDailySalesSummaryOverlay : UserControl
             var sales = DbCellDecimal(r, "sum_sales");
             var txn = DbCellInt(r, "sum_transactions");
 
-            sumSales += sales;
-            sumTxn += txn;
-
             var avgTicket = txn > 0 ? sales / txn : (decimal?)null;
 
+            var avgTicketVariant = "Default";
+            if (avgTicket.HasValue && portfolioAvgTicket.HasValue)
+            {
+                if (avgTicket.Value > portfolioAvgTicket.Value)
+                    avgTicketVariant = "Positive";
+                else if (avgTicket.Value < portfolioAvgTicket.Value)
+                    avgTicketVariant = "Negative";
+            }
+
             var growthText = Dash;
+            var growthVariant = "Default";
             if (prevSalesByBranch.TryGetValue(code, out var prevSales) && prevSales > 0)
             {
                 var ratio = (sales - prevSales) / prevSales;
-                growthText = ratio.ToString("P1", CultureInfo.CurrentCulture);
+                growthText = ratio.ToString("P1", reportNfi);
                 growthRatios.Add(ratio);
+                if (ratio > 0m)
+                    growthVariant = "Positive";
+                else if (ratio < 0m)
+                    growthVariant = "Negative";
             }
 
             _rows.Add(new DailySalesBranchRow
             {
                 Branch = branchLabel,
-                Sales = FormatCurrency(sales),
-                Transactions = txn.ToString("N0", CultureInfo.CurrentCulture),
-                AvgTicket = avgTicket.HasValue ? FormatCurrency(avgTicket.Value) : Dash,
+                Sales = FormatCurrency(sales, reportNfi),
+                Transactions = txn.ToString("N0", reportNfi),
+                AvgTicket = avgTicket.HasValue ? FormatCurrency(avgTicket.Value, reportNfi) : Dash,
+                AvgTicketVariant = avgTicketVariant,
                 Growth = growthText,
+                GrowthVariant = growthVariant,
             });
         }
 
         RowsItems.ItemsSource = _rows;
 
-        TxtTotalRecords.Text = _rows.Count.ToString(CultureInfo.CurrentCulture);
+        TxtTotalRecords.Text = _rows.Count.ToString(reportNfi);
 
-        TxtTotalSales.Text = FormatCurrency(sumSales);
-        TxtTotalTransactions.Text = sumTxn.ToString("N0", CultureInfo.CurrentCulture);
-        TxtTotalAvgTicket.Text = sumTxn > 0 ? FormatCurrency(sumSales / sumTxn) : Dash;
+        TxtTotalSales.Text = FormatCurrency(sumSales, reportNfi);
+        TxtTotalTransactions.Text = sumTxn.ToString("N0", reportNfi);
+        TxtTotalAvgTicket.Text = sumTxn > 0 ? FormatCurrency(sumSales / sumTxn, reportNfi) : Dash;
 
         if (growthRatios.Count > 0)
         {
             var mean = growthRatios.Average();
-            TxtTotalGrowth.Text = mean.ToString("P1", CultureInfo.CurrentCulture);
+            var meanText = mean.ToString("P1", reportNfi);
+            var v = "Default";
+            if (mean > 0m)
+                v = "Positive";
+            else if (mean < 0m)
+                v = "Negative";
+            ApplyGrowthFooterVisual(meanText, v);
         }
         else
-            TxtTotalGrowth.Text = Dash;
+            ApplyGrowthFooterVisual(Dash, "Default");
     }
 
     private static (DateOnly PrevStart, DateOnly PrevEnd) ComputePreviousWindow(DateOnly start, DateOnly end)
@@ -183,8 +218,30 @@ public partial class RptDailySalesSummaryOverlay : UserControl
         return (prevStart, prevEnd);
     }
 
-    private static string FormatCurrency(decimal value) =>
-            value.ToString("C2", CultureInfo.CurrentCulture);
+    private static NumberFormatInfo CloneReportNumberFormat()
+    {
+        var nfi = (NumberFormatInfo)CultureInfo.CurrentCulture.NumberFormat.Clone();
+        nfi.NumberDecimalSeparator = ".";
+        nfi.CurrencyDecimalSeparator = ".";
+        nfi.PercentDecimalSeparator = ".";
+        return nfi;
+    }
+
+    private static string FormatCurrency(decimal value, NumberFormatInfo nfi) =>
+            value.ToString("C2", nfi);
+
+    private void ApplyGrowthFooterVisual(string text, string variant)
+    {
+        TxtTotalGrowth.Text = text;
+        TotalGrowthUpIcon.Visibility = variant == "Positive" ? Visibility.Visible : Visibility.Collapsed;
+        TotalGrowthDownIcon.Visibility = variant == "Negative" ? Visibility.Visible : Visibility.Collapsed;
+        TxtTotalGrowth.Foreground = variant switch
+        {
+            "Positive" => (Brush)FindResource("RptDailySalesGrowthPositiveBrush"),
+            "Negative" => (Brush)FindResource("RptDailySalesGrowthNegativeBrush"),
+            _ => (Brush)FindResource("MainForeground"),
+        };
+    }
 
     private static object CellInsensitive(DataRow row, string columnName)
     {

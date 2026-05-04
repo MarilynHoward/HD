@@ -4,6 +4,10 @@
              Focusable="True">
 
     <UserControl.Resources>
+        <!-- Match ProcurementControl operational cards (APPROVED + SENT / ACCRUED LIABILITY trend icons). -->
+        <SolidColorBrush x:Key="RptDailySalesGrowthPositiveBrush" Color="#22C55E"/>
+        <SolidColorBrush x:Key="RptDailySalesGrowthNegativeBrush" Color="#852622"/>
+
         <Style x:Key="RptDailySalesHeaderCellStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#111827"/>
             <Setter Property="FontWeight" Value="Bold"/>
@@ -72,22 +76,58 @@
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}">
                     <Button x:Name="BtnRefresh"
                             Style="{StaticResource VcSecondaryButtonStyle}"
-                            Content="{DynamicResource Rpt.Report.Refresh}"
                             FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
-                            Click="Refresh_Click"/>
+                            Click="Refresh_Click"
+                            AutomationProperties.Name="{DynamicResource Rpt.Report.Refresh}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Image Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
+                                   Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
+                                   Stretch="Uniform"
+                                   VerticalAlignment="Center"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,6,0'}"
+                                   Source="{StaticResource PeoplePOS.Icon.RefreshCw}"/>
+                            <TextBlock Text="{DynamicResource Rpt.Report.Refresh}"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
+                        </StackPanel>
+                    </Button>
                     <Button x:Name="BtnPrint"
                             Style="{StaticResource VcSecondaryButtonStyle}"
-                            Content="{DynamicResource Rpt.Report.Print}"
                             FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
-                            Click="Print_Click"/>
+                            Click="Print_Click"
+                            AutomationProperties.Name="{DynamicResource Rpt.Report.Print}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Image Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
+                                   Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
+                                   Stretch="Uniform"
+                                   VerticalAlignment="Center"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,6,0'}"
+                                   Source="{StaticResource PeoplePOS.Icon.Printer}"/>
+                            <TextBlock Text="{DynamicResource Rpt.Report.Print}"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
+                        </StackPanel>
+                    </Button>
                     <Button x:Name="BtnExport"
                             Style="{StaticResource VcPrimaryButtonStyle}"
-                            Content="{DynamicResource Rpt.Report.Export}"
                             FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
-                            Click="Export_Click"/>
+                            Click="Export_Click"
+                            AutomationProperties.Name="{DynamicResource Rpt.Report.Export}">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Image Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
+                                   Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
+                                   Stretch="Uniform"
+                                   VerticalAlignment="Center"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,6,0'}"
+                                   Source="{StaticResource PeoplePOS.Icon.Download.White}"/>
+                            <TextBlock Text="{DynamicResource Rpt.Report.Export}"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
                 <!-- Same close chrome as Staff and Access audit trail / Operations popups. -->
                 <Button x:Name="BtnClose"
@@ -120,10 +160,33 @@
                     CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
                     Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,10,12,10'}"
                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,10'}">
-                <TextBlock x:Name="TxtFilterSummary"
-                           TextWrapping="Wrap"
-                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"
-                           Foreground="{StaticResource MainForeground}"/>
+                <StackPanel Orientation="Horizontal">
+                    <Viewbox Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=16}"
+                             Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=16}"
+                             VerticalAlignment="Center"
+                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
+                             IsHitTestVisible="False"
+                             Focusable="False">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="{StaticResource Geom.StandardCalendarLucide}"
+                                  Stroke="{StaticResource DimmedForeground}"
+                                  StrokeLineJoin="Round"
+                                  Fill="Transparent">
+                                <Path.StrokeThickness>
+                                    <Binding Source="{StaticResource UiScaleState}"
+                                             Path="FontScale"
+                                             Converter="{StaticResource LayoutScaleConverter}"
+                                             ConverterParameter="2"/>
+                                </Path.StrokeThickness>
+                            </Path>
+                        </Canvas>
+                    </Viewbox>
+                    <TextBlock x:Name="TxtFilterSummary"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"
+                               Foreground="{StaticResource MainForeground}"/>
+                </StackPanel>
             </Border>
 
             <!-- Metadata -->
@@ -159,12 +222,14 @@
                     BorderThickness="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter=1}"
                     CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
                     ClipToBounds="True"
+                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,12,0'}"
                     MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=120}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=40}"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
+                    <!-- ProcurementPOrders: * + scrollbar column only — symmetric horizontal inset from Border padding (no extra left-only gutter). -->
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="{x:Static SystemParameters.VerticalScrollBarWidth}"/>
@@ -172,7 +237,7 @@
 
                     <Border Grid.Row="0" Grid.Column="0" Background="#E5E7EB"
                             CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter='8,8,0,0'}">
-                        <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,8,4'}">
+                        <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,12,4'}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="2*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=100}"/>
                                 <ColumnDefinition Width="1.2*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
@@ -188,17 +253,38 @@
                         </Grid>
                     </Border>
 
-                    <ScrollViewer Grid.Row="1"
+                    <Border Grid.Row="0" Grid.Column="1" Background="#E5E7EB"
+                            CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter='0,8,0,0'}"/>
+
+                    <ScrollViewer x:Name="DailySalesListScrollViewer"
+                                  Grid.Row="1"
                                   Grid.Column="0"
+                                  Grid.ColumnSpan="2"
                                   Style="{StaticResource IcPopupShellBodyScrollViewerStyle}"
                                   Padding="0"
                                   Margin="0">
                         <ItemsControl x:Name="RowsItems">
+                            <ItemsControl.Style>
+                                <Style TargetType="ItemsControl">
+                                    <!-- Reserve scrollbar gutter when bar is hidden so columns don’t jump (ProcurementPOrders). -->
+                                    <Setter Property="Margin"
+                                            Value="{Binding Source={StaticResource UiScaleState},
+                                                            Path=FontScale,
+                                                            Converter={StaticResource ThicknessScaleConverter},
+                                                            ConverterParameter='0,0,17,0'}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ElementName=DailySalesListScrollViewer, Path=ComputedVerticalScrollBarVisibility}"
+                                                     Value="Visible">
+                                            <Setter Property="Margin" Value="0"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border BorderBrush="#F3F4F6"
                                             BorderThickness="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,1,0,0'}"
-                                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,8,8,8'}">
+                                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,8,12,8'}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="2*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=100}"/>
@@ -210,8 +296,130 @@
                                             <TextBlock Grid.Column="0" Text="{Binding Branch}" Style="{StaticResource RptDailySalesCellStyle}"/>
                                             <TextBlock Grid.Column="1" Text="{Binding Sales}" Style="{StaticResource RptDailySalesCellStyle}" HorizontalAlignment="Right" TextAlignment="Right"/>
                                             <TextBlock Grid.Column="2" Text="{Binding Transactions}" Style="{StaticResource RptDailySalesCellStyle}" HorizontalAlignment="Right" TextAlignment="Right"/>
-                                            <TextBlock Grid.Column="3" Text="{Binding AvgTicket}" Style="{StaticResource RptDailySalesCellStyle}" HorizontalAlignment="Right" TextAlignment="Right"/>
-                                            <TextBlock Grid.Column="4" Text="{Binding Growth}" Style="{StaticResource RptDailySalesCellStyle}" HorizontalAlignment="Right" TextAlignment="Right"/>
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <Viewbox Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                                         Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                                         VerticalAlignment="Center"
+                                                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,2,0'}">
+                                                    <Viewbox.Style>
+                                                        <Style TargetType="Viewbox">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding AvgTicketVariant}" Value="Positive">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Viewbox.Style>
+                                                    <Canvas Width="24" Height="24">
+                                                        <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
+                                                                  Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                        <Polyline Points="16,7 22,7 22,13"
+                                                                  Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                    </Canvas>
+                                                </Viewbox>
+                                                <Viewbox Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                                         Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                                         VerticalAlignment="Center"
+                                                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,2,0'}"
+                                                         RenderTransformOrigin="0.5,0.5">
+                                                    <Viewbox.RenderTransform>
+                                                        <RotateTransform Angle="180"/>
+                                                    </Viewbox.RenderTransform>
+                                                    <Viewbox.Style>
+                                                        <Style TargetType="Viewbox">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding AvgTicketVariant}" Value="Negative">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Viewbox.Style>
+                                                    <Canvas Width="24" Height="24">
+                                                        <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
+                                                                  Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                        <Polyline Points="16,7 22,7 22,13"
+                                                                  Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                    </Canvas>
+                                                </Viewbox>
+                                                <TextBlock Text="{Binding AvgTicket}" HorizontalAlignment="Right" TextAlignment="Right" TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RptDailySalesCellStyle}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding AvgTicketVariant}" Value="Positive">
+                                                                    <Setter Property="Foreground" Value="{StaticResource RptDailySalesGrowthPositiveBrush}"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding AvgTicketVariant}" Value="Negative">
+                                                                    <Setter Property="Foreground" Value="{StaticResource RptDailySalesGrowthNegativeBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <Viewbox Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                                         Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                                         VerticalAlignment="Center"
+                                                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,2,0'}">
+                                                    <Viewbox.Style>
+                                                        <Style TargetType="Viewbox">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding GrowthVariant}" Value="Positive">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Viewbox.Style>
+                                                    <Canvas Width="24" Height="24">
+                                                        <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
+                                                                  Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                        <Polyline Points="16,7 22,7 22,13"
+                                                                  Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                    </Canvas>
+                                                </Viewbox>
+                                                <Viewbox Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                                         Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                                         VerticalAlignment="Center"
+                                                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,2,0'}"
+                                                         RenderTransformOrigin="0.5,0.5">
+                                                    <Viewbox.RenderTransform>
+                                                        <RotateTransform Angle="180"/>
+                                                    </Viewbox.RenderTransform>
+                                                    <Viewbox.Style>
+                                                        <Style TargetType="Viewbox">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding GrowthVariant}" Value="Negative">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Viewbox.Style>
+                                                    <Canvas Width="24" Height="24">
+                                                        <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
+                                                                  Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                        <Polyline Points="16,7 22,7 22,13"
+                                                                  Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                    </Canvas>
+                                                </Viewbox>
+                                                <TextBlock Text="{Binding Growth}" HorizontalAlignment="Right" TextAlignment="Right" TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RptDailySalesCellStyle}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding GrowthVariant}" Value="Positive">
+                                                                    <Setter Property="Foreground" Value="{StaticResource RptDailySalesGrowthPositiveBrush}"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding GrowthVariant}" Value="Negative">
+                                                                    <Setter Property="Foreground" Value="{StaticResource RptDailySalesGrowthNegativeBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -230,6 +438,12 @@
                     Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,10,12,10'}"
                     Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,0'}">
                 <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="{x:Static SystemParameters.VerticalScrollBarWidth}"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0"
+                          Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,12,0'}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=100}"/>
                         <ColumnDefinition Width="1.2*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
@@ -252,9 +466,48 @@
                     <TextBlock x:Name="TxtTotalAvgTicket" Grid.Column="3" FontWeight="SemiBold" Foreground="{StaticResource MainForeground}" HorizontalAlignment="Right" TextAlignment="Right"
                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                VerticalAlignment="Center"/>
-                    <TextBlock x:Name="TxtTotalGrowth" Grid.Column="4" FontWeight="SemiBold" Foreground="{StaticResource MainForeground}" HorizontalAlignment="Right" TextAlignment="Right"
-                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Viewbox x:Name="TotalGrowthUpIcon"
+                                 Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                 Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                 VerticalAlignment="Center"
+                                 Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,2,0'}"
+                                 Visibility="Collapsed">
+                            <Canvas Width="24" Height="24">
+                                <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
+                                          Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                <Polyline Points="16,7 22,7 22,13"
+                                          Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                            </Canvas>
+                        </Viewbox>
+                        <Viewbox x:Name="TotalGrowthDownIcon"
+                                 Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                 Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
+                                 VerticalAlignment="Center"
+                                 Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,2,0'}"
+                                 Visibility="Collapsed"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Viewbox.RenderTransform>
+                                <RotateTransform Angle="180"/>
+                            </Viewbox.RenderTransform>
+                            <Canvas Width="24" Height="24">
+                                <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
+                                          Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                <Polyline Points="16,7 22,7 22,13"
+                                          Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                            </Canvas>
+                        </Viewbox>
+                        <TextBlock x:Name="TxtTotalGrowth"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource MainForeground}"
+                                   HorizontalAlignment="Right"
+                                   TextAlignment="Right"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center"
+                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+                    </StackPanel>
+                    </Grid>
+                    <Border Grid.Column="1" Background="Transparent"/>
                 </Grid>
             </Border>
         </Grid>

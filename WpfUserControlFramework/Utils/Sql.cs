@@ -51,6 +51,13 @@ public sealed class Sql
 
     public static string Ts(DateTime? utc) => utc.HasValue ? Ts(utc.Value) : "NULL";
 
+    /// <summary>
+    /// <c>timestamp without time zone</c> literal (no UTC conversion). Use for wall-clock columns
+    /// such as <c>rpt_daily_sales.modified_ts</c> on branch databases.
+    /// </summary>
+    public static string TsUnspecified(DateTime value) =>
+        "'" + value.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture) + "'";
+
     /// <summary>PostgreSQL DATE literal: <c>'yyyy-MM-dd'</c>.</summary>
     public static string Date(DateOnly d) =>
         "'" + d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "'";
@@ -843,6 +850,13 @@ public sealed class Sql
         "SELECT b2.branch_group FROM public.branches b2 WHERE b2.branch_code = " + Quote(localBranchCode) +
         ") ORDER BY b.branch_code";
 
+    /// <summary>
+    /// Remote <c>public.branches.rpt_sync_terminal</c> for the branch row matching this terminal&apos;s
+    /// <c>Branch.txt</c> code. Executed against <see cref="AppStatus.ServerConnectionstring()"/>.
+    /// </summary>
+    public string SelectRptSyncTerminalForBranch(string localBranchCode) =>
+        "SELECT rpt_sync_terminal FROM public.branches WHERE branch_code = " + Quote(localBranchCode.Trim()) + " LIMIT 1";
+
     /// <summary>Remote <c>public.rpt_channels</c> full row set for lookup sync.</summary>
     public string SelectRemoteRptChannels() =>
         "SELECT channel_code, descr, active, auth_user_id FROM public.rpt_channels ORDER BY channel_code";
@@ -1276,15 +1290,119 @@ public sealed class Sql
     /// Executed against <see cref="AppStatus.ServerConnectionstring(string)"/>.
     /// </summary>
     public string SelectRemoteRptDailySalesForBranch(string branchCode) =>
-        "SELECT report_date, branch_code, channel_code, userrole_code, sales, nr_transactions " +
+        "SELECT report_date, branch_code, channel_code, userrole_code, sales, nr_transactions, modified_ts " +
         "FROM public.rpt_daily_sales WHERE branch_code = " + Quote(branchCode) +
-        " ORDER BY report_date, channel_code, userrole_code";
+        " ORDER BY modified_ts, report_date, channel_code, userrole_code";
+
+    /// <summary>
+    /// Incremental pull from a peer branch DB: rows changed after the stored <c>modified_ts</c> cursor.
+    /// </summary>
+    public string SelectRemoteRptDailySalesModifiedAfter(string branchCode, DateTime modifiedAfterUnspecified) =>
+        "SELECT report_date, branch_code, channel_code, userrole_code, sales, nr_transactions, modified_ts " +
+        "FROM public.rpt_daily_sales WHERE branch_code = " + Quote(branchCode) +
+        " AND modified_ts > " + TsUnspecified(modifiedAfterUnspecified) +
+        " ORDER BY modified_ts, report_date, channel_code, userrole_code";
 
     /// <summary>
     /// Local DB: remove replicated slice for a peer branch before reloading from remote (home branch excluded by caller).
     /// </summary>
     public string DeleteLocalRptDailySalesForBranch(string branchCode) =>
         "DELETE FROM public.rpt_daily_sales WHERE branch_code = " + Quote(branchCode) + "; ";
+
+    /// <summary>PostgreSQL 9.3-safe upsert for one <c>rpt_daily_sales</c> fact row (peer replication).</summary>
+    public string UpsertLocalRptDailySalesRow(
+        DateOnly reportDate,
+        string branchCode,
+        string channelCode,
+        string userroleCode,
+        decimal sales,
+        int nrTransactions,
+        DateTime remoteModifiedTsUnspecified)
+    {
+        var rd = Date(reportDate);
+        var bc = Quote(branchCode);
+        var cc = Quote(channelCode);
+        var ur = Quote(userroleCode);
+        var mt = TsUnspecified(remoteModifiedTsUnspecified);
+        return
+            "UPDATE public.rpt_daily_sales SET sales = " + Num(sales) + ", nr_transactions = " + Int(nrTransactions) +
+            ", modified_ts = " + mt + " WHERE report_date = " + rd + " AND branch_code = " + bc +
+            " AND channel_code = " + cc + " AND userrole_code = " + ur + "; " +
+            "INSERT INTO public.rpt_daily_sales (report_date, branch_code, channel_code, userrole_code, sales, nr_transactions, modified_ts) SELECT " +
+            rd + ", " + bc + ", " + cc + ", " + ur + ", " + Num(sales) + ", " + Int(nrTransactions) + ", " + mt +
+            " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_daily_sales WHERE report_date = " + rd + " AND branch_code = " + bc +
+            " AND channel_code = " + cc + " AND userrole_code = " + ur + "); ";
+    }
+
+    /// <summary>Prefix for batched <c>INSERT</c> including explicit <c>modified_ts</c> (full peer reload).</summary>
+    public string InsertRptDailySalesBatchPrefixWithModifiedTs() =>
+        "INSERT INTO public.rpt_daily_sales (report_date, branch_code, channel_code, userrole_code, sales, nr_transactions, modified_ts) VALUES ";
+
+    /// <summary>One row for <see cref="InsertRptDailySalesBatchPrefixWithModifiedTs"/> batches.</summary>
+    public static string InsertRptDailySalesValuesRowWithModifiedTs(
+        DateOnly reportDate,
+        string branchCode,
+        string channelCode,
+        string userroleCode,
+        decimal sales,
+        int nrTransactions,
+        DateTime remoteModifiedTsUnspecified) =>
+        "(" + Date(reportDate) + ", " + Quote(branchCode) + ", " + Quote(channelCode) + ", " + Quote(userroleCode) + ", " +
+        Num(sales) + ", " + Int(nrTransactions) + ", " + TsUnspecified(remoteModifiedTsUnspecified) + ")";
+
+    /// <summary>Local peer replication cursor for incremental <c>rpt_daily_sales</c> pulls.</summary>
+    public string SelectRptReplicationPeerState(string sourceBranchCode) =>
+        "SELECT source_branch_code, last_success_sync_utc, last_remote_max_modified_ts, last_full_reconcile_utc " +
+        "FROM public.rpt_replication_peer_state WHERE source_branch_code = " + Quote(sourceBranchCode.Trim());
+
+    /// <summary>PostgreSQL 9.3-safe upsert into <c>public.rpt_replication_peer_state</c>.</summary>
+    public string UpsertRptReplicationPeerState(
+        string sourceBranch,
+        DateTime lastSuccessUtc,
+        DateTime? lastRemoteMaxModifiedUnspecified,
+        DateTime? lastFullReconcileUtc)
+    {
+        var bc = Quote(sourceBranch.Trim());
+        var u1 = Ts(lastSuccessUtc);
+        var u2 = lastRemoteMaxModifiedUnspecified == null ? "NULL" : TsUnspecified(lastRemoteMaxModifiedUnspecified.Value);
+        var u3 = lastFullReconcileUtc == null ? "NULL" : Ts(lastFullReconcileUtc.Value);
+        return
+            "UPDATE public.rpt_replication_peer_state SET last_success_sync_utc = " + u1 +
+            ", last_remote_max_modified_ts = " + u2 + ", last_full_reconcile_utc = " + u3 +
+            " WHERE source_branch_code = " + bc + "; " +
+            "INSERT INTO public.rpt_replication_peer_state (source_branch_code, last_success_sync_utc, last_remote_max_modified_ts, last_full_reconcile_utc) SELECT " +
+            bc + ", " + u1 + ", " + u2 + ", " + u3 +
+            " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_replication_peer_state WHERE source_branch_code = " + bc + "); ";
+    }
+
+    /// <summary>Whether a successful reporting sync already completed for the given local calendar day.</summary>
+    public string SelectHasSuccessfulRptSyncForSyncDate(DateOnly syncDate) =>
+        "SELECT 1 AS ok FROM public.rpt_sync_run_log WHERE sync_date = " + Date(syncDate) +
+        " AND success = TRUE LIMIT 1";
+
+    /// <summary>Most recent sync attempt row for a calendar day (success / finished / started).</summary>
+    public string SelectRptSyncRunLastForSyncDate(DateOnly syncDate) =>
+        "SELECT success, finished_ts, started_ts FROM public.rpt_sync_run_log WHERE sync_date = " + Date(syncDate) +
+        " ORDER BY run_id DESC LIMIT 1";
+
+    public string InsertRptSyncRunStart(string machineName, string trigger, DateOnly syncDate) =>
+        "INSERT INTO public.rpt_sync_run_log (machine_name, trigger, sync_date, started_ts) VALUES (" +
+        Quote(machineName) + ", " + Quote(trigger) + ", " + Date(syncDate) + ", now()) RETURNING run_id";
+
+    public string UpdateRptSyncRunFinish(int runId, bool success, string? errorMessage)
+    {
+        string errSql;
+        if (string.IsNullOrEmpty(errorMessage))
+            errSql = "NULL";
+        else
+        {
+            var t = errorMessage.Length > 4000 ? errorMessage.Substring(0, 4000) : errorMessage;
+            errSql = Quote(t);
+        }
+
+        return "UPDATE public.rpt_sync_run_log SET finished_ts = now(), success = " + Bool(success) +
+            ", error_message = " + errSql + " WHERE run_id = " + Int(runId) + "; ";
+    }
 
     /// <summary>
     /// Local branch DB: aggregate daily sales by branch for the Daily Sales Summary report.

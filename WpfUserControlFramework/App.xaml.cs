@@ -67,9 +67,15 @@ public partial class App : Application
             Debug.WriteLine("[App.OnStartup] AppStatus bootstrap failed: " + ex.Message);
         }
 
-        aps.StartRemoteControlLookupSync();
+        aps.RegisterReportingSyncCoordinator();
 
         base.OnStartup(e);
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        aps.CancelReportingSyncCoordinator();
+        base.OnExit(e);
     }
 
     /// <summary>

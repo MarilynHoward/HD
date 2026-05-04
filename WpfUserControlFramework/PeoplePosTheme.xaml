@@ -235,6 +235,11 @@
         M11,9 L17,17 L11,25
     </Geometry>
 
+    <!-- Lucide calendar outline (same path as LocalIcDatePickerStyle PART_Button). -->
+    <Geometry x:Key="Geom.StandardCalendarLucide">
+        M8 2v2 M16 2v2 M3 7h18 M5 5h14 a2 2 0 0 1 2 2v13 a2 2 0 0 1-2 2H5 a2 2 0 0 1-2-2V7 a2 2 0 0 1 2-2z
+    </Geometry>
+
     <Geometry x:Key="Icon.Cube">
                     M12,2 L21,7 L12,12 L3,7 Z
                 M3,7 L12,12 L12,22 L3,17 Z
@@ -571,6 +576,35 @@
         </DrawingImage.Drawing>
     </DrawingImage>
 
+    <!-- Filled sync/refresh (client Path data, 24×24 logical). -->
+    <DrawingImage x:Key="PeoplePOS.Icon.RefreshCw">
+        <DrawingImage.Drawing>
+            <GeometryDrawing Brush="{StaticResource Brush.TextDark}">
+                <GeometryDrawing.Geometry>
+                    <PathGeometry Figures="M12,18A6,6,0,0,1,6,12C6,11,6.25,10.03,6.7,9.2L5.24,7.74C4.46,8.97,4,10.43,4,12A8,8,0,0,0,12,20V23L16,19L12,15V18M12,4V1L8,5L12,9V6A6,6,0,0,1,18,12C18,13,17.75,13.97,17.3,14.8L18.76,16.26C19.54,15.03,20,13.57,20,12A8,8,0,0,0,12,4Z"/>
+                </GeometryDrawing.Geometry>
+            </GeometryDrawing>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <!-- Lucide printer. -->
+    <DrawingImage x:Key="PeoplePOS.Icon.Printer">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="{x:Null}">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="{StaticResource Brush.TextDark}"
+                             Thickness="2"
+                             StartLineCap="Round"
+                             EndLineCap="Round"
+                             LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                    <GeometryDrawing.Geometry>
+                        <PathGeometry Figures="M6,18 H4 A2,2,0,0,1,2,16 V11 A2,2,0,0,1,4,9 H20 A2,2,0,0,1,22,11 V16 A2,2,0,0,1,20,18 H18 M6,9 V4 A1,1,0,0,1,7,3 H17 A1,1,0,0,1,18,4 V9 M6,14 H18 V21 A1,1,0,0,1,17,22 H7 A1,1,0,0,1,6,21 V14 Z"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
     <!-- Remove icon (from lucide-trash-2 SVG) -->
     <DrawingImage x:Key="PeoplePOS.Icon.Trash2">
         <DrawingImage.Drawing>
