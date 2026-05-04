@@ -33,6 +33,7 @@ public sealed record RptDashboardFilterSnapshot(
 /// Reporting dashboard: filters, recently used report executions, attention queue, and browse groupings.
 /// Recently Used is driven by <c>public.rpt_report_access_log</c>: distinct <c>report_code</c> per user,
 /// latest <c>accessed_ts</c>, capped at four rows (see <see cref="RecentlyUsedMaxDistinctReports"/>).
+/// Users with no log rows get four defaults inserted once (<c>Sql.InsertLocalRptDefaultRecentReportsWhenUserHasNoHistory</c>), then the normal query applies.
 /// Dev seed (<c>SeedDummyDataOnStartup</c>) truncates the log and inserts four demo access rows for the signed-on user.
 /// Card chrome comes from
 /// <c>public.rpt_reports</c>; browse tiles from <c>public.rpt_report_categories</c> (POS_CONTROL sync).
@@ -1047,31 +1048,16 @@ public sealed partial class RptDashboardMain : UserControl
         try
         {
             var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);
-            var dtRecent = App.aps.pda.GetDataTable(
-                cn,
-                App.aps.sql.SelectLocalRptRecentlyUsedReportsForUser(
-                    App.aps.signedOnUserId,
-                    RecentlyUsedMaxDistinctReports),
-                timeoutSeconds);
-            foreach (DataRow row in dtRecent.Rows)
+            LoadRecentUsedRowsFromDb(cn, timeoutSeconds, recent);
+            if (recent.Count == 0)
             {
-                var code = DbCellString(row, "report_code").Trim();
-                if (code.Length == 0)
-                    continue;
-                var title = DbCellString(row, "descr").Trim();
-                if (title.Length == 0)
-                    title = code;
-                var glyph = RptDashboardIconCatalog.ResolveGlyph(DbCellString(row, "icon_glyph_id"));
-                var accessedUtc = DbCellDateTimeUtc(row, "last_accessed_ts");
-                var lastRun = FormatLastRunCaptionUtc(accessedUtc);
-                if (lastRun.Length == 0)
-                    lastRun = RptThemeString("Rpt.LastRun.UnknownCaption");
-                var cat = DbCellString(row, "category_code").Trim();
-                recent.Add(new RecentUsedRow(new ExecutableReportRef(code, title, glyph), lastRun, AccentFromReportPrimaryHexRow(row))
-                {
-                    LastAccessedUtc = accessedUtc,
-                    CategoryId = cat.Length == 0 ? null : cat,
-                });
+                App.aps.Execute(
+                    cn,
+                    App.aps.sql.InsertLocalRptDefaultRecentReportsWhenUserHasNoHistory(
+                        App.aps.signedOnUserId,
+                        App.aps.signedOnUserId));
+                recent.Clear();
+                LoadRecentUsedRowsFromDb(cn, timeoutSeconds, recent);
             }
 
             var dtAttention = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectLocalRptReportsForDashboardAttention(), timeoutSeconds);
@@ -1107,6 +1093,36 @@ public sealed partial class RptDashboardMain : UserControl
         ReloadCore(browse1, _seedBrowse1);
         ReloadCore(browse2, _seedBrowse2);
         ApplyFilters();
+    }
+
+    private static void LoadRecentUsedRowsFromDb(string cn, int timeoutSeconds, List<RecentUsedRow> recent)
+    {
+        var dtRecent = App.aps.pda.GetDataTable(
+            cn,
+            App.aps.sql.SelectLocalRptRecentlyUsedReportsForUser(
+                App.aps.signedOnUserId,
+                RecentlyUsedMaxDistinctReports),
+            timeoutSeconds);
+        foreach (DataRow row in dtRecent.Rows)
+        {
+            var code = DbCellString(row, "report_code").Trim();
+            if (code.Length == 0)
+                continue;
+            var title = DbCellString(row, "descr").Trim();
+            if (title.Length == 0)
+                title = code;
+            var glyph = RptDashboardIconCatalog.ResolveGlyph(DbCellString(row, "icon_glyph_id"));
+            var accessedUtc = DbCellDateTimeUtc(row, "last_accessed_ts");
+            var lastRun = FormatLastRunCaptionUtc(accessedUtc);
+            if (lastRun.Length == 0)
+                lastRun = RptThemeString("Rpt.LastRun.UnknownCaption");
+            var cat = DbCellString(row, "category_code").Trim();
+            recent.Add(new RecentUsedRow(new ExecutableReportRef(code, title, glyph), lastRun, AccentFromReportPrimaryHexRow(row))
+            {
+                LastAccessedUtc = accessedUtc,
+                CategoryId = cat.Length == 0 ? null : cat,
+            });
+        }
     }
 
     private static List<BrowseGroupTile> LoadBrowseRowFromDb(string cn, int browseRow, int timeoutSeconds)

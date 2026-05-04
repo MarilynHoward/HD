@@ -1031,6 +1031,31 @@ public sealed class Sql
         "ORDER BY x.last_accessed_ts DESC LIMIT " + Int(maxDistinctReports);
 
     /// <summary>
+    /// When <paramref name="userId"/> has no rows in <c>public.rpt_report_access_log</c>, inserts four default
+    /// <c>report_code</c> rows with <c>accessed_ts</c> set from the current UTC time (staggered by seconds for stable
+    /// Recently Used ordering). No-op if the user already has any access-log row. PG 9.3-safe (<c>INSERT … SELECT … WHERE NOT EXISTS</c>).
+    /// </summary>
+    public string InsertLocalRptDefaultRecentReportsWhenUserHasNoHistory(int userId, int authUserId)
+    {
+        var u = Int(userId);
+        var a = Int(authUserId);
+        var t0 = DateTime.UtcNow;
+        var t1 = t0.AddSeconds(-1);
+        var t2 = t0.AddSeconds(-2);
+        var t3 = t0.AddSeconds(-3);
+        return
+            "INSERT INTO public.rpt_report_access_log (user_id, report_code, accessed_ts, auth_user_id) " +
+            "SELECT v.user_id, v.report_code, v.accessed_ts, v.auth_user_id " +
+            "FROM (VALUES " +
+            "(" + u + ", " + Quote("rpt.daily_sales") + ", " + Ts(t0) + "::timestamp, " + a + "), " +
+            "(" + u + ", " + Quote("rpt.vat_summary") + ", " + Ts(t1) + "::timestamp, " + a + "), " +
+            "(" + u + ", " + Quote("rpt.wastage") + ", " + Ts(t2) + "::timestamp, " + a + "), " +
+            "(" + u + ", " + Quote("rpt.voids") + ", " + Ts(t3) + "::timestamp, " + a + ")" +
+            ") AS v(user_id, report_code, accessed_ts, auth_user_id) " +
+            "WHERE NOT EXISTS (SELECT 1 FROM public.rpt_report_access_log WHERE user_id = " + u + "); ";
+    }
+
+    /// <summary>
     /// Dev-only (<see cref="AppStatus.SeedDummyDataOnStartup"/>): clear report access history before reinserting demo rows.
     /// </summary>
     public string TruncateRptReportAccessLog() =>
