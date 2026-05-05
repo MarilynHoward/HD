@@ -31,7 +31,7 @@ namespace RestaurantPosWpf;
 /// <item><description>Read <c>SeedDummyDataOnStartup</c> from App.config.</description></item>
 /// <item><description><see cref="EnsureRolesAndBootstrapUser"/> to guarantee the five fixed roles and the bootstrap <c>user_id = 1</c> exist.</description></item>
 /// <item><description>If seeding is enabled, <see cref="ReseedDummyDataIfEnabled"/> wipes demo users/ops (<c>is_seed = true</c>), <c>TRUNCATE</c>s <c>rpt_report_access_log</c>, and reinserts the demo sets.</description></item>
-/// <item><description><see cref="RegisterReportingSyncCoordinator"/> starts a background loop on the designated sync terminal (see <c>POS_CONTROL.public.branches.rpt_sync_terminal</c> vs <c>Environment.MachineName</c>): at <c>RptSyncDailyTime</c>, with startup catch-up and optional staleness retries, runs the reporting pipeline — when <see cref="SeedDummyDataOnStartup"/> is true, first dev-only <c>TRUNCATE</c>/reload of <c>public.rpt_daily_sales</c> on each remote branch DB; then pulls <c>rpt_*</c> lookups from <c>POS_CONTROL</c> into local; then consolidates peers&apos; <c>rpt_daily_sales</c> (incremental by <c>modified_ts</c> when possible). Other terminals skip automatic sync.</description></item>
+/// <item><description><see cref="RegisterReportingSyncCoordinator"/> starts a background loop on the designated sync terminal (see <c>POS_CONTROL.public.branches.rpt_sync_terminal</c> vs <c>Environment.MachineName</c>): at <c>RptSyncDailyTime</c>, with startup catch-up and optional staleness retries, runs the reporting pipeline — when <see cref="SeedDummyDataOnStartup"/> is true, first dev-only <c>TRUNCATE</c>/reload of <c>public.rpt_daily_sales</c> and <c>public.rpt_vat</c> on each remote branch DB; then pulls <c>rpt_*</c> lookups from <c>POS_CONTROL</c> into local; then consolidates peers&apos; <c>rpt_daily_sales</c> and <c>rpt_vat</c> (incremental by <c>modified_ts</c> when possible). Other terminals skip automatic sync.</description></item>
 /// </list>
 /// </summary>
 public sealed class AppStatus
@@ -113,6 +113,9 @@ public sealed class AppStatus
     private readonly int _rptSyncStalenessMinutes;
     private readonly int _rptSyncPollSeconds;
     private readonly int _rptSyncIncrementalFullReconcileDays;
+    private readonly int _rptSyncLocalLogRetentionDays;
+    private readonly bool _rptSyncRunLocalMaintenanceAfterSuccess;
+    private readonly int _rptSyncLocalMaintenanceCommandTimeoutSeconds;
     private CancellationTokenSource? _rptSyncCoordinatorCts;
     private readonly SemaphoreSlim _rptSyncGate = new(1, 1);
     private DateTime _rptSyncCoordinatorStartedUtc;
@@ -212,6 +215,9 @@ public sealed class AppStatus
         _rptSyncStalenessMinutes = ReadInt("RptSyncStalenessCheckMinutes", 60);
         _rptSyncPollSeconds = Math.Max(15, ReadInt("RptSyncCoordinatorPollSeconds", 60));
         _rptSyncIncrementalFullReconcileDays = Math.Max(1, ReadInt("RptSyncIncrementalFullReconcileDays", 7));
+        _rptSyncLocalLogRetentionDays = ReadInt("RptSyncLocalLogRetentionDays", 90);
+        _rptSyncRunLocalMaintenanceAfterSuccess = ReadBool("RptSyncRunLocalMaintenanceAfterSuccess", defaultValue: false);
+        _rptSyncLocalMaintenanceCommandTimeoutSeconds = Math.Max(60, ReadInt("RptSyncLocalMaintenanceCommandTimeoutSeconds", 3600));
 
         if (DiagnosticLoggingEnabled)
         {
@@ -439,6 +445,12 @@ public sealed class AppStatus
         public DateTime? LastFullReconcileUtc;
     }
 
+    private sealed class PeerReplStateVat
+    {
+        public DateTime? VatLastRemoteMaxModified;
+        public DateTime? VatLastFullReconcileUtc;
+    }
+
     /// <summary>
     /// Starts the daily reporting sync coordinator (designated terminal only). Non-designated machines
     /// log once and re-check designation periodically. Call <see cref="CancelReportingSyncCoordinator"/> on shutdown.
@@ -499,6 +511,7 @@ public sealed class AppStatus
 
                 _rptSyncLoggedNonDesignated = false;
 
+                // One-shot: defer first DB/ODBC work until after startup settles (avoids racing OnStartup).
                 if (firstWait)
                 {
                     try
@@ -780,6 +793,12 @@ public sealed class AppStatus
                     Log("RptSync audit finish failed: " + ex.GetType().Name + " — " + ex.Message);
                 }
             }
+
+            if (result.Ok)
+            {
+                RunLocalRptLogRetentionAfterSuccessfulSync(localCn);
+                RunLocalPostgresMaintenanceAfterSuccessfulSync(localCn);
+            }
         }
         finally
         {
@@ -788,8 +807,74 @@ public sealed class AppStatus
     }
 
     /// <summary>
+    /// After a successful reporting sync, delete local log/state rows older than
+    /// <see cref="_rptSyncLocalLogRetentionDays"/> (when &gt; 0). Failures are logged only; they do not change
+    /// sync outcome. Peer state deletes drop incremental cursors and force a full reconcile on the next sync
+    /// for those peers.
+    /// </summary>
+    private void RunLocalRptLogRetentionAfterSuccessfulSync(string localCn)
+    {
+        if (_rptSyncLocalLogRetentionDays <= 0)
+            return;
+
+        var d = _rptSyncLocalLogRetentionDays;
+        RunTransactionalSilent(
+            "RptLogRetention:rpt_report_access_log",
+            sql.DeleteRptReportAccessLogOlderThanDays(d),
+            localCn);
+        RunTransactionalSilent(
+            "RptLogRetention:rpt_sync_run_log",
+            sql.DeleteRptSyncRunLogOlderThanDays(d),
+            localCn);
+        RunTransactionalSilent(
+            "RptLogRetention:rpt_replication_peer_state",
+            sql.DeleteRptReplicationPeerStateStaleOlderThanDays(d),
+            localCn);
+    }
+
+    /// <summary>
+    /// Optional post-sync <c>ANALYZE</c>/<c>VACUUM ANALYZE</c> on the local branch DB. Each statement runs
+    /// in autocommit (required for <c>VACUUM</c>). Catalog <c>ANALYZE</c> may fail for non-superuser roles;
+    /// failures are logged only. Does not imply every peer <c>rpt_daily_sales</c> row succeeded — only that
+    /// <see cref="SyncRemoteControlLookupsCore"/> returned success.
+    /// </summary>
+    private void RunLocalPostgresMaintenanceAfterSuccessfulSync(string localCn)
+    {
+        if (!_rptSyncRunLocalMaintenanceAfterSuccess)
+            return;
+
+        var steps = new (string Label, string SqlText)[]
+        {
+            ("RptMaint:ANALYZE", sql.AnalyzeLocalDatabaseForMaintenance()),
+            ("RptMaint:VACUUM_ANALYZE", sql.VacuumAnalyzeLocalDatabaseForMaintenance()),
+            ("RptMaint:ANALYZE_pg_class", sql.AnalyzePgCatalogPgClassForMaintenance()),
+            ("RptMaint:ANALYZE_pg_attribute", sql.AnalyzePgCatalogPgAttributeForMaintenance()),
+            ("RptMaint:ANALYZE_pg_index", sql.AnalyzePgCatalogPgIndexForMaintenance())
+        };
+
+        foreach (var (label, sqlText) in steps)
+        {
+            try
+            {
+                using var conn = new System.Data.Odbc.OdbcConnection(pda.BuildPostgresConnectionString(localCn));
+                conn.Open();
+                using var cmd = new System.Data.Odbc.OdbcCommand(sqlText, conn)
+                {
+                    CommandTimeout = _rptSyncLocalMaintenanceCommandTimeoutSeconds
+                };
+                cmd.ExecuteNonQuery();
+                Log(label + ": OK");
+            }
+            catch (Exception ex)
+            {
+                Log(label + ": FAILED - " + ex.GetType().Name + " - " + ex.Message);
+            }
+        }
+    }
+
+    /// <summary>
     /// Background pipeline: optional dev seed on remote branch DBs, then POS_CONTROL→local <c>rpt_*</c> lookups
-    /// (branches, channels, roles, report catalog), then peer <c>rpt_daily_sales</c> consolidation into local.
+    /// (branches, channels, roles, <c>vat_rates</c>, report catalog), then peer <c>rpt_daily_sales</c> and <c>rpt_vat</c> consolidation into local.
     /// Report sync order: upsert categories, upsert reports, delete orphan reports, delete orphan categories (FK-safe).
     /// </summary>
     private RptSyncCoreResult SyncRemoteControlLookupsCore()
@@ -826,12 +911,16 @@ public sealed class AppStatus
         }
 
         if (SeedDummyDataOnStartup)
+        {
             SeedRemoteBranchRptDailySalesCore(localCn);
+            SeedRemoteBranchRptVatCore(localCn);
+        }
 
         const int readTimeout = 60;
         DataTable dtBranches;
         DataTable dtChannels;
         DataTable dtRoles;
+        DataTable dtVatRates;
         DataTable dtRptCategories;
         DataTable dtRptReports;
         try
@@ -839,6 +928,7 @@ public sealed class AppStatus
             dtBranches = pda.GetDataTable(serverCn, sql.SelectRemoteBranchesForBranchGroup(propertyBranchCode.Trim()), readTimeout);
             dtChannels = pda.GetDataTable(serverCn, sql.SelectRemoteRptChannels(), readTimeout);
             dtRoles = pda.GetDataTable(serverCn, sql.SelectRemoteRptUserRoles(), readTimeout);
+            dtVatRates = pda.GetDataTable(serverCn, sql.SelectRemoteVatRates(), readTimeout);
             dtRptCategories = pda.GetDataTable(serverCn, sql.SelectRemoteRptReportCategories(), readTimeout);
             dtRptReports = pda.GetDataTable(serverCn, sql.SelectRemoteRptReports(), readTimeout);
         }
@@ -851,6 +941,7 @@ public sealed class AppStatus
         var branchKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var channelKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var roleKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var vatRateKeys = new HashSet<int>();
         var rptCategoryKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var rptReportKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -895,6 +986,20 @@ public sealed class AppStatus
                 RowString(r, "descr"),
                 RowAsBool(r, "active", fallback: true),
                 RowInt32(r, "auth_user_id", SystemBootstrapUserId)));
+        }
+
+        foreach (DataRow r in dtVatRates.Rows)
+        {
+            var id = RowNullableInt32(r, "vat_rate_id");
+            if (!id.HasValue)
+                continue;
+            vatRateKeys.Add(id.Value);
+            var vr = TryRowDecimal(r, "vat_rate", out var rateVal) ? rateVal : 0m;
+            batch.Append(sql.UpsertLocalVatRate(
+                id.Value,
+                RowString(r, "descr"),
+                vr,
+                RowAsBool(r, "active", fallback: true)));
         }
 
         foreach (DataRow r in dtRptCategories.Rows)
@@ -977,6 +1082,9 @@ public sealed class AppStatus
         var delRoles = sql.DeleteLocalRptUserRolesNotInRemoteKeys(roleKeys);
         if (delRoles.Length != 0)
             batch.Append(delRoles);
+        var delVatRates = sql.DeleteLocalVatRatesNotInRemoteKeys(vatRateKeys);
+        if (delVatRates.Length != 0)
+            batch.Append(delVatRates);
 
         if (batch.Length == 0)
             Log("SyncRemoteControlLookupsCore: no rows to apply (remote empty or all keys blank)");
@@ -986,6 +1094,7 @@ public sealed class AppStatus
         Log("SyncRemoteControlLookupsCore: done");
 
         SyncRemoteRptDailySalesIntoLocalCore(localCn);
+        SyncRemoteRptVatIntoLocalCore(localCn);
         return new RptSyncCoreResult(true, null);
     }
 
@@ -1208,6 +1317,225 @@ public sealed class AppStatus
     }
 
     /// <summary>
+    /// Replicates peer branches&apos; <c>public.rpt_vat</c> into the shared local DB. Full reload periodically;
+    /// otherwise incremental by remote <c>modified_ts</c> using <c>vat_*</c> columns in
+    /// <c>rpt_replication_peer_state</c>. Home <see cref="propertyBranchCode"/> is excluded.
+    /// </summary>
+    private void SyncRemoteRptVatIntoLocalCore(string localCn)
+    {
+        Log("SyncRemoteRptVatIntoLocalCore: start");
+        var home = (propertyBranchCode ?? string.Empty).Trim();
+        if (home.Length == 0)
+        {
+            Log("SyncRemoteRptVatIntoLocalCore: skip — propertyBranchCode empty");
+            return;
+        }
+
+        DataTable dtBranches;
+        try
+        {
+            dtBranches = pda.GetDataTable(localCn, sql.SelectLocalRptBranchCodesActive(), 60);
+        }
+        catch (Exception ex)
+        {
+            Log("SyncRemoteRptVatIntoLocalCore: local branch list failed - " + ex.GetType().Name + " - " + ex.Message);
+            return;
+        }
+
+        var peerCodes = new List<string>();
+        foreach (DataRow r in dtBranches.Rows)
+        {
+            var code = RowString(r, "branch_code");
+            if (string.IsNullOrWhiteSpace(code))
+                continue;
+            var trimmed = code.Trim();
+            if (string.Equals(trimmed, home, StringComparison.OrdinalIgnoreCase))
+                continue;
+            peerCodes.Add(trimmed);
+        }
+
+        if (peerCodes.Count == 0)
+        {
+            Log("SyncRemoteRptVatIntoLocalCore: no peer branches to sync");
+            Log("SyncRemoteRptVatIntoLocalCore: done");
+            return;
+        }
+
+        const int readTimeout = 240;
+        const int rowsPerChunk = 120;
+
+        foreach (var peerBranch in peerCodes)
+        {
+            try
+            {
+                SyncOnePeerBranchRptVat(localCn, peerBranch, readTimeout, rowsPerChunk);
+            }
+            catch (Exception ex)
+            {
+                Log("SyncRemoteRptVatIntoLocalCore: peer " + peerBranch + " — " + ex.GetType().Name + " - " + ex.Message);
+            }
+        }
+
+        Log("SyncRemoteRptVatIntoLocalCore: done");
+    }
+
+    private void SyncOnePeerBranchRptVat(string localCn, string peerBranch, int readTimeout, int rowsPerChunk)
+    {
+        string branchCn;
+        try
+        {
+            branchCn = ServerConnectionstring(peerBranch);
+        }
+        catch (Exception ex)
+        {
+            Log("SyncRemoteRptVatIntoLocalCore: ServerConnectionstring(" + peerBranch + ") - " + ex.GetType().Name + " - " + ex.Message);
+            return;
+        }
+
+        if (!PosDataAccess.CheckBranchConnection(branchCn))
+        {
+            Log("SyncRemoteRptVatIntoLocalCore: skip peer " + peerBranch + " — invalid compact");
+            return;
+        }
+
+        PeerReplStateVat? state = null;
+        try
+        {
+            var dtSt = pda.GetDataTable(localCn, sql.SelectRptReplicationPeerState(peerBranch), 30);
+            if (dtSt.Rows.Count > 0)
+            {
+                var sr = dtSt.Rows[0];
+                state = new PeerReplStateVat
+                {
+                    VatLastRemoteMaxModified = RowOptDateTime(sr, "vat_last_remote_max_modified_ts"),
+                    VatLastFullReconcileUtc = RowOptDateTime(sr, "vat_last_full_reconcile_utc")
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Log("SyncRemoteRptVatIntoLocalCore: peer VAT state read failed " + peerBranch + " — " + ex.Message);
+        }
+
+        var doFull = state == null
+            || !state.VatLastFullReconcileUtc.HasValue
+            || (DateTime.UtcNow - state.VatLastFullReconcileUtc.Value).TotalDays >= _rptSyncIncrementalFullReconcileDays;
+
+        string remoteSql;
+        if (doFull)
+            remoteSql = sql.SelectRemoteRptVatForBranch(peerBranch);
+        else if (state!.VatLastRemoteMaxModified.HasValue)
+            remoteSql = sql.SelectRemoteRptVatModifiedAfter(peerBranch, state.VatLastRemoteMaxModified.Value);
+        else
+            remoteSql = sql.SelectRemoteRptVatForBranch(peerBranch);
+
+        DataTable dtVat;
+        try
+        {
+            dtVat = pda.GetDataTable(branchCn, remoteSql, readTimeout);
+        }
+        catch (Exception ex)
+        {
+            Log("SyncRemoteRptVatIntoLocalCore: remote read failed " + peerBranch + " - " + ex.GetType().Name + " - " + ex.Message);
+            return;
+        }
+
+        DateTime? maxModifiedFromRows = null;
+        foreach (DataRow row in dtVat.Rows)
+        {
+            if (!TryRowModifiedTs(row, out var mt))
+                continue;
+            if (maxModifiedFromRows == null || mt > maxModifiedFromRows.Value)
+                maxModifiedFromRows = mt;
+        }
+
+        var batch = new StringBuilder();
+        if (doFull)
+            batch.Append(sql.DeleteLocalRptVatForBranch(peerBranch));
+
+        if (doFull)
+        {
+            var rowChunk = new List<string>(rowsPerChunk);
+
+            void FlushChunkFull()
+            {
+                if (rowChunk.Count == 0)
+                    return;
+                batch.Append(sql.InsertRptVatBatchPrefixWithModifiedTs());
+                batch.Append(string.Join(", ", rowChunk));
+                batch.Append("; ");
+                rowChunk.Clear();
+            }
+
+            foreach (DataRow row in dtVat.Rows)
+            {
+                if (!TryBuildRptVatRowArgs(row, peerBranch, out var reportDate, out var bc, out var ch, out var ur, out var vid, out var netAmt))
+                    continue;
+                if (!TryRowModifiedTs(row, out var modTs))
+                    modTs = DateTime.SpecifyKind(reportDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
+
+                rowChunk.Add(Sql.InsertRptVatValuesRowWithModifiedTs(reportDate, bc, ch, ur, vid, netAmt, modTs));
+                if (rowChunk.Count >= rowsPerChunk)
+                    FlushChunkFull();
+            }
+
+            FlushChunkFull();
+        }
+        else
+        {
+            foreach (DataRow row in dtVat.Rows)
+            {
+                if (!TryBuildRptVatRowArgs(row, peerBranch, out var reportDate, out var bc, out var ch, out var ur, out var vid, out var netAmt))
+                    continue;
+                if (!TryRowModifiedTs(row, out var modTs))
+                    modTs = DateTime.SpecifyKind(reportDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
+                batch.Append(sql.UpsertLocalRptVatRow(reportDate, bc, ch, ur, vid, netAmt, modTs));
+            }
+        }
+
+        var newMaxModified = maxModifiedFromRows ?? state?.VatLastRemoteMaxModified;
+        var lastFullVat = doFull ? DateTime.UtcNow : state?.VatLastFullReconcileUtc;
+        batch.Append(sql.UpsertRptReplicationPeerStateVat(peerBranch, DateTime.UtcNow, newMaxModified, lastFullVat));
+
+        if (!RunTransactionalSilent("SyncRptVatIntoLocal:" + peerBranch, batch.ToString(), localCn))
+            Log("SyncRemoteRptVatIntoLocalCore: apply failed for peer " + peerBranch);
+    }
+
+    private static bool TryBuildRptVatRowArgs(
+        DataRow row,
+        string peerBranchFallback,
+        out DateOnly reportDate,
+        out string branchCode,
+        out string channelCode,
+        out string userroleCode,
+        out int vatRateId,
+        out decimal netAmount)
+    {
+        reportDate = default;
+        branchCode = "";
+        channelCode = "";
+        userroleCode = "";
+        vatRateId = 0;
+        netAmount = 0;
+        if (!TryRowReportDate(row, out reportDate))
+            return false;
+        branchCode = RowString(row, "branch_code").Trim();
+        if (branchCode.Length == 0)
+            branchCode = peerBranchFallback;
+        channelCode = RowString(row, "channel_code").Trim();
+        userroleCode = RowString(row, "userrole_code").Trim();
+        if (channelCode.Length == 0 || userroleCode.Length == 0)
+            return false;
+        var vid = RowNullableInt32(row, "vat_rate_id");
+        if (!vid.HasValue)
+            return false;
+        vatRateId = vid.Value;
+        if (!TryRowDecimal(row, "net_amount", out netAmount))
+            return false;
+        return true;
+    }
+
+    /// <summary>
     /// Dev-only: before POS_CONTROL lookup sync in the same pipeline, truncates and repopulates
     /// <c>public.rpt_daily_sales</c> on each branch database listed in local <c>rpt_branches</c>.
     /// Requires <see cref="SeedDummyDataOnStartup"/>.
@@ -1338,6 +1666,141 @@ public sealed class AppStatus
         Log("SeedRemoteBranchRptDailySalesCore: done");
     }
 
+    /// <summary>
+    /// Dev-only: truncates and repopulates <c>public.rpt_vat</c> on each branch database listed in local
+    /// <c>rpt_branches</c>. Requires <see cref="SeedDummyDataOnStartup"/>.
+    /// </summary>
+    private void SeedRemoteBranchRptVatCore(string localCn)
+    {
+        Log("SeedRemoteBranchRptVatCore: start");
+        DataTable dtBranches;
+        try
+        {
+            dtBranches = pda.GetDataTable(localCn, sql.SelectLocalRptBranchCodesActive(), 60);
+        }
+        catch (Exception ex)
+        {
+            Log("SeedRemoteBranchRptVatCore: local branch list failed - " + ex.GetType().Name + " - " + ex.Message);
+            return;
+        }
+
+        var branchCodes = new List<string>();
+        foreach (DataRow r in dtBranches.Rows)
+        {
+            var code = RowString(r, "branch_code");
+            if (!string.IsNullOrWhiteSpace(code))
+                branchCodes.Add(code.Trim());
+        }
+
+        if (branchCodes.Count == 0)
+        {
+            Log("SeedRemoteBranchRptVatCore: no active branches in local rpt_branches");
+            return;
+        }
+
+        var yesterday = DateOnly.FromDateTime(DateTime.Today.AddDays(-1));
+        var startDate = yesterday.AddMonths(-3);
+        if (startDate > yesterday)
+        {
+            Log("SeedRemoteBranchRptVatCore: skip — invalid date range");
+            return;
+        }
+
+        const int rowsPerInsert = 120;
+
+        foreach (var branchCode in branchCodes)
+        {
+            string branchCn;
+            try
+            {
+                branchCn = ServerConnectionstring(branchCode);
+            }
+            catch (Exception ex)
+            {
+                Log("SeedRemoteBranchRptVatCore: ServerConnectionstring(" + branchCode + ") - " + ex.GetType().Name + " - " + ex.Message);
+                continue;
+            }
+
+            if (!PosDataAccess.CheckBranchConnection(branchCn))
+            {
+                Log("SeedRemoteBranchRptVatCore: skip branch " + branchCode + " — invalid compact");
+                continue;
+            }
+
+            List<string> channels;
+            List<string> roles;
+            List<int> vatRateIds;
+            try
+            {
+                var dtCh = pda.GetDataTable(branchCn, sql.SelectBranchDbActiveChannelCodes(), 120);
+                var dtR = pda.GetDataTable(branchCn, sql.SelectBranchDbActiveUserRoleCodes(), 120);
+                var dtV = pda.GetDataTable(branchCn, sql.SelectBranchDbActiveVatRateIds(), 120);
+                channels = CollectCodesFromColumn(dtCh, "channel_code");
+                roles = CollectCodesFromColumn(dtR, "userrole_code");
+                vatRateIds = CollectVatRateIdsFromColumn(dtV);
+            }
+            catch (Exception ex)
+            {
+                Log("SeedRemoteBranchRptVatCore: dimension read failed " + branchCode + " - " + ex.GetType().Name + " - " + ex.Message);
+                continue;
+            }
+
+            if (channels.Count == 0 || roles.Count == 0 || vatRateIds.Count == 0)
+            {
+                Log("SeedRemoteBranchRptVatCore: skip branch " + branchCode + " — no active channels, roles, or VAT bands");
+                continue;
+            }
+
+            var insertsOnly = new StringBuilder();
+            var rowChunk = new List<string>(rowsPerInsert);
+
+            void FlushChunk()
+            {
+                if (rowChunk.Count == 0)
+                    return;
+                insertsOnly.Append(sql.InsertRptVatBatchPrefix());
+                insertsOnly.Append(string.Join(", ", rowChunk));
+                insertsOnly.Append("; ");
+                rowChunk.Clear();
+            }
+
+            for (var d = startDate; d <= yesterday; d = d.AddDays(1))
+            {
+                foreach (var ch in channels)
+                {
+                    foreach (var role in roles)
+                    {
+                        foreach (var vid in vatRateIds)
+                        {
+                            var net = ComputeDemoVatNet(d, branchCode, ch, role, vid);
+                            rowChunk.Add(Sql.InsertRptVatValuesRow(d, branchCode, ch, role, vid, net));
+                            if (rowChunk.Count >= rowsPerInsert)
+                                FlushChunk();
+                        }
+                    }
+                }
+            }
+
+            FlushChunk();
+
+            if (insertsOnly.Length == 0)
+            {
+                Log("SeedRemoteBranchRptVatCore: skip branch " + branchCode + " — no INSERT rows generated");
+                continue;
+            }
+
+            var truncateThenInsert = sql.TruncateRptVat() + insertsOnly;
+            if (RunTransactionalSilent("SeedRptVat:" + branchCode, truncateThenInsert, branchCn))
+                continue;
+
+            Log("SeedRemoteBranchRptVatCore: TRUNCATE path failed for " + branchCode + ", retrying with DELETE wipe");
+            var deleteThenInsert = sql.DeleteAllRptVat() + insertsOnly;
+            RunTransactionalSilent("SeedRptVatDelete:" + branchCode, deleteThenInsert, branchCn);
+        }
+
+        Log("SeedRemoteBranchRptVatCore: done");
+    }
+
     private static List<string> CollectCodesFromColumn(DataTable dt, string columnLogicalName)
     {
         var list = new List<string>();
@@ -1346,6 +1809,18 @@ public sealed class AppStatus
             var c = RowString(r, columnLogicalName);
             if (!string.IsNullOrWhiteSpace(c))
                 list.Add(c.Trim());
+        }
+        return list;
+    }
+
+    private static List<int> CollectVatRateIdsFromColumn(DataTable dt)
+    {
+        var list = new List<int>();
+        foreach (DataRow r in dt.Rows)
+        {
+            var id = RowNullableInt32(r, "vat_rate_id");
+            if (id.HasValue)
+                list.Add(id.Value);
         }
         return list;
     }
@@ -1370,6 +1845,22 @@ public sealed class AppStatus
         var mix = StringComparer.Ordinal.GetHashCode(branchCode + day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + channelCode + userroleCode) & 0x7FFFFFFF;
         var baseTx = (int)(sales / 42m);
         return Math.Max(4, baseTx + (mix % 18));
+    }
+
+    /// <summary>Deterministic demo net amount per VAT band for seeded <c>rpt_vat</c> rows.</summary>
+    private static decimal ComputeDemoVatNet(DateOnly day, string branchCode, string channelCode, string userroleCode, int vatRateId)
+    {
+        var baseSales = ComputeDemoDailySales(day, branchCode, channelCode, userroleCode);
+        var share = vatRateId switch
+        {
+            1 => 0.62m,
+            2 => 0.25m,
+            3 => 0.13m,
+            _ => 0.34m
+        };
+        var mix = (StringComparer.Ordinal.GetHashCode(branchCode + "|" + vatRateId) ^ day.DayOfYear) & 0xFF;
+        var jitter = 0.92m + (mix % 17) * 0.004m;
+        return Math.Round(baseSales * share * jitter, 2, MidpointRounding.AwayFromZero);
     }
 
     private static DataColumn? FindColumnIgnoreCase(DataTable table, string logicalName)

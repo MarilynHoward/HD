@@ -29,17 +29,6 @@ public sealed record RptDashboardFilterSnapshot(
         string ChannelDisplay,
         string UserRoleDisplay);
 
-/// <summary>
-/// Reporting dashboard: filters, recently used report executions, attention queue, and browse groupings.
-/// Recently Used is driven by <c>public.rpt_report_access_log</c>: distinct <c>report_code</c> per user,
-/// latest <c>accessed_ts</c>, capped at four rows (see <see cref="RecentlyUsedMaxDistinctReports"/>).
-/// Users with no log rows get four defaults inserted once (<c>Sql.InsertLocalRptDefaultRecentReportsWhenUserHasNoHistory</c>), then the normal query applies.
-/// Dev seed (<c>SeedDummyDataOnStartup</c>) truncates the log and inserts four demo access rows for the signed-on user.
-/// Card chrome comes from
-/// <c>public.rpt_reports</c>; browse tiles from <c>public.rpt_report_categories</c> (POS_CONTROL sync).
-/// Filter combos read local <c>rpt_branches</c>, <c>rpt_channels</c>, <c>rpt_user_roles</c>.
-/// Captions use <c>PeoplePosTheme.xaml</c> string keys. Missing SQL hex uses <see cref="CardAccent.FromKeys"/>.
-/// </summary>
 public sealed partial class RptDashboardMain : UserControl
 {
     private const int RecentlyUsedMaxDistinctReports = 4;
@@ -134,6 +123,9 @@ public sealed partial class RptDashboardMain : UserControl
 
     /// <summary>Matches <c>public.rpt_reports.report_code</c> for Daily Sales Summary.</summary>
     public const string DailySalesReportCode = "rpt.daily_sales";
+
+    /// <summary>Matches <c>public.rpt_reports.report_code</c> for VAT Summary.</summary>
+    public const string VatSummaryReportCode = "rpt.vat_summary";
 
     public RptDashboardMain()
         : this(null, null, null, null)
@@ -402,6 +394,13 @@ public sealed partial class RptDashboardMain : UserControl
     {
         var snapshot = BuildFilterSnapshot();
         RptOverlayContentHost.Content = new RptDailySalesSummaryOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenVatSummaryOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptVatSummaryOverlay(snapshot, CloseReportOverlay);
         RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
@@ -1482,6 +1481,12 @@ public sealed partial class RptDashboardMain : UserControl
             return;
         }
 
+        if (string.Equals(m.Report.Id, VatSummaryReportCode, StringComparison.Ordinal))
+        {
+            OpenVatSummaryOverlay();
+            return;
+        }
+
         InvokeIfNotNull(_onRecentReport, m);
     }
 
@@ -1494,6 +1499,12 @@ public sealed partial class RptDashboardMain : UserControl
         if (string.Equals(m.Report.Id, DailySalesReportCode, StringComparison.Ordinal))
         {
             OpenDailySalesOverlay();
+            return;
+        }
+
+        if (string.Equals(m.Report.Id, VatSummaryReportCode, StringComparison.Ordinal))
+        {
+            OpenVatSummaryOverlay();
             return;
         }
 

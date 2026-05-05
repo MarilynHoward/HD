@@ -6,8 +6,6 @@
 
     <UserControl.Resources>
 
-        <!-- Card chrome templates below; typography for section headings lives in PeoplePosTheme.xaml -->
-
         <!-- Recently used card -->
         <Style x:Key="RecentlyUsedCardButtonStyle" TargetType="Button">
             <Setter Property="Foreground"
@@ -26,8 +24,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <!-- Checks: no Grid.Padding; hover bg/frame fade uses overlays; content padding is on Border. -->
-                        <!-- Checks: shadow separated from text; no Grid.Padding; text stays off DropShadowEffect layer. -->
+
                         <Grid MinWidth="0"
                               ClipToBounds="False"
                               TextOptions.TextFormattingMode="Display"
@@ -90,7 +87,6 @@
                                 <Grid MinWidth="0"
                                   ClipToBounds="False">
 
-                                <!-- Hover background overlay: fades in gradually. -->
                                 <Border x:Name="HoverSurfaceOverlay"
                                         Background="{Binding Path=Theme.HoverBackground}"
                                         BorderThickness="0"
@@ -106,7 +102,6 @@
                                     </Border.CornerRadius>
                                 </Border>
 
-                                <!-- Content padding host: Border supports Padding; Grid does not. -->
                                 <Border x:Name="CardContentPaddingHost"
                                         Background="Transparent"
                                         SnapsToDevicePixels="True"
@@ -2281,8 +2276,8 @@
                                    Source={StaticResource UiScaleState},
                                    Converter={StaticResource ThicknessScaleConverter},
                                    ConverterParameter='0,16,0,0'}"
-                               FontWeight="SemiBold"
-                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
+                               FontWeight="Normal"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"
                                Text="Recently Used"/>
                     
                     <Grid x:Name="RecentCardStripHost"
@@ -2293,7 +2288,7 @@
                           Margin="{Binding Source={StaticResource UiScaleState},
                                            Path=FontScale,
                                            Converter={StaticResource ThicknessScaleConverter},
-                                           ConverterParameter='0,14,-8,14'}"
+                                           ConverterParameter='0,12,-8,14'}"
                           SizeChanged="DashboardCardStripHost_SizeChanged">
                         <ItemsControl ItemsSource="{Binding ElementName=Root, Path=RecentReports}"
                                       HorizontalAlignment="Stretch"
@@ -2359,11 +2354,11 @@
                     <!-- Checks: spacing adjusted only because the Recently Used bottom divider now owns section separation. -->
                     <TextBlock Style="{StaticResource RptDashboardSectionHeadingStyle}"
                                Foreground="{StaticResource MainForeground}"
-                               FontWeight="SemiBold"
+                               FontWeight="Normal"
                                FontSize="{Binding Source={StaticResource UiScaleState},
                                                   Path=FontScale,
                                                   Converter={StaticResource FontScaleConverter},
-                                                  ConverterParameter=16}"
+                                                  ConverterParameter=15}"
                                Text="Attention Needed"/>
 
                     <!-- Checks: Attention Needed stays one row; UniformGrid is allowed to squash cards; no horizontal scroll. -->
@@ -2440,12 +2435,12 @@
 
                     <TextBlock Style="{StaticResource RptDashboardSectionHeadingStyle}"
                                Foreground="{StaticResource MainForeground}"
-                               FontWeight="SemiBold"
+                               FontWeight="Normal"
                                FontSize="{Binding Source={StaticResource UiScaleState},
                                                   Path=FontScale,
                                                   Converter={StaticResource FontScaleConverter},
-                                                  ConverterParameter=16}"
-                               Text="Browse reports"/>
+                                                  ConverterParameter=15}"
+                               Text="Browse Reports"/>
 
                     <Grid x:Name="BrowseRow1CardStripHost"
                           HorizontalAlignment="Stretch"

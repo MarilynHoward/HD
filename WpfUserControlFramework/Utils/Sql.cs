@@ -865,6 +865,10 @@ public sealed class Sql
     public string SelectRemoteRptUserRoles() =>
         "SELECT userrole_code, descr, active, auth_user_id FROM public.rpt_user_roles ORDER BY userrole_code";
 
+    /// <summary>Remote <c>public.vat_rates</c> full row set for lookup sync.</summary>
+    public string SelectRemoteVatRates() =>
+        "SELECT vat_rate_id, descr, vat_rate, active FROM public.vat_rates ORDER BY vat_rate_id";
+
     /// <summary>
     /// PostgreSQL 9.3-safe upsert into local <c>public.rpt_branches</c>: <c>UPDATE</c> then
     /// <c>INSERT ... WHERE NOT EXISTS</c> (no <c>ON CONFLICT</c>).
@@ -902,6 +906,18 @@ public sealed class Sql
             "INSERT INTO public.rpt_user_roles (userrole_code, descr, active, auth_user_id) SELECT " +
             Quote(userroleCode) + ", " + Quote(d) + ", " + Bool(active) + ", " + Int(authUserId) +
             " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_user_roles WHERE userrole_code = " + Quote(userroleCode) + "); ";
+    }
+
+    /// <summary>PostgreSQL 9.3-safe upsert into local <c>public.vat_rates</c>.</summary>
+    public string UpsertLocalVatRate(int vatRateId, string descr, decimal vatRate, bool active)
+    {
+        var d = descr ?? "";
+        return
+            "UPDATE public.vat_rates SET descr = " + Quote(d) + ", vat_rate = " + Num(vatRate) + ", active = " + Bool(active) +
+            ", modified_ts = now() WHERE vat_rate_id = " + Int(vatRateId) + "; " +
+            "INSERT INTO public.vat_rates (vat_rate_id, descr, vat_rate, active) SELECT " +
+            Int(vatRateId) + ", " + Quote(d) + ", " + Num(vatRate) + ", " + Bool(active) +
+            " WHERE NOT EXISTS (SELECT 1 FROM public.vat_rates WHERE vat_rate_id = " + Int(vatRateId) + "); ";
     }
 
     /// <summary>
@@ -978,6 +994,31 @@ public sealed class Sql
                 b.Append(", ");
             any = true;
             b.Append(Quote(code.Trim()));
+        }
+
+        if (!any)
+            return "";
+        b.Append("); ");
+        return b.ToString();
+    }
+
+    /// <summary>
+    /// Deletes local <c>public.vat_rates</c> rows whose <c>vat_rate_id</c> is not in the remote snapshot.
+    /// Returns empty when there are no remote keys to retain (same guard as channels).
+    /// </summary>
+    public string DeleteLocalVatRatesNotInRemoteKeys(IReadOnlyCollection<int> remoteKeys)
+    {
+        if (remoteKeys == null || remoteKeys.Count == 0)
+            return "";
+        var b = new StringBuilder();
+        b.Append("DELETE FROM public.vat_rates WHERE vat_rate_id NOT IN (");
+        var any = false;
+        foreach (var id in remoteKeys)
+        {
+            if (any)
+                b.Append(", ");
+            any = true;
+            b.Append(Int(id));
         }
 
         if (!any)
@@ -1282,7 +1323,7 @@ public sealed class Sql
 
     /// <summary>
     /// Local DB: active branch codes after lookup sync; drives which remote branch databases receive
-    /// dev-only <c>rpt_daily_sales</c> seed when <see cref="AppStatus.SeedDummyDataOnStartup"/> is true.
+    /// dev-only <c>rpt_daily_sales</c> / <c>rpt_vat</c> seed when <see cref="AppStatus.SeedDummyDataOnStartup"/> is true.
     /// </summary>
     public string SelectLocalRptBranchCodesActive() =>
         "SELECT branch_code FROM public.rpt_branches WHERE active = TRUE ORDER BY branch_code";
@@ -1309,6 +1350,104 @@ public sealed class Sql
     /// <summary>Fallback wipe when <c>TRUNCATE</c> is not permitted.</summary>
     public string DeleteAllRptDailySales() =>
         "DELETE FROM public.rpt_daily_sales; ";
+
+    /// <summary>
+    /// Dev-only: remove all rows from <c>public.rpt_vat</c> before reload. If <c>TRUNCATE</c> fails,
+    /// replace with <see cref="DeleteAllRptVat"/> in application code.
+    /// </summary>
+    public string TruncateRptVat() =>
+        "TRUNCATE TABLE public.rpt_vat; ";
+
+    /// <summary>Fallback wipe when <c>TRUNCATE</c> is not permitted.</summary>
+    public string DeleteAllRptVat() =>
+        "DELETE FROM public.rpt_vat; ";
+
+    /// <summary>
+    /// Remote branch DB: VAT report facts for one branch (ignores rows whose <c>branch_code</c> does not match).
+    /// Executed against <see cref="AppStatus.ServerConnectionstring(string)"/>.
+    /// </summary>
+    public string SelectRemoteRptVatForBranch(string branchCode) =>
+        "SELECT report_date, branch_code, channel_code, userrole_code, vat_rate_id, net_amount, modified_ts " +
+        "FROM public.rpt_vat WHERE branch_code = " + Quote(branchCode) +
+        " ORDER BY modified_ts, report_date, channel_code, userrole_code, vat_rate_id";
+
+    /// <summary>
+    /// Incremental pull from a peer branch DB: <c>rpt_vat</c> rows changed after the stored <c>modified_ts</c> cursor.
+    /// </summary>
+    public string SelectRemoteRptVatModifiedAfter(string branchCode, DateTime modifiedAfterUnspecified) =>
+        "SELECT report_date, branch_code, channel_code, userrole_code, vat_rate_id, net_amount, modified_ts " +
+        "FROM public.rpt_vat WHERE branch_code = " + Quote(branchCode) +
+        " AND modified_ts > " + TsUnspecified(modifiedAfterUnspecified) +
+        " ORDER BY modified_ts, report_date, channel_code, userrole_code, vat_rate_id";
+
+    /// <summary>
+    /// Local DB: remove replicated <c>rpt_vat</c> slice for a peer branch before full reload (home excluded by caller).
+    /// </summary>
+    public string DeleteLocalRptVatForBranch(string branchCode) =>
+        "DELETE FROM public.rpt_vat WHERE branch_code = " + Quote(branchCode) + "; ";
+
+    /// <summary>PostgreSQL 9.3-safe upsert for one <c>rpt_vat</c> fact row (peer replication).</summary>
+    public string UpsertLocalRptVatRow(
+        DateOnly reportDate,
+        string branchCode,
+        string channelCode,
+        string userroleCode,
+        int vatRateId,
+        decimal netAmount,
+        DateTime remoteModifiedTsUnspecified)
+    {
+        var rd = Date(reportDate);
+        var bc = Quote(branchCode);
+        var cc = Quote(channelCode);
+        var ur = Quote(userroleCode);
+        var vid = Int(vatRateId);
+        var mt = TsUnspecified(remoteModifiedTsUnspecified);
+        return
+            "UPDATE public.rpt_vat SET net_amount = " + Num(netAmount) +
+            ", modified_ts = " + mt + " WHERE report_date = " + rd + " AND branch_code = " + bc +
+            " AND channel_code = " + cc + " AND userrole_code = " + ur + " AND vat_rate_id = " + vid + "; " +
+            "INSERT INTO public.rpt_vat (report_date, branch_code, channel_code, userrole_code, vat_rate_id, net_amount, modified_ts) SELECT " +
+            rd + ", " + bc + ", " + cc + ", " + ur + ", " + vid + ", " + Num(netAmount) + ", " + mt +
+            " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_vat WHERE report_date = " + rd + " AND branch_code = " + bc +
+            " AND channel_code = " + cc + " AND userrole_code = " + ur + " AND vat_rate_id = " + vid + "); ";
+    }
+
+    /// <summary>Prefix for batched <c>INSERT</c> into <c>rpt_vat</c> including explicit <c>modified_ts</c>.</summary>
+    public string InsertRptVatBatchPrefixWithModifiedTs() =>
+        "INSERT INTO public.rpt_vat (report_date, branch_code, channel_code, userrole_code, vat_rate_id, net_amount, modified_ts) VALUES ";
+
+    /// <summary>One row for <see cref="InsertRptVatBatchPrefixWithModifiedTs"/> batches.</summary>
+    public static string InsertRptVatValuesRowWithModifiedTs(
+        DateOnly reportDate,
+        string branchCode,
+        string channelCode,
+        string userroleCode,
+        int vatRateId,
+        decimal netAmount,
+        DateTime remoteModifiedTsUnspecified) =>
+        "(" + Date(reportDate) + ", " + Quote(branchCode) + ", " + Quote(channelCode) + ", " + Quote(userroleCode) + ", " +
+        Int(vatRateId) + ", " + Num(netAmount) + ", " + TsUnspecified(remoteModifiedTsUnspecified) + ")";
+
+    /// <summary>Prefix for dev seed <c>INSERT</c> into <c>rpt_vat</c> (defaults <c>modified_ts</c>).</summary>
+    public string InsertRptVatBatchPrefix() =>
+        "INSERT INTO public.rpt_vat (report_date, branch_code, channel_code, userrole_code, vat_rate_id, net_amount) VALUES ";
+
+    /// <summary>One row for <see cref="InsertRptVatBatchPrefix"/>.</summary>
+    public static string InsertRptVatValuesRow(
+        DateOnly reportDate,
+        string branchCode,
+        string channelCode,
+        string userroleCode,
+        int vatRateId,
+        decimal netAmount) =>
+        "(" + Date(reportDate) + ", " + Quote(branchCode) + ", " + Quote(channelCode) + ", " + Quote(userroleCode) + ", " +
+        Int(vatRateId) + ", " + Num(netAmount) + ")";
+
+    /// <summary>
+    /// Per-branch DB: active <c>vat_rate_id</c> values for cartesian VAT seed (must match keys used in facts).
+    /// </summary>
+    public string SelectBranchDbActiveVatRateIds() =>
+        "SELECT vat_rate_id FROM public.vat_rates WHERE active = TRUE ORDER BY vat_rate_id";
 
     /// <summary>
     /// Remote branch DB: daily sales for one branch (ignores rows whose <c>branch_code</c> does not match).
@@ -1375,12 +1514,19 @@ public sealed class Sql
         "(" + Date(reportDate) + ", " + Quote(branchCode) + ", " + Quote(channelCode) + ", " + Quote(userroleCode) + ", " +
         Num(sales) + ", " + Int(nrTransactions) + ", " + TsUnspecified(remoteModifiedTsUnspecified) + ")";
 
-    /// <summary>Local peer replication cursor for incremental <c>rpt_daily_sales</c> pulls.</summary>
+    /// <summary>
+    /// Local peer replication cursors: <c>rpt_daily_sales</c> uses <c>last_remote_max_modified_ts</c> /
+    /// <c>last_full_reconcile_utc</c>; <c>rpt_vat</c> uses <c>vat_last_*</c> columns.
+    /// </summary>
     public string SelectRptReplicationPeerState(string sourceBranchCode) =>
-        "SELECT source_branch_code, last_success_sync_utc, last_remote_max_modified_ts, last_full_reconcile_utc " +
+        "SELECT source_branch_code, last_success_sync_utc, last_remote_max_modified_ts, last_full_reconcile_utc, " +
+        "vat_last_remote_max_modified_ts, vat_last_full_reconcile_utc " +
         "FROM public.rpt_replication_peer_state WHERE source_branch_code = " + Quote(sourceBranchCode.Trim());
 
-    /// <summary>PostgreSQL 9.3-safe upsert into <c>public.rpt_replication_peer_state</c>.</summary>
+    /// <summary>
+    /// PostgreSQL 9.3-safe upsert into <c>public.rpt_replication_peer_state</c> for <c>rpt_daily_sales</c> cursors only.
+    /// Does not modify VAT cursor columns.
+    /// </summary>
     public string UpsertRptReplicationPeerState(
         string sourceBranch,
         DateTime lastSuccessUtc,
@@ -1395,8 +1541,32 @@ public sealed class Sql
             "UPDATE public.rpt_replication_peer_state SET last_success_sync_utc = " + u1 +
             ", last_remote_max_modified_ts = " + u2 + ", last_full_reconcile_utc = " + u3 +
             " WHERE source_branch_code = " + bc + "; " +
-            "INSERT INTO public.rpt_replication_peer_state (source_branch_code, last_success_sync_utc, last_remote_max_modified_ts, last_full_reconcile_utc) SELECT " +
-            bc + ", " + u1 + ", " + u2 + ", " + u3 +
+            "INSERT INTO public.rpt_replication_peer_state " +
+            "(source_branch_code, last_success_sync_utc, last_remote_max_modified_ts, last_full_reconcile_utc, vat_last_remote_max_modified_ts, vat_last_full_reconcile_utc) SELECT " +
+            bc + ", " + u1 + ", " + u2 + ", " + u3 + ", NULL, NULL " +
+            " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_replication_peer_state WHERE source_branch_code = " + bc + "); ";
+    }
+
+    /// <summary>
+    /// PostgreSQL 9.3-safe upsert of <c>rpt_vat</c> peer replication cursors. Does not modify daily-sales cursor columns.
+    /// </summary>
+    public string UpsertRptReplicationPeerStateVat(
+        string sourceBranch,
+        DateTime lastSuccessUtc,
+        DateTime? vatLastRemoteMaxModifiedUnspecified,
+        DateTime? vatLastFullReconcileUtc)
+    {
+        var bc = Quote(sourceBranch.Trim());
+        var u1 = Ts(lastSuccessUtc);
+        var u2 = vatLastRemoteMaxModifiedUnspecified == null ? "NULL" : TsUnspecified(vatLastRemoteMaxModifiedUnspecified.Value);
+        var u3 = vatLastFullReconcileUtc == null ? "NULL" : Ts(vatLastFullReconcileUtc.Value);
+        return
+            "UPDATE public.rpt_replication_peer_state SET last_success_sync_utc = " + u1 +
+            ", vat_last_remote_max_modified_ts = " + u2 + ", vat_last_full_reconcile_utc = " + u3 +
+            " WHERE source_branch_code = " + bc + "; " +
+            "INSERT INTO public.rpt_replication_peer_state " +
+            "(source_branch_code, last_success_sync_utc, last_remote_max_modified_ts, last_full_reconcile_utc, vat_last_remote_max_modified_ts, vat_last_full_reconcile_utc) SELECT " +
+            bc + ", " + u1 + ", NULL, NULL, " + u2 + ", " + u3 +
             " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_replication_peer_state WHERE source_branch_code = " + bc + "); ";
     }
 
@@ -1428,6 +1598,44 @@ public sealed class Sql
         return "UPDATE public.rpt_sync_run_log SET finished_ts = now(), success = " + Bool(success) +
             ", error_message = " + errSql + " WHERE run_id = " + Int(runId) + "; ";
     }
+
+    /// <summary>
+    /// Retention cleanup: delete access log rows older than <paramref name="maxRetentionDays"/> (by <c>accessed_ts</c>).
+    /// PostgreSQL 9.3-safe; <paramref name="maxRetentionDays"/> must be composed via <see cref="Int(int)"/> at the call site.
+    /// </summary>
+    public string DeleteRptReportAccessLogOlderThanDays(int maxRetentionDays) =>
+        "DELETE FROM public.rpt_report_access_log WHERE accessed_ts < (CURRENT_TIMESTAMP - (" +
+        Int(maxRetentionDays) + " * INTERVAL '1 day')); ";
+
+    /// <summary>
+    /// Retention cleanup: delete sync audit rows whose <c>sync_date</c> is strictly before <c>CURRENT_DATE - N days</c>.
+    /// </summary>
+    public string DeleteRptSyncRunLogOlderThanDays(int maxRetentionDays) =>
+        "DELETE FROM public.rpt_sync_run_log WHERE sync_date < (CURRENT_DATE - " + Int(maxRetentionDays) + "); ";
+
+    /// <summary>
+    /// Retention cleanup: delete peer replication rows with no recent activity (stale cursors). The next sync
+    /// performs a full reconcile for removed peers. Uses <c>COALESCE(last_success_sync_utc, last_full_reconcile_utc, epoch)</c>.
+    /// </summary>
+    public string DeleteRptReplicationPeerStateStaleOlderThanDays(int maxRetentionDays) =>
+        "DELETE FROM public.rpt_replication_peer_state WHERE " +
+        "COALESCE(last_success_sync_utc, last_full_reconcile_utc, vat_last_full_reconcile_utc, TIMESTAMP '1970-01-01 00:00:00') " +
+        "< (CURRENT_TIMESTAMP - (" + Int(maxRetentionDays) + " * INTERVAL '1 day')); ";
+
+    /// <summary>Post-sync maintenance (autocommit): database-wide analyze for the planner.</summary>
+    public string AnalyzeLocalDatabaseForMaintenance() => "ANALYZE;";
+
+    /// <summary>Post-sync maintenance (autocommit): non-blocking vacuum plus analyze on user tables.</summary>
+    public string VacuumAnalyzeLocalDatabaseForMaintenance() => "VACUUM ANALYZE;";
+
+    /// <summary>Post-sync maintenance (autocommit): may require superuser on some installs.</summary>
+    public string AnalyzePgCatalogPgClassForMaintenance() => "ANALYZE pg_catalog.pg_class;";
+
+    /// <summary>Post-sync maintenance (autocommit): may require superuser on some installs.</summary>
+    public string AnalyzePgCatalogPgAttributeForMaintenance() => "ANALYZE pg_catalog.pg_attribute;";
+
+    /// <summary>Post-sync maintenance (autocommit): may require superuser on some installs.</summary>
+    public string AnalyzePgCatalogPgIndexForMaintenance() => "ANALYZE pg_catalog.pg_index;";
 
     /// <summary>
     /// Local branch DB: aggregate daily sales by branch for the Daily Sales Summary report.
@@ -1462,6 +1670,44 @@ public sealed class Sql
 
         sb.Append(
                 " GROUP BY d.branch_code ORDER BY MAX(COALESCE(b.descr, d.branch_code)); ");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Local branch DB: aggregate VAT facts by <c>vat_rate_id</c> for the VAT Summary report.
+    /// Returns net, VAT amount (<c>net * vat_rate</c>), and gross (<c>net * (1 + vat_rate)</c>) per band.
+    /// Filters use sentinel <c>all</c> (case-insensitive) for unrestricted branch/channel/user role.
+    /// </summary>
+    public string SelectLocalRptVatAggregatedByVatRate(
+        DateOnly rangeStart,
+        DateOnly rangeEnd,
+        string branchFilterCode,
+        string channelFilterCode,
+        string userRoleFilterCode)
+    {
+        var sb = new StringBuilder(768);
+        sb.Append(
+            "SELECT v.vat_rate_id, MAX(COALESCE(vr.descr, '')) AS descr, MAX(vr.vat_rate) AS vat_rate, " +
+            "SUM(v.net_amount) AS sum_net_amount, " +
+            "SUM(v.net_amount * COALESCE(vr.vat_rate, 0)) AS sum_vat_amount, " +
+            "SUM(v.net_amount * (1 + COALESCE(vr.vat_rate, 0))) AS sum_gross_amount " +
+            "FROM public.rpt_vat v " +
+            "INNER JOIN public.vat_rates vr ON vr.vat_rate_id = v.vat_rate_id AND COALESCE(vr.active, TRUE) = TRUE " +
+            "WHERE v.report_date >= ").Append(Date(rangeStart)).Append(" AND v.report_date <= ").Append(Date(rangeEnd));
+
+        if (!string.Equals(branchFilterCode?.Trim(), "all", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(branchFilterCode))
+            sb.Append(" AND v.branch_code = ").Append(Quote(branchFilterCode.Trim()));
+
+        if (!string.Equals(channelFilterCode?.Trim(), "all", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(channelFilterCode))
+            sb.Append(" AND v.channel_code = ").Append(Quote(channelFilterCode.Trim()));
+
+        if (!string.Equals(userRoleFilterCode?.Trim(), "all", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(userRoleFilterCode))
+            sb.Append(" AND v.userrole_code = ").Append(Quote(userRoleFilterCode.Trim()));
+
+        sb.Append(" GROUP BY v.vat_rate_id ORDER BY v.vat_rate_id; ");
         return sb.ToString();
     }
 

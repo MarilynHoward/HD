@@ -120,10 +120,11 @@ END$$;
 If a feature needs new columns or tables:
 
 1. Create `WpfUserControlFramework/Migrations/<yyyy-mm-dd>_<feature>.sql` using the 9.3-safe patterns above. Start the file with a `ROLLBACK; BEGIN;` pair and end with `COMMIT;` so the client DBA can paste the whole script into psql in one go.
-2. `CREATE TABLE IF NOT EXISTS` is allowed; `ADD COLUMN IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` are NOT — use DO-block guards instead.
-3. Seed rows via `INSERT ... SELECT ... WHERE NOT EXISTS`, never `ON CONFLICT`.
-4. Update `Sql.cs` to read/write the new columns. Any runtime upserts there must also use the `WHERE NOT EXISTS` pattern.
-5. Do NOT run the migration from the app. The app assumes the schema is already present (it tolerates missing columns via `COALESCE(...)` in `Sql.SelectAllUsers`-style read queries when safe).
+2. **`Migrations executed via the client ODBC migrator`**: follow **`wpf-postgresql-migration-odbc.mdc`** — no `DO $$` procedural blocks; use plain DDL (see that rule). Idempotent `DO $$ … IF NOT EXISTS … ALTER TABLE …` is acceptable **only** for manual psql/DBA scripts, not for ODBC-delivered files under `Migrations/`.
+3. `CREATE TABLE IF NOT EXISTS` is allowed; `ADD COLUMN IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` are NOT — for **psql-only** idempotent DDL, use DO-block guards as in the patterns below; for **ODBC**, use plain `ALTER TABLE` / `CREATE INDEX` and document one-time apply or handle duplicate errors outside SQL.
+4. Seed rows via `INSERT ... SELECT ... WHERE NOT EXISTS`, never `ON CONFLICT`.
+5. Update `Sql.cs` to read/write the new columns. Any runtime upserts there must also use the `WHERE NOT EXISTS` pattern.
+6. Do NOT run the migration from the app. The app assumes the schema is already present (it tolerates missing columns via `COALESCE(...)` in `Sql.SelectAllUsers`-style read queries when safe).
 
 ## End-to-end expectation for new features
 

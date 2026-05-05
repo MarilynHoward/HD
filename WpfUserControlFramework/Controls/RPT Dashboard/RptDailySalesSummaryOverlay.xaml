@@ -26,14 +26,15 @@
         <!-- Subtitle tier (framework typography ladder). -->
         <Style x:Key="RptDailySalesMetaLabelStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource DimmedForeground}"/>
-            <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"/>
+            <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"/>
             <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
         </Style>
         <!-- Section-style emphasis between subtitle (15) and page header (18). -->
         <Style x:Key="RptDailySalesMetaValueStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource MainForeground}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
+            <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,10'}"/>
+            <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
         </Style>
     </UserControl.Resources>
 
@@ -75,9 +76,11 @@
                             VerticalAlignment="Center"
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}">
                     <Button x:Name="BtnRefresh"
+                            Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=32}"
                             Style="{StaticResource VcSecondaryButtonStyle}"
                             FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
+                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,12,0'}"
                             Click="Refresh_Click"
                             AutomationProperties.Name="{DynamicResource Rpt.Report.Refresh}">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -93,9 +96,11 @@
                         </StackPanel>
                     </Button>
                     <Button x:Name="BtnPrint"
+                            Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=32}"
                             Style="{StaticResource VcSecondaryButtonStyle}"
                             FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
+                            Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,10,0'}"
                             Click="Print_Click"
                             AutomationProperties.Name="{DynamicResource Rpt.Report.Print}">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -103,14 +108,16 @@
                                    Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
                                    Stretch="Uniform"
                                    VerticalAlignment="Center"
-                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,6,0'}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
                                    Source="{StaticResource PeoplePOS.Icon.Printer}"/>
                             <TextBlock Text="{DynamicResource Rpt.Report.Print}"
                                        VerticalAlignment="Center"
+                                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='2,0,4,2'}"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
                         </StackPanel>
                     </Button>
                     <Button x:Name="BtnExport"
+                            Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=32}"
                             Style="{StaticResource VcPrimaryButtonStyle}"
                             FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,8,0'}"
@@ -121,9 +128,10 @@
                                    Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=18}"
                                    Stretch="Uniform"
                                    VerticalAlignment="Center"
-                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,6,0'}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,8,0'}"
                                    Source="{StaticResource PeoplePOS.Icon.Download.White}"/>
                             <TextBlock Text="{DynamicResource Rpt.Report.Export}"
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='2,0,4,2'}"
                                        VerticalAlignment="Center"
                                        FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
                         </StackPanel>
@@ -191,7 +199,7 @@
 
             <!-- Metadata -->
             <Grid Grid.Row="3"
-                  Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,10'}">
+                  Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='6,0,0,0'}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
@@ -214,29 +222,31 @@
             <Border Grid.Row="4"
                     Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=1}"
                     Background="#E5E7EB"
-                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,8'}"/>
+                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,12'}"/>
 
-            <!-- Table: header + scroll body (Rule #225 body scroll); totals fixed below -->
             <Border Grid.Row="5"
                     BorderBrush="#E5E7EB"
+                    CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                       Path=ActualHeight,
+                                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                       ConverterParameter=8}"
                     BorderThickness="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter=1}"
-                    CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
                     ClipToBounds="True"
-                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,12,0'}"
+                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,0'}"
                     MinHeight="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=120}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=40}"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <!-- ProcurementPOrders: * + scrollbar column only — symmetric horizontal inset from Border padding (no extra left-only gutter). -->
+                    
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="{x:Static SystemParameters.VerticalScrollBarWidth}"/>
                     </Grid.ColumnDefinitions>
 
                     <Border Grid.Row="0" Grid.Column="0" Background="#E5E7EB"
-                            CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter='8,8,0,0'}">
+                            CornerRadius="8,8,0,0">
                         <Grid Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,12,4'}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="2*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=100}"/>
@@ -254,19 +264,20 @@
                     </Border>
 
                     <Border Grid.Row="0" Grid.Column="1" Background="#E5E7EB"
-                            CornerRadius="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter='0,8,0,0'}"/>
+                            CornerRadius="0,8,0,0"/>
 
                     <ScrollViewer x:Name="DailySalesListScrollViewer"
                                   Grid.Row="1"
                                   Grid.Column="0"
                                   Grid.ColumnSpan="2"
                                   Style="{StaticResource IcPopupShellBodyScrollViewerStyle}"
+                                  VerticalScrollBarVisibility="Auto"
                                   Padding="0"
                                   Margin="0">
                         <ItemsControl x:Name="RowsItems">
                             <ItemsControl.Style>
                                 <Style TargetType="ItemsControl">
-                                    <!-- Reserve scrollbar gutter when bar is hidden so columns don’t jump (ProcurementPOrders). -->
+                                    
                                     <Setter Property="Margin"
                                             Value="{Binding Source={StaticResource UiScaleState},
                                                             Path=FontScale,
