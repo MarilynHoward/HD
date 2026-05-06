@@ -7,6 +7,8 @@ alwaysApply: false
 
 Use this when adding a new **reporting fact** table (e.g. `public.rpt_*`) that follows the same model as `rpt_daily_sales` and `rpt_vat`: facts are stored per **branch database**; the **local** branch database consolidates **peer** branches; **POS_CONTROL** holds lookups only, not these fact rows.
 
+**`public.taxes`** is not copied by the app’s POS_CONTROL→local lookup sync (`SyncRemoteControlLookupsCore`); it is maintained by a separate job/process.
+
 ## DDL and SQL (PostgreSQL 9.3)
 
 - Use a clear **grain** and composite primary key (typically `report_date`, `branch_code`, `channel_code`, `userrole_code`, plus fact-specific key columns as needed).
@@ -42,7 +44,7 @@ Use this when adding a new **reporting fact** table (e.g. `public.rpt_*`) that f
 ## Read queries for UI
 
 - Add aggregated `sql.SelectLocalRpt*...` methods for dashboard/report controls; keep filter semantics aligned with existing reports (sentinel `"all"` for unrestricted filters where applicable).
-- If VAT **amount** and **gross** are not stored, derive them when reading by joining `vat_rates` (`vat_amount ≈ net * vat_rate`, `gross ≈ net * (1 + vat_rate)` for standard bands).
+- If VAT **amount** and **gross** are not stored, derive them when reading by joining `taxes` (`vat_amount ≈ net * rate`, `gross ≈ net * (1 + rate)` for standard bands).
 
 ## Reference implementation
 

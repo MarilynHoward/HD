@@ -100,6 +100,14 @@ public sealed class AppStatus
     public const int RoleIdUser = 4;
     public const int RoleIdSystem = 5;
 
+    /// <summary>
+    /// Demo <c>rpt_vat</c> seed: three <c>public.taxes.tax_id</c> values for band shares (0.62 / 0.25 / 0.13).
+    /// Must match the client SQL params <c>demo_tax_id_1</c>…<c>3</c> in <c>2026-05-05_client_rpt_vat_seed_*.sql</c>.
+    /// </summary>
+    private const int DemoVatTaxIdBand1 = 1;
+    private const int DemoVatTaxIdBand2 = 2;
+    private const int DemoVatTaxIdBand3 = 3;
+
     /// <summary><c>SeedDummyDataOnStartup</c> from App.config; controls demo reseed on start.</summary>
     public bool SeedDummyDataOnStartup { get; }
 
@@ -874,7 +882,8 @@ public sealed class AppStatus
 
     /// <summary>
     /// Background pipeline: optional dev seed on remote branch DBs, then POS_CONTROL→local <c>rpt_*</c> lookups
-    /// (branches, channels, roles, <c>vat_rates</c>, report catalog), then peer <c>rpt_daily_sales</c> and <c>rpt_vat</c> consolidation into local.
+    /// (branches, channels, roles, report catalog; <c>public.taxes</c> is maintained outside this sync), then peer
+    /// <c>rpt_daily_sales</c> and <c>rpt_vat</c> consolidation into local.
     /// Report sync order: upsert categories, upsert reports, delete orphan reports, delete orphan categories (FK-safe).
     /// </summary>
     private RptSyncCoreResult SyncRemoteControlLookupsCore()
@@ -920,7 +929,6 @@ public sealed class AppStatus
         DataTable dtBranches;
         DataTable dtChannels;
         DataTable dtRoles;
-        DataTable dtVatRates;
         DataTable dtRptCategories;
         DataTable dtRptReports;
         try
@@ -928,7 +936,6 @@ public sealed class AppStatus
             dtBranches = pda.GetDataTable(serverCn, sql.SelectRemoteBranchesForBranchGroup(propertyBranchCode.Trim()), readTimeout);
             dtChannels = pda.GetDataTable(serverCn, sql.SelectRemoteRptChannels(), readTimeout);
             dtRoles = pda.GetDataTable(serverCn, sql.SelectRemoteRptUserRoles(), readTimeout);
-            dtVatRates = pda.GetDataTable(serverCn, sql.SelectRemoteVatRates(), readTimeout);
             dtRptCategories = pda.GetDataTable(serverCn, sql.SelectRemoteRptReportCategories(), readTimeout);
             dtRptReports = pda.GetDataTable(serverCn, sql.SelectRemoteRptReports(), readTimeout);
         }
@@ -941,7 +948,6 @@ public sealed class AppStatus
         var branchKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var channelKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var roleKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var vatRateKeys = new HashSet<int>();
         var rptCategoryKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var rptReportKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -986,20 +992,6 @@ public sealed class AppStatus
                 RowString(r, "descr"),
                 RowAsBool(r, "active", fallback: true),
                 RowInt32(r, "auth_user_id", SystemBootstrapUserId)));
-        }
-
-        foreach (DataRow r in dtVatRates.Rows)
-        {
-            var id = RowNullableInt32(r, "vat_rate_id");
-            if (!id.HasValue)
-                continue;
-            vatRateKeys.Add(id.Value);
-            var vr = TryRowDecimal(r, "vat_rate", out var rateVal) ? rateVal : 0m;
-            batch.Append(sql.UpsertLocalVatRate(
-                id.Value,
-                RowString(r, "descr"),
-                vr,
-                RowAsBool(r, "active", fallback: true)));
         }
 
         foreach (DataRow r in dtRptCategories.Rows)
@@ -1082,9 +1074,6 @@ public sealed class AppStatus
         var delRoles = sql.DeleteLocalRptUserRolesNotInRemoteKeys(roleKeys);
         if (delRoles.Length != 0)
             batch.Append(delRoles);
-        var delVatRates = sql.DeleteLocalVatRatesNotInRemoteKeys(vatRateKeys);
-        if (delVatRates.Length != 0)
-            batch.Append(delVatRates);
 
         if (batch.Length == 0)
             Log("SyncRemoteControlLookupsCore: no rows to apply (remote empty or all keys blank)");
@@ -1853,9 +1842,9 @@ public sealed class AppStatus
         var baseSales = ComputeDemoDailySales(day, branchCode, channelCode, userroleCode);
         var share = vatRateId switch
         {
-            1 => 0.62m,
-            2 => 0.25m,
-            3 => 0.13m,
+            DemoVatTaxIdBand1 => 0.62m,
+            DemoVatTaxIdBand2 => 0.25m,
+            DemoVatTaxIdBand3 => 0.13m,
             _ => 0.34m
         };
         var mix = (StringComparer.Ordinal.GetHashCode(branchCode + "|" + vatRateId) ^ day.DayOfYear) & 0xFF;

@@ -865,10 +865,6 @@ public sealed class Sql
     public string SelectRemoteRptUserRoles() =>
         "SELECT userrole_code, descr, active, auth_user_id FROM public.rpt_user_roles ORDER BY userrole_code";
 
-    /// <summary>Remote <c>public.vat_rates</c> full row set for lookup sync.</summary>
-    public string SelectRemoteVatRates() =>
-        "SELECT vat_rate_id, descr, vat_rate, active FROM public.vat_rates ORDER BY vat_rate_id";
-
     /// <summary>
     /// PostgreSQL 9.3-safe upsert into local <c>public.rpt_branches</c>: <c>UPDATE</c> then
     /// <c>INSERT ... WHERE NOT EXISTS</c> (no <c>ON CONFLICT</c>).
@@ -906,18 +902,6 @@ public sealed class Sql
             "INSERT INTO public.rpt_user_roles (userrole_code, descr, active, auth_user_id) SELECT " +
             Quote(userroleCode) + ", " + Quote(d) + ", " + Bool(active) + ", " + Int(authUserId) +
             " WHERE NOT EXISTS (SELECT 1 FROM public.rpt_user_roles WHERE userrole_code = " + Quote(userroleCode) + "); ";
-    }
-
-    /// <summary>PostgreSQL 9.3-safe upsert into local <c>public.vat_rates</c>.</summary>
-    public string UpsertLocalVatRate(int vatRateId, string descr, decimal vatRate, bool active)
-    {
-        var d = descr ?? "";
-        return
-            "UPDATE public.vat_rates SET descr = " + Quote(d) + ", vat_rate = " + Num(vatRate) + ", active = " + Bool(active) +
-            ", modified_ts = now() WHERE vat_rate_id = " + Int(vatRateId) + "; " +
-            "INSERT INTO public.vat_rates (vat_rate_id, descr, vat_rate, active) SELECT " +
-            Int(vatRateId) + ", " + Quote(d) + ", " + Num(vatRate) + ", " + Bool(active) +
-            " WHERE NOT EXISTS (SELECT 1 FROM public.vat_rates WHERE vat_rate_id = " + Int(vatRateId) + "); ";
     }
 
     /// <summary>
@@ -994,31 +978,6 @@ public sealed class Sql
                 b.Append(", ");
             any = true;
             b.Append(Quote(code.Trim()));
-        }
-
-        if (!any)
-            return "";
-        b.Append("); ");
-        return b.ToString();
-    }
-
-    /// <summary>
-    /// Deletes local <c>public.vat_rates</c> rows whose <c>vat_rate_id</c> is not in the remote snapshot.
-    /// Returns empty when there are no remote keys to retain (same guard as channels).
-    /// </summary>
-    public string DeleteLocalVatRatesNotInRemoteKeys(IReadOnlyCollection<int> remoteKeys)
-    {
-        if (remoteKeys == null || remoteKeys.Count == 0)
-            return "";
-        var b = new StringBuilder();
-        b.Append("DELETE FROM public.vat_rates WHERE vat_rate_id NOT IN (");
-        var any = false;
-        foreach (var id in remoteKeys)
-        {
-            if (any)
-                b.Append(", ");
-            any = true;
-            b.Append(Int(id));
         }
 
         if (!any)
@@ -1447,7 +1406,7 @@ public sealed class Sql
     /// Per-branch DB: active <c>vat_rate_id</c> values for cartesian VAT seed (must match keys used in facts).
     /// </summary>
     public string SelectBranchDbActiveVatRateIds() =>
-        "SELECT vat_rate_id FROM public.vat_rates WHERE active = TRUE ORDER BY vat_rate_id";
+        "SELECT tax_id AS vat_rate_id FROM public.taxes WHERE active = TRUE AND COALESCE(deleted, FALSE) = FALSE ORDER BY tax_id";
 
     /// <summary>
     /// Remote branch DB: daily sales for one branch (ignores rows whose <c>branch_code</c> does not match).
@@ -1675,7 +1634,7 @@ public sealed class Sql
 
     /// <summary>
     /// Local branch DB: aggregate VAT facts by <c>vat_rate_id</c> for the VAT Summary report.
-    /// Returns net, VAT amount (<c>net * vat_rate</c>), and gross (<c>net * (1 + vat_rate)</c>) per band.
+    /// Returns net, VAT amount (<c>net * rate</c>), and gross (<c>net * (1 + rate)</c>) per band.
     /// Filters use sentinel <c>all</c> (case-insensitive) for unrestricted branch/channel/user role.
     /// </summary>
     public string SelectLocalRptVatAggregatedByVatRate(
@@ -1687,12 +1646,12 @@ public sealed class Sql
     {
         var sb = new StringBuilder(768);
         sb.Append(
-            "SELECT v.vat_rate_id, MAX(COALESCE(vr.descr, '')) AS descr, MAX(vr.vat_rate) AS vat_rate, " +
+            "SELECT v.vat_rate_id, MAX(COALESCE(vr.descr, '')) AS descr, MAX(vr.rate) AS vat_rate, " +
             "SUM(v.net_amount) AS sum_net_amount, " +
-            "SUM(v.net_amount * COALESCE(vr.vat_rate, 0)) AS sum_vat_amount, " +
-            "SUM(v.net_amount * (1 + COALESCE(vr.vat_rate, 0))) AS sum_gross_amount " +
+            "SUM(v.net_amount * COALESCE(vr.rate, 0)) AS sum_vat_amount, " +
+            "SUM(v.net_amount * (1 + COALESCE(vr.rate, 0))) AS sum_gross_amount " +
             "FROM public.rpt_vat v " +
-            "INNER JOIN public.vat_rates vr ON vr.vat_rate_id = v.vat_rate_id AND COALESCE(vr.active, TRUE) = TRUE " +
+            "INNER JOIN public.taxes vr ON vr.tax_id = v.vat_rate_id AND vr.active = TRUE AND COALESCE(vr.deleted, FALSE) = FALSE " +
             "WHERE v.report_date >= ").Append(Date(rangeStart)).Append(" AND v.report_date <= ").Append(Date(rangeEnd));
 
         if (!string.Equals(branchFilterCode?.Trim(), "all", StringComparison.OrdinalIgnoreCase)
