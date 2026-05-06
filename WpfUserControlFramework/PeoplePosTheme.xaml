@@ -210,7 +210,7 @@
     <sys:String x:Key="Rpt.LastRun.HoursAgoFormat">{0} hours ago</sys:String>
     <sys:String x:Key="Rpt.LastRun.DaysAgoFormat">{0} days ago</sys:String>
 
-    <!-- Daily Sales Summary overlay -->
+    <!-- Reports Overlay Header Names -->
     <sys:String x:Key="Rpt.Report.DashEm">—</sys:String>
     <sys:String x:Key="Rpt.Report.DailySales.Title">Daily Sales Summary</sys:String>
     <sys:String x:Key="Rpt.Report.VatSummary.Title">VAT Summary</sys:String>
