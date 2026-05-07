@@ -127,6 +127,12 @@ public sealed partial class RptDashboardMain : UserControl
     /// <summary>Matches <c>public.rpt_reports.report_code</c> for VAT Summary.</summary>
     public const string VatSummaryReportCode = "rpt.vat_summary";
 
+    /// <summary>Matches <c>public.rpt_reports.report_code</c> for Voids Report.</summary>
+    public const string VoidsReportCode = "rpt.voids";
+
+    /// <summary>Matches <c>public.rpt_reports.report_code</c> for Wastage Report.</summary>
+    public const string WastageReportCode = "rpt.wastage";
+
     public RptDashboardMain()
         : this(null, null, null, null)
     {
@@ -401,6 +407,20 @@ public sealed partial class RptDashboardMain : UserControl
     {
         var snapshot = BuildFilterSnapshot();
         RptOverlayContentHost.Content = new RptVatSummaryOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenVoidsReportOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptVoidsReportOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenWastageReportOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptWastageReportOverlay(snapshot, CloseReportOverlay);
         RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
@@ -1487,6 +1507,18 @@ public sealed partial class RptDashboardMain : UserControl
             return;
         }
 
+        if (string.Equals(m.Report.Id, VoidsReportCode, StringComparison.Ordinal))
+        {
+            OpenVoidsReportOverlay();
+            return;
+        }
+
+        if (string.Equals(m.Report.Id, WastageReportCode, StringComparison.Ordinal))
+        {
+            OpenWastageReportOverlay();
+            return;
+        }
+
         InvokeIfNotNull(_onRecentReport, m);
     }
 
@@ -1505,6 +1537,18 @@ public sealed partial class RptDashboardMain : UserControl
         if (string.Equals(m.Report.Id, VatSummaryReportCode, StringComparison.Ordinal))
         {
             OpenVatSummaryOverlay();
+            return;
+        }
+
+        if (string.Equals(m.Report.Id, VoidsReportCode, StringComparison.Ordinal))
+        {
+            OpenVoidsReportOverlay();
+            return;
+        }
+
+        if (string.Equals(m.Report.Id, WastageReportCode, StringComparison.Ordinal))
+        {
+            OpenWastageReportOverlay();
             return;
         }
 

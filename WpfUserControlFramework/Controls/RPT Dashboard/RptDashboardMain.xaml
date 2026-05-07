@@ -2579,6 +2579,8 @@
                             Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='24,24,24,24'}"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
+                            HorizontalContentAlignment="Stretch"
+                            VerticalContentAlignment="Stretch"
                             FocusVisualStyle="{x:Null}"/>
         </Grid>
     </Grid>
