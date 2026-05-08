@@ -1,0 +1,319 @@
+<UserControl x:Class="RestaurantPosWpf.StaffAccessSecurity"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             HorizontalAlignment="Stretch">
+    <UserControl.Resources>
+        <!-- Same keys as StaffAccessUserDetails so this UC works in the designer when opened alone. -->
+        <!-- Match StaffAccessUserDetails Basic info labels. -->
+        <Style x:Key="StaffFormLabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource DimmedForeground}" />
+            <Setter Property="FontSize"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                    Path=FontScale,
+                                    Converter={StaticResource FontScaleConverter},
+                                    ConverterParameter=14}" />
+            <Setter Property="Margin"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource ThicknessScaleConverter},
+                                     ConverterParameter='0,0,0,4'}" />
+        </Style>
+
+        <Style x:Key="StaffPasswordFieldWatermarkStyle" TargetType="TextBlock">
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="Foreground" Value="#9CA3AF" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="FontSize"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                    Path=FontScale,
+                                    Converter={StaticResource FontScaleConverter},
+                                    ConverterParameter=14}" />
+            <Setter Property="Margin"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource ThicknessScaleConverter},
+                                     ConverterParameter='12,0,12,0'}" />
+        </Style>
+
+        <Style x:Key="StaffPasswordInlineErrorStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#DC2626" />
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Setter Property="Margin"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource ThicknessScaleConverter},
+                                     ConverterParameter='0,4,0,0'}" />
+            <Setter Property="FontSize"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                    Path=FontScale,
+                                    Converter={StaticResource FontScaleConverter},
+                                    ConverterParameter=11}" />
+        </Style>
+
+        <Style x:Key="StaffAccessUserCardIconButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource ThicknessScaleConverter},
+                                     ConverterParameter='8,6,8,6'}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="MinWidth"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource LayoutScaleConverter},
+                                     ConverterParameter=36}" />
+            <Setter Property="MinHeight"
+                    Value="{Binding Source={StaticResource UiScaleState},
+                                     Path=FontScale,
+                                     Converter={StaticResource LayoutScaleConverter},
+                                     ConverterParameter=36}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                CornerRadius="{Binding RelativeSource={RelativeSource Self},
+                                                       Path=ActualHeight,
+                                                       Converter={StaticResource CornerRadiusFromHeightConverter},
+                                                       ConverterParameter=8}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F3F4F6" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E5E7EB" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource FocusOuter}" />
+                                <Setter TargetName="Bd" Property="BorderThickness" Value="2" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Stretch"
+                  VerticalContentAlignment="Top"
+                  ClipToBounds="False">
+        <Border Padding="{Binding Source={StaticResource UiScaleState},
+                                  Path=FontScale,
+                                  Converter={StaticResource ThicknessScaleConverter},
+                                  ConverterParameter='10,12,10,12'}">
+            <Grid HorizontalAlignment="Stretch" MinWidth="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="Password"
+                           Style="{StaticResource StaffFormLabelStyle}" />
+
+                <Grid x:Name="GrdNewPwd"
+                      Grid.Row="1"
+                      Margin="{Binding Source={StaticResource UiScaleState},
+                                       Path=FontScale,
+                                       Converter={StaticResource ThicknessScaleConverter},
+                                       ConverterParameter='0,0,0,0'}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid x:Name="GrdNewPwdInputHost"
+                              Grid.Column="0"
+                              MinHeight="0">
+                            <PasswordBox x:Name="PwdNew"
+                                         HorizontalAlignment="Stretch"
+                                         Style="{StaticResource IcEnabledPasswordBoxStyle}"
+                                         PasswordChanged="PwdNew_OnPasswordChanged"
+                                         GotKeyboardFocus="PwdField_OnGotKeyboardFocus"
+                                         LostKeyboardFocus="PwdField_OnLostKeyboardFocus" />
+                            <TextBox x:Name="TxtNewPlain"
+                                     HorizontalAlignment="Stretch"
+                                     Style="{StaticResource IcEnabledTextBoxStyle}"
+                                     Visibility="Collapsed"
+                                     VerticalContentAlignment="Center"
+                                     TextChanged="TxtNewPlain_OnTextChanged"
+                                     GotKeyboardFocus="PwdField_OnGotKeyboardFocus"
+                                     LostKeyboardFocus="PwdField_OnLostKeyboardFocus" />
+                            <TextBlock x:Name="TbWatermarkNew"
+                                       Text="New password"
+                                       Style="{StaticResource StaffPasswordFieldWatermarkStyle}" />
+                        </Grid>
+                        <Button x:Name="BtnToggleNew"
+                                Grid.Column="1"
+                                Style="{StaticResource StaffAccessUserCardIconButtonStyle}"
+                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                 Path=FontScale,
+                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                 ConverterParameter='6,0,0,0'}"
+                                VerticalAlignment="Stretch"
+                                Click="BtnToggleNew_OnClick"
+                                ToolTip="Show password">
+                            <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource LayoutScaleConverter},
+                                                  ConverterParameter=18}"
+                                     Height="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource LayoutScaleConverter},
+                                                      ConverterParameter=18}"
+                                     Stretch="Uniform">
+                                <Canvas x:Name="CanvasNewEye" Width="24" Height="24" SnapsToDevicePixels="True">
+                                    <Path x:Name="PathNewEyeOutline"
+                                          Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
+                                          StrokeThickness="2"
+                                          StrokeLineJoin="Round"
+                                          Fill="Transparent"
+                                          Data="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+                                    <Path x:Name="PathNewEyePupil"
+                                          Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
+                                          StrokeThickness="2"
+                                          Fill="Transparent"
+                                          Data="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z" />
+                                    <Path x:Name="PathNewEyeSlash"
+                                          Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          Visibility="Collapsed"
+                                          Data="M4 4 L20 20" />
+                                </Canvas>
+                            </Viewbox>
+                        </Button>
+                    </Grid>
+                    <TextBlock x:Name="TblPwdNewError"
+                               Grid.Row="1"
+                               Style="{StaticResource StaffPasswordInlineErrorStyle}" />
+                </Grid>
+
+                <TextBlock Grid.Row="2"
+                           Text="Confirm password"
+                           Style="{StaticResource StaffFormLabelStyle}"
+                           Margin="{Binding Source={StaticResource UiScaleState},
+                                            Path=FontScale,
+                                            Converter={StaticResource ThicknessScaleConverter},
+                                            ConverterParameter='0,14,0,0'}" />
+
+                <Grid x:Name="GrdConfirmPwd"
+                      Grid.Row="3"
+                      Margin="{Binding Source={StaticResource UiScaleState},
+                                       Path=FontScale,
+                                       Converter={StaticResource ThicknessScaleConverter},
+                                       ConverterParameter='0,0,0,0'}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid x:Name="GrdConfirmPwdInputHost"
+                              Grid.Column="0"
+                              MinHeight="0">
+                            <PasswordBox x:Name="PwdConfirm"
+                                         HorizontalAlignment="Stretch"
+                                         Style="{StaticResource IcEnabledPasswordBoxStyle}"
+                                         PasswordChanged="PwdConfirm_OnPasswordChanged"
+                                         GotKeyboardFocus="PwdConfirmField_OnGotKeyboardFocus"
+                                         LostKeyboardFocus="PwdConfirmField_OnLostKeyboardFocus" />
+                            <TextBox x:Name="TxtConfirmPlain"
+                                     HorizontalAlignment="Stretch"
+                                     Style="{StaticResource IcEnabledTextBoxStyle}"
+                                     Visibility="Collapsed"
+                                     VerticalContentAlignment="Center"
+                                     TextChanged="TxtConfirmPlain_OnTextChanged"
+                                     GotKeyboardFocus="PwdConfirmField_OnGotKeyboardFocus"
+                                     LostKeyboardFocus="PwdConfirmField_OnLostKeyboardFocus" />
+                            <TextBlock x:Name="TbWatermarkConfirm"
+                                       Text="Confirm password"
+                                       Style="{StaticResource StaffPasswordFieldWatermarkStyle}" />
+                        </Grid>
+                        <Button x:Name="BtnToggleConfirm"
+                                Grid.Column="1"
+                                Style="{StaticResource StaffAccessUserCardIconButtonStyle}"
+                                Margin="{Binding Source={StaticResource UiScaleState},
+                                                 Path=FontScale,
+                                                 Converter={StaticResource ThicknessScaleConverter},
+                                                 ConverterParameter='6,0,0,0'}"
+                                VerticalAlignment="Stretch"
+                                Click="BtnToggleConfirm_OnClick"
+                                ToolTip="Show password">
+                            <Viewbox Width="{Binding Source={StaticResource UiScaleState},
+                                                  Path=FontScale,
+                                                  Converter={StaticResource LayoutScaleConverter},
+                                                  ConverterParameter=18}"
+                                     Height="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource LayoutScaleConverter},
+                                                      ConverterParameter=18}"
+                                     Stretch="Uniform">
+                                <Canvas x:Name="CanvasConfirmEye" Width="24" Height="24" SnapsToDevicePixels="True">
+                                    <Path Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
+                                          StrokeThickness="2"
+                                          StrokeLineJoin="Round"
+                                          Fill="Transparent"
+                                          Data="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+                                    <Path Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
+                                          StrokeThickness="2"
+                                          Fill="Transparent"
+                                          Data="M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z" />
+                                    <Path x:Name="PathConfirmEyeSlash"
+                                          Stroke="{StaticResource Brush.PasswordRevealEyeStroke}"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          Visibility="Collapsed"
+                                          Data="M4 4 L20 20" />
+                                </Canvas>
+                            </Viewbox>
+                        </Button>
+                    </Grid>
+                    <TextBlock x:Name="TblPwdConfirmError"
+                               Grid.Row="1"
+                               Style="{StaticResource StaffPasswordInlineErrorStyle}" />
+                </Grid>
+
+                <TextBlock Grid.Row="4"
+                           Text="Last password change"
+                           Style="{StaticResource StaffFormLabelStyle}"
+                           Margin="{Binding Source={StaticResource UiScaleState},
+                                            Path=FontScale,
+                                            Converter={StaticResource ThicknessScaleConverter},
+                                            ConverterParameter='0,8,0,4'}" />
+                <TextBlock x:Name="TxtLastPasswordChange"
+                           Grid.Row="5"
+                           Foreground="{StaticResource MainForeground}"
+                           FontSize="{Binding Source={StaticResource UiScaleState},
+                                              Path=FontScale,
+                                              Converter={StaticResource FontScaleConverter},
+                                              ConverterParameter=14}"
+                           Text="—" />
+            </Grid>
+        </Border>
+    </ScrollViewer>
+</UserControl>

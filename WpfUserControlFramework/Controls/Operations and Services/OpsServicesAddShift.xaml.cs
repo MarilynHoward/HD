@@ -657,7 +657,7 @@ public partial class OpsServicesAddShift : UserControl
         _closeDialog();
     }
 
-    private static OpsScheduledShift CreateShift(Guid employeeId, DateOnly date, TimeOnly start, TimeOnly end,
+    private static OpsScheduledShift CreateShift(int employeeId, DateOnly date, TimeOnly start, TimeOnly end,
         List<Guid> tableIds, OpsShiftFrequencyKind kind) =>
         new()
         {

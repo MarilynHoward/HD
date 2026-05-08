@@ -148,9 +148,7 @@
                         </StackPanel>
                     </Button>
                     <Button x:Name="PillFloorPlan"
-                            IsEnabled="False"
-                            ToolTipService.ShowDuration="60000"
-                            ToolTip="Coming soon"
+                            Click="PillFloorPlan_Click"
                             Style="{StaticResource OpsSubNavPillButtonStyle}"
                             Margin="{Binding Source={StaticResource UiScaleState},
                                              Path=FontScale,
@@ -312,6 +310,10 @@
                                     </Viewbox>
                                     <TextBlock Text="Today"
                                                VerticalAlignment="Center"
+                                               Padding="{Binding Source={StaticResource UiScaleState},
+                                                                   Path=FontScale,
+                                                                   Converter={StaticResource ThicknessScaleConverter},
+                                                                   ConverterParameter='2,4,1,5'}"
                                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
                                 </StackPanel>
@@ -364,13 +366,21 @@
                             <Button x:Name="BtnAddShift"
                                     Click="BtnAddShift_Click"
                                     Style="{StaticResource VcPrimaryButtonStyle}"
+                                    Height="{Binding Source={StaticResource UiScaleState},
+                                                      Path=FontScale,
+                                                      Converter={StaticResource LayoutScaleConverter},
+                                                      ConverterParameter=30}"
                                     Margin="{Binding Source={StaticResource UiScaleState},
                                                      Path=FontScale,
                                                      Converter={StaticResource ThicknessScaleConverter},
-                                                     ConverterParameter='12,0,0,0'}">
+                                                     ConverterParameter='12,0,16,0'}">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="+"
                                                VerticalAlignment="Center"
+                                               Padding="{Binding Source={StaticResource UiScaleState},
+                                                                   Path=FontScale,
+                                                                   Converter={StaticResource ThicknessScaleConverter},
+                                                                   ConverterParameter='2,4,1,6'}"
                                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                                FontSize="{Binding Source={StaticResource UiScaleState},
                                                                   Path=FontScale,
@@ -378,6 +388,10 @@
                                                                   ConverterParameter=18}"/>
                                     <TextBlock Text=" Add Shift"
                                                VerticalAlignment="Center"
+                                               Padding="{Binding Source={StaticResource UiScaleState},
+                                                                   Path=FontScale,
+                                                                   Converter={StaticResource ThicknessScaleConverter},
+                                                                   ConverterParameter='2,4,1,5'}"
                                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                                FontSize="{Binding Source={StaticResource UiScaleState},
                                                                   Path=FontScale,

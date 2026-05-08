@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace RestaurantPosWpf;
 
@@ -11,23 +12,29 @@ public partial class OpsServicesTableManagement : UserControl
 {
     private sealed class WaiterOption
     {
-        public Guid? Id { get; init; }
+        public int? Id { get; init; }
         public string Label { get; init; } = "";
     }
 
     private readonly Action _navigateToShiftScheduling;
+    private readonly Action _navigateToFloorPlan;
     private readonly Action _openAddTableDialog;
     private readonly Action _openManageFloorsDialog;
     private OpsFloorTable? _selected;
     private OpsFloorTable? _editSnapshot;
     private bool _editing;
+    private Guid? _pendingDeleteTableId;
+    private bool _storeRefreshPosted;
+    private bool _tableMgmtUnloaded;
 
     public OpsServicesTableManagement(
         Action navigateToShiftScheduling,
+        Action navigateToFloorPlan,
         Action openAddTableDialog,
         Action openManageFloorsDialog)
     {
         _navigateToShiftScheduling = navigateToShiftScheduling ?? throw new ArgumentNullException(nameof(navigateToShiftScheduling));
+        _navigateToFloorPlan = navigateToFloorPlan ?? throw new ArgumentNullException(nameof(navigateToFloorPlan));
         _openAddTableDialog = openAddTableDialog ?? throw new ArgumentNullException(nameof(openAddTableDialog));
         _openManageFloorsDialog = openManageFloorsDialog ?? throw new ArgumentNullException(nameof(openManageFloorsDialog));
         InitializeComponent();
@@ -113,6 +120,7 @@ public partial class OpsServicesTableManagement : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        _tableMgmtUnloaded = false;
         OpsServicesStore.EnsureSeeded();
         OpsServicesStore.DataChanged += OnDataChanged;
         HighlightTablePill(true);
@@ -125,12 +133,24 @@ public partial class OpsServicesTableManagement : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        _tableMgmtUnloaded = true;
         TableMgmtBodyScroll.SizeChanged -= TableMgmtBodyScroll_SizeChanged;
         OpsServicesStore.DataChanged -= OnDataChanged;
     }
 
-    private void OnDataChanged(object? sender, EventArgs e) =>
-        Dispatcher.Invoke(RefreshAll);
+    private void OnDataChanged(object? sender, EventArgs e)
+    {
+        if (_tableMgmtUnloaded || _storeRefreshPosted)
+            return;
+        _storeRefreshPosted = true;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _storeRefreshPosted = false;
+            if (_tableMgmtUnloaded)
+                return;
+            RefreshAll();
+        }), DispatcherPriority.DataBind);
+    }
 
     private static List<string> BuildDistinctSortedFloorsFromTables() =>
         OpsServicesStore.GetDistinctFloorNamesForFilter().ToList();
@@ -152,7 +172,7 @@ public partial class OpsServicesTableManagement : UserControl
             return;
         var item = TablesListBox.SelectedItem;
         Dispatcher.BeginInvoke(new Action(() => TablesListBox.ScrollIntoView(item)),
-            System.Windows.Threading.DispatcherPriority.Loaded);
+            DispatcherPriority.Loaded);
     }
 
     /// <summary>Rebuilds floor filter from current tables. Call after <see cref="RefreshAll"/> data changes so new floors appear.</summary>
@@ -290,6 +310,7 @@ public partial class OpsServicesTableManagement : UserControl
 
     private void TablesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        HideTableDeleteInlinePanels();
         if (_editing)
             return;
         _selected = TablesListBox.SelectedItem as OpsFloorTable;
@@ -395,10 +416,13 @@ public partial class OpsServicesTableManagement : UserControl
             _selected.OpsStatus = "Inactive";
     }
 
-    private void BtnEdit_Click(object sender, RoutedEventArgs e)
+    private void BtnEdit_Click(object sender, RoutedEventArgs e) => BeginTableDetailsEdit();
+
+    private void BeginTableDetailsEdit()
     {
         if (_selected == null)
             return;
+        HideTableDeleteInlinePanels();
         _editSnapshot = OpsServicesStore.CloneTable(_selected);
         _editing = true;
         DetFloorPillBorder.Visibility = Visibility.Collapsed;
@@ -410,7 +434,8 @@ public partial class OpsServicesTableManagement : UserControl
         DetWaiterReadOnly.Visibility = Visibility.Collapsed;
         DetWaiter.Visibility = Visibility.Visible;
         DetActiveReadOnlyRow.Visibility = Visibility.Collapsed;
-        DetActive.Visibility = Visibility.Visible;
+        DetActiveEditPanel.Visibility = Visibility.Visible;
+        TxtActiveStatusSectionLabel.Visibility = Visibility.Collapsed;
         DetName.IsReadOnly = false;
         DetFloor.IsEnabled = true;
         DetSeats.IsReadOnly = false;
@@ -433,6 +458,11 @@ public partial class OpsServicesTableManagement : UserControl
         _editSnapshot = null;
         ExitEditUi();
         OpsServicesStore.NotifyDataChanged();
+        if (_selected != null)
+        {
+            TablesListBox.SelectedItem = _selected;
+            ScrollSelectedTableIntoView();
+        }
     }
 
     private void BtnCancelEdit_Click(object sender, RoutedEventArgs e)
@@ -445,6 +475,7 @@ public partial class OpsServicesTableManagement : UserControl
 
     private void ExitEditUi()
     {
+        HideTableDeleteInlinePanels();
         _editing = false;
         DetName.IsReadOnly = true;
         DetFloor.IsEnabled = false;
@@ -460,8 +491,9 @@ public partial class OpsServicesTableManagement : UserControl
         DetSeatsReadOnly.Visibility = Visibility.Visible;
         DetWaiter.Visibility = Visibility.Collapsed;
         DetWaiterReadOnly.Visibility = Visibility.Visible;
-        DetActive.Visibility = Visibility.Collapsed;
+        DetActiveEditPanel.Visibility = Visibility.Collapsed;
         DetActiveReadOnlyRow.Visibility = Visibility.Visible;
+        TxtActiveStatusSectionLabel.Visibility = Visibility.Visible;
         BtnEdit.Visibility = Visibility.Visible;
         BtnSave.Visibility = Visibility.Collapsed;
         BtnCancelEdit.Visibility = Visibility.Collapsed;
@@ -470,20 +502,65 @@ public partial class OpsServicesTableManagement : UserControl
             PushDetailFromModel();
     }
 
+    private void HideTableDeleteInlinePanels()
+    {
+        DeleteTableBlockedByShiftsPanel.Visibility = Visibility.Collapsed;
+        DeleteTableConfirmPanel.Visibility = Visibility.Collapsed;
+        _pendingDeleteTableId = null;
+    }
+
     private void BtnDelete_Click(object sender, RoutedEventArgs e)
     {
-        if (_selected == null)
+        if (_selected == null || _editing)
             return;
-        if (MessageBox.Show(Window.GetWindow(this),
-                $"Delete {_selected.Name}?",
-                "Delete Table",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning) != MessageBoxResult.Yes)
-            return;
+        HideTableDeleteInlinePanels();
+        var tableName = _selected.Name;
         var id = _selected.Id;
+        var shiftCount = OpsServicesStore.GetBookedShiftCountForTable(id);
+        if (shiftCount > 0)
+        {
+            TxtDeleteTableBlockedTitle.Text = shiftCount == 1
+                ? $"\"{tableName}\" has a shift booked against it. This table cannot be deleted."
+                : $"\"{tableName}\" has {shiftCount} shifts booked against it. This table cannot be deleted.";
+            DeleteTableBlockedByShiftsPanel.Visibility = Visibility.Visible;
+            return;
+        }
+
+        _pendingDeleteTableId = id;
+        TxtDeleteTableConfirmMessage.Text = $"Delete \"{tableName}\"?";
+        DeleteTableConfirmPanel.Visibility = Visibility.Visible;
+    }
+
+    private void BtnCancelDeleteTableConfirm_Click(object sender, RoutedEventArgs e) =>
+        HideTableDeleteInlinePanels();
+
+    private void BtnConfirmDeleteTable_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pendingDeleteTableId is not { } id)
+        {
+            HideTableDeleteInlinePanels();
+            return;
+        }
+
+        if (_selected == null || _selected.Id != id)
+        {
+            HideTableDeleteInlinePanels();
+            return;
+        }
+
+        HideTableDeleteInlinePanels();
         OpsServicesStore.RemoveTable(id);
         _selected = null;
         TablesListBox.SelectedItem = null;
+    }
+
+    private void BtnDismissDeleteBlockedByShifts_Click(object sender, RoutedEventArgs e) =>
+        HideTableDeleteInlinePanels();
+
+    private void BtnEditTableFromDeleteBlocked_Click(object sender, RoutedEventArgs e)
+    {
+        HideTableDeleteInlinePanels();
+        BeginTableDetailsEdit();
     }
 
     private void BtnAddFloor_Click(object sender, RoutedEventArgs e) => _openManageFloorsDialog();
@@ -494,6 +571,12 @@ public partial class OpsServicesTableManagement : UserControl
     {
         HighlightTablePill(false);
         _navigateToShiftScheduling();
+    }
+
+    private void PillFloor_Click(object sender, RoutedEventArgs e)
+    {
+        HighlightTablePill(false);
+        _navigateToFloorPlan();
     }
 
     private void HighlightTablePill(bool tableSelected)

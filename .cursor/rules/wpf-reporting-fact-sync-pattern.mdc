@@ -1,0 +1,52 @@
+---
+description: Standard pattern for branch reporting fact tables — dev seed, peer replication into local DB, and independent incremental cursors
+alwaysApply: false
+---
+
+# Reporting fact data — seed, peer sync, and cursors
+
+Use this when adding a new **reporting fact** table (e.g. `public.rpt_*`) that follows the same model as `rpt_daily_sales` and `rpt_vat`: facts are stored per **branch database**; the **local** branch database consolidates **peer** branches; **POS_CONTROL** holds lookups only, not these fact rows.
+
+**`public.taxes`** is not copied by the app’s POS_CONTROL→local lookup sync (`SyncRemoteControlLookupsCore`); it is maintained by a separate job/process.
+
+## DDL and SQL (PostgreSQL 9.3)
+
+- Use a clear **grain** and composite primary key (typically `report_date`, `branch_code`, `channel_code`, `userrole_code`, plus fact-specific key columns as needed).
+- Include **`modified_ts`** (and optional `created_ts`) on every fact table so peer sync can do incremental pulls by timestamp.
+- **All** runtime SQL lives in `WpfUserControlFramework/Utils/Sql.cs` with PG 9.3-safe patterns (no `ON CONFLICT`, etc.); see `wpf-postgresql-appstatus-pattern.mdc`.
+- Migrations live under `WpfUserControlFramework/Migrations/`. Prefer **`wpf-postgresql-migration-odbc.mdc`** when the client runs DDL via ODBC (no `DO $$` blocks). The app does not run DDL at runtime.
+
+## Dev seed (`SeedDummyDataOnStartup`)
+
+- Add a `SeedRemoteBranchRpt*Core` method in `AppStatus` that:
+  - Reads active branch codes from the **local** DB via `sql.SelectLocalRptBranchCodesActive()`.
+  - For each branch, connects to that branch’s server with `ServerConnectionstring(branchCode)`.
+  - Wipes the fact table on that server (`TRUNCATE` with `DELETE` fallback, same as existing reports).
+  - Inserts a deterministic **Cartesian product** over the date range and **dimension** keys read from that branch DB (channels, user roles, VAT bands, etc. via `sql.SelectBranchDb*()` helpers).
+- Invoke the seed from the same reporting pipeline as the existing seeds (see `SyncRemoteControlLookupsCore` when `SeedDummyDataOnStartup` is true).
+
+## Peer replication into the local branch DB
+
+- Add `SyncRemoteRpt*IntoLocalCore(localCn)` plus `SyncOnePeerBranchRpt*` mirroring `SyncRemoteRptDailySalesIntoLocalCore` / `SyncOnePeerBranchRptDailySales`:
+  - Enumerate peers from `sql.SelectLocalRptBranchCodesActive()` and **exclude** `propertyBranchCode` (home branch is authoritative on this machine).
+  - For each peer, connect with `ServerConnectionstring(peerBranch)`, read remote rows, apply **`DELETE` for that peer’s `branch_code` slice** on full reconcile, then bulk `INSERT` or per-row **UPDATE + INSERT WHERE NOT EXISTS** for incremental mode.
+  - Use **`AppStatus._rptSyncIncrementalFullReconcileDays`** for periodic full reload vs incremental by `modified_ts`.
+
+## Peer replication state (`rpt_replication_peer_state`)
+
+- **Never share** one pair of `last_remote_max_modified_ts` / `last_full_reconcile_utc` columns between two different fact tables — incremental cursors will corrupt each other.
+- **Options:**
+  1. Add **dataset-specific nullable columns** (e.g. `vat_last_remote_max_modified_ts`, `vat_last_full_reconcile_utc` for `rpt_vat`), with separate `UpsertRptReplicationPeerState*` methods that **UPDATE only their columns** (plus `last_success_sync_utc` when appropriate), and **INSERT** rows with `NULL` for the other dataset’s columns when the row is first created.
+  2. For many facts, prefer a normalized table keyed by `(source_branch_code, dataset_code)` (design before migrating).
+
+- Extend `sql.SelectRptReplicationPeerState` whenever new cursor columns are added so callers can read them.
+
+## Read queries for UI
+
+- Add aggregated `sql.SelectLocalRpt*...` methods for dashboard/report controls; keep filter semantics aligned with existing reports (sentinel `"all"` for unrestricted filters where applicable).
+- If VAT **amount** and **gross** are not stored, derive them when reading by joining `taxes` (`vat_amount ≈ net * rate`, `gross ≈ net * (1 + rate)` for standard bands).
+
+## Reference implementation
+
+- Daily sales: `SeedRemoteBranchRptDailySalesCore`, `SyncRemoteRptDailySalesIntoLocalCore`, `UpsertLocalRptDailySalesRow`, `UpsertRptReplicationPeerState`.
+- VAT: `SeedRemoteBranchRptVatCore`, `SyncRemoteRptVatIntoLocalCore`, `UpsertRptReplicationPeerStateVat`, `SelectLocalRptVatAggregatedByVatRate`.

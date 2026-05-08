@@ -1,0 +1,40 @@
+---
+description: PostgreSQL migration scripts executed via the client ODBC stack — avoid procedural blocks and patterns that crash or fail the driver
+alwaysApply: true
+---
+
+# Migration scripts and ODBC execution
+
+The client runs DDL migrations **through ODBC** (not only `psql`). Scripts MUST stay compatible with that path.
+
+## Avoid (common ODBC failures)
+
+- **`DO $$ ... $$` anonymous PL/pgSQL blocks** — often unsupported or unstable when executed via ODBC (driver/parser aborts, protocol limits, or single-statement assumptions). **Do not use `DO` blocks in files under `WpfUserControlFramework/Migrations/`** intended for ODBC deployment.
+- **Dollar-quoted bodies** (`$$…$$`) in general when the runner splits or sanitizes `;` incorrectly — prefer plain SQL without nested procedural shells.
+- **`CREATE FUNCTION … LANGUAGE plpgsql` with `$$` bodies** — same risk as above for some ODBC runners. For **client seed helpers** that must ship as SQL files, prefer **`LANGUAGE sql`** with a **single-quoted** function body (no semicolons inside the body) when the logic fits; see `2026-05-05_client_rpt_vat_functions.sql`.
+
+## Use instead
+
+- **Plain DDL**, one clear statement per logical step, for example:
+  - `ALTER TABLE public.<t> ADD COLUMN <c> <type> ...;`
+  - `CREATE INDEX ...` / `CREATE TABLE IF NOT EXISTS ...` where appropriate for 9.3.
+- **Separate statements** for each column or index so drivers can submit predictable batches.
+- **Wrapping transaction**: `ROLLBACK; BEGIN;` … `COMMIT;` remains fine when the ODBC layer executes the script as a single batch (match whatever the client migrator expects).
+
+## Idempotency vs ODBC
+
+PostgreSQL 9.3 **cannot** express `ADD COLUMN IF NOT EXISTS`. Idempotent `DO $$ … IF NOT EXISTS … ALTER …` is appropriate **only for psql/manual DBA runs**, not for ODBC migrations.
+
+For ODBC-delivered migrations:
+
+- Prefer **one-time `ALTER TABLE ADD COLUMN`** scripts documented as **run once per database**.
+- If a column might already exist, resolution belongs **outside** the SQL file (migration runner ignores duplicate-column errors, or DBA runs a guarded script manually via psql).
+
+## PostgreSQL 9.3
+
+All DDL must still target **PostgreSQL 9.3** — see `wpf-postgresql-appstatus-pattern.mdc`. Runtime `Sql.cs` rules are unchanged.
+
+## Reference
+
+- ODBC-safe VAT peer-state example: `WpfUserControlFramework/Migrations/2026-05-05_rpt_replication_peer_state_vat.sql`
+- ODBC-oriented VAT **client seed** (functions + initial / daily upsert): `2026-05-05_client_rpt_vat_functions.sql`, `2026-05-05_client_rpt_vat_seed_initial.sql`, `2026-05-05_client_rpt_vat_seed_yesterday.sql`

@@ -17,6 +17,10 @@ namespace RestaurantPosWpf
         private bool _isInitializing = true;
         private bool _defaultScaleApplied;
 
+        private OpsServicesShiftScheduling _opsShiftSchedulingControl;
+        private OpsServicesTableManagement _opsTableManagementControl;
+        private OpsServicesFloorPlanDesign _opsFloorPlanDesignControl;
+
         public DashboardWindow()
         {
             InitializeComponent();
@@ -56,6 +60,8 @@ namespace RestaurantPosWpf
                     onRequestUploadDialog: ShowUploadDialog
                 )),
                 new NavItem("Operations and Services", "Shift Scheduling", () => BuildOpsShiftScheduling()),
+                new NavItem("Staff and Access", "User details", () => new StaffAccessUserDetails()),
+                new NavItem("Reporting", "Dashboard", () => BuildRptDashboard()),
             };
 
             // Build distinct category list preserving registration order
@@ -229,6 +235,32 @@ namespace RestaurantPosWpf
                 onViewDiscrepancies: context => NavigateToDiscrepancies(context));
         }
 
+        private RptDashboardMain BuildRptDashboard()
+        {
+            return new RptDashboardMain(
+                onRecentlyUsedReportActivated: row =>
+                    MessageBox.Show(
+                        this,
+                        $"Opening: {row.Report.DisplayName}\r\nCode: {row.Report.Id}",
+                        "Reporting",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information),
+                onAttentionNeededActivated: row =>
+                    MessageBox.Show(
+                        this,
+                        $"Attention — {row.Report.DisplayName}\r\nCode: {row.Report.Id}",
+                        "Reporting",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information),
+                onBrowseGroupingActivated: tile =>
+                    MessageBox.Show(
+                        this,
+                        $"Browse group: {tile.Title}\r\nId: {tile.GroupId}",
+                        "Reporting",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information));
+        }
+
         private ProcurementPOrders BuildPurchaseOrdersControl()
         {
             return new ProcurementPOrders(
@@ -284,19 +316,66 @@ namespace RestaurantPosWpf
 
         private OpsServicesShiftScheduling BuildOpsShiftScheduling()
         {
-            return new OpsServicesShiftScheduling(
+            _opsShiftSchedulingControl ??= new OpsServicesShiftScheduling(
                 navigateToTableManagement: NavigateToOpsTableManagement,
+                navigateToFloorPlan: NavigateToOpsFloorPlan,
                 openAddShiftDialog: ShowOpsAddShiftDialog);
+            return _opsShiftSchedulingControl;
         }
 
         private OpsServicesTableManagement BuildOpsTableManagement()
         {
-            return new OpsServicesTableManagement(
+            _opsTableManagementControl ??= new OpsServicesTableManagement(
                 navigateToShiftScheduling: () =>
                     NavigateTo(_navItems.First(i =>
                         i.Category == "Operations and Services" && i.Label == "Shift Scheduling")),
+                navigateToFloorPlan: NavigateToOpsFloorPlan,
                 openAddTableDialog: ShowOpsAddTableDialog,
                 openManageFloorsDialog: ShowOpsManageFloorsDialog);
+            return _opsTableManagementControl;
+        }
+
+        private OpsServicesFloorPlanDesign BuildOpsFloorPlanDesign()
+        {
+            _opsFloorPlanDesignControl ??= new OpsServicesFloorPlanDesign(
+                navigateToShiftScheduling: () =>
+                    NavigateTo(_navItems.First(i =>
+                        i.Category == "Operations and Services" && i.Label == "Shift Scheduling")),
+                navigateToTableManagement: NavigateToOpsTableManagement,
+                openReservationsManagement: ShowOpsReservationsManagementDialog);
+            return _opsFloorPlanDesignControl;
+        }
+
+        private void ShowOpsReservationsManagementDialog(
+            string? floorName,
+            DateOnly date,
+            OpsReservationListFilter listFilter,
+            string? reservationSearchTrimmed,
+            Guid? focusReservationId = null)
+        {
+            if (string.IsNullOrWhiteSpace(floorName))
+                return;
+
+            Window? w = null;
+            var dlg = new OpsServicesReservationsManagement(
+                () => w?.Close(),
+                floorName,
+                date,
+                listFilter,
+                reservationSearchTrimmed,
+                focusReservationId);
+            w = CreateOpsModalWindow(dlg);
+            var wa = SystemParameters.WorkArea;
+            w.SizeToContent = SizeToContent.Manual;
+            w.Width = Math.Min(wa.Width * 0.52, 720);
+            w.Height = Math.Min(Math.Max(620, wa.Height * 0.90), wa.Height * 0.94);
+            w.MinWidth = 480;
+            w.MinHeight = 560;
+            w.MaxWidth = Math.Min(wa.Width * 0.58, 880);
+            w.MaxHeight = wa.Height * 0.94;
+            ScrimOverlay.Visibility = Visibility.Visible;
+            w.ShowDialog();
+            ScrimOverlay.Visibility = Visibility.Collapsed;
         }
 
         private void NavigateToOpsTableManagement()
@@ -304,6 +383,19 @@ namespace RestaurantPosWpf
             var opsNav = _navItems.First(i =>
                 i.Category == "Operations and Services" && i.Label == "Shift Scheduling");
             ContentArea.Content = BuildOpsTableManagement();
+            _selectedNavItem = opsNav;
+            foreach (var child in NavButtonPanel.Children.OfType<Button>())
+            {
+                var navTag = child.DataContext as NavItem;
+                child.Tag = navTag == _selectedNavItem ? "Selected" : navTag;
+            }
+        }
+
+        private void NavigateToOpsFloorPlan()
+        {
+            var opsNav = _navItems.First(i =>
+                i.Category == "Operations and Services" && i.Label == "Shift Scheduling");
+            ContentArea.Content = BuildOpsFloorPlanDesign();
             _selectedNavItem = opsNav;
             foreach (var child in NavButtonPanel.Children.OfType<Button>())
             {
@@ -346,11 +438,7 @@ namespace RestaurantPosWpf
             var dlg = new OpsServicesManageFloors(() => w?.Close());
             w = CreateOpsModalWindow(dlg);
             var wa = SystemParameters.WorkArea;
-            w.SizeToContent = SizeToContent.Manual;
-            w.Width = Math.Min(wa.Width * 0.42, 560);
-            w.Height = Math.Min(Math.Max(520, wa.Height * 0.72), wa.Height * 0.9);
             w.MinWidth = 400;
-            w.MinHeight = 440;
             w.MaxWidth = Math.Min(wa.Width * 0.5, 640);
             w.MaxHeight = wa.Height * 0.92;
             ScrimOverlay.Visibility = Visibility.Visible;
@@ -364,12 +452,7 @@ namespace RestaurantPosWpf
             var dlg = new OpsServicesAddTable(() => w?.Close());
             w = CreateOpsModalWindow(dlg);
             var wa = SystemParameters.WorkArea;
-            // Tall, narrow modal (client layout); explicit size so the form ScrollViewer (* row) gets a real height.
-            w.SizeToContent = SizeToContent.Manual;
-            w.Width = Math.Min(wa.Width * 0.40, 520);
-            w.Height = Math.Min(Math.Max(560, wa.Height * 0.82), wa.Height * 0.92);
             w.MinWidth = 400;
-            w.MinHeight = 480;
             w.MaxWidth = Math.Min(wa.Width * 0.48, 600);
             w.MaxHeight = wa.Height * 0.92;
             ScrimOverlay.Visibility = Visibility.Visible;

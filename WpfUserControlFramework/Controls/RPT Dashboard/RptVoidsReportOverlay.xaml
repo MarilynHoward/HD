@@ -74,7 +74,7 @@
                                Foreground="{StaticResource MainForeground}"
                                TextWrapping="Wrap"/>
 
-                    <TextBlock Text="Recently Used"
+                    <TextBlock Text="{DynamicResource Rpt.Report.Voids.Subtitle}"
                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,6'}"
                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"
                                Foreground="{StaticResource DimmedForeground}"

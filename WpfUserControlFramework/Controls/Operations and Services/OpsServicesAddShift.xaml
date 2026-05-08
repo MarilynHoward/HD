@@ -247,13 +247,10 @@
                                      Converter={StaticResource ThicknessScaleConverter},
                                      ConverterParameter='0,0,0,8'}"/>
 
-            <!-- Form: single ScrollViewer (no nested scroll in table list — avoids clipped last rows) -->
-            <ScrollViewer Grid.Row="2"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled"
-                          CanContentScroll="False"
-                          FocusVisualStyle="{x:Null}"
-                          SnapsToDevicePixels="True"
+            <!-- Form: single ScrollViewer (no nested scroll in table list — avoids clipped last rows). Nested ScrollViewer under monthly calendar only: bounded calendar viewport. -->
+            <ScrollViewer x:Name="BodyScrollViewer"
+                          Grid.Row="2"
+                          Style="{StaticResource IcPopupShellBodyScrollViewerStyle}"
                           MaxHeight="{Binding Source={StaticResource UiScaleState},
                                               Path=FontScale,
                                               Converter={StaticResource LayoutScaleConverter},
