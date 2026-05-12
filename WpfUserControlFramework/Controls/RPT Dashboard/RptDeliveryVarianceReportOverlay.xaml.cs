@@ -33,18 +33,12 @@ public sealed class DeliveryVarianceReportRow
 /// </summary>
 public partial class RptDeliveryVarianceReportOverlay : UserControl
 {
-    private static readonly Brush s_negFg = new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26));
-    private static readonly Brush s_posFg = new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A));
+    private static readonly Brush FallbackReportNegFg = CreateFrozenSolid(0xDC, 0x26, 0x26);
+    private static readonly Brush FallbackReportPosFg = CreateFrozenSolid(0x22, 0xC5, 0x5E);
     private readonly RptDashboardFilterSnapshot _filters;
     private readonly Action _onClose;
     private readonly ObservableCollection<DeliveryVarianceReportRow> _rows = new();
     private DateTime _generatedAt;
-
-    static RptDeliveryVarianceReportOverlay()
-    {
-        s_negFg.Freeze();
-        s_posFg.Freeze();
-    }
 
     public RptDeliveryVarianceReportOverlay(RptDashboardFilterSnapshot filters, Action onClose)
     {
@@ -119,11 +113,24 @@ public partial class RptDeliveryVarianceReportOverlay : UserControl
     {
         tb.Foreground = v switch
         {
-            < 0 => s_negFg,
-            > 0 => s_posFg,
+            < 0 => ReportSignBrushNeg(),
+            > 0 => ReportSignBrushPos(),
             _ => Application.Current.TryFindResource("MainForeground") as Brush ?? Brushes.Black,
         };
     }
+
+    private static SolidColorBrush CreateFrozenSolid(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Brush ReportSignBrushNeg() =>
+            Application.Current?.TryFindResource("Brush.RptReportNegativeForeground") as Brush ?? FallbackReportNegFg;
+
+    private static Brush ReportSignBrushPos() =>
+            Application.Current?.TryFindResource("Brush.RptReportPositiveForeground") as Brush ?? FallbackReportPosFg;
 
     private void DeliveryVarianceListScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e) =>
             Dispatcher.BeginInvoke(new Action(ApplyTableColumnWidth), DispatcherPriority.Render);

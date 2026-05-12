@@ -77,7 +77,7 @@ public partial class RptLowStockItemsReportOverlay : UserControl
     private void ReloadData()
     {
         _generatedAt = DateTime.Now;
-        TxtGenerated.Text = FormatGeneratedCaption(_generatedAt);
+        TxtGenerated.Text = _generatedAt.ToString("yyyy/MM/dd HH:mm", CultureInfo.CurrentCulture);
 
         var nfi = CloneReportNumberFormat();
         var ok = Application.Current.TryFindResource("Rpt.Report.StockStatus.Ok") as string ?? "OK";

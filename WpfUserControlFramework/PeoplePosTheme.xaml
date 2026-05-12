@@ -198,6 +198,10 @@
     <!-- Active chevron on dashboard cards (muted path uses Brush.BorderGrey) -->
     <SolidColorBrush x:Key="Brush.RptChevronStrong" Color="#334155"/>
 
+    <!-- RPT report overlays: signed / semantic positive & negative text (and matching trend strokes where used) -->
+    <SolidColorBrush x:Key="Brush.RptReportPositiveForeground" Color="#22C55E"/>
+    <SolidColorBrush x:Key="Brush.RptReportNegativeForeground" Color="#DC2626"/>
+
     <!-- RptDashboardMain: filter sentinel labels + empty last-run text (not hard-coded in code-behind) -->
     <sys:String x:Key="Rpt.Filter.AllBranchesCaption">All branches</sys:String>
     <sys:String x:Key="Rpt.Filter.AllChannelsCaption">All channels</sys:String>
@@ -215,6 +219,12 @@
     <sys:String x:Key="Rpt.Report.DashEm">—</sys:String>
     <sys:String x:Key="Rpt.Report.DailySales.Title">Daily Sales Summary</sys:String>
     <sys:String x:Key="Rpt.Report.VatSummary.Title">VAT Summary</sys:String>
+    <sys:String x:Key="Rpt.Report.SalesByCategory.Title">Sales by Category</sys:String>
+    <sys:String x:Key="Rpt.Report.SalesByCategory.Subtitle">Sales Reports</sys:String>
+    <sys:String x:Key="Rpt.Report.SalesByProduct.Title">Sales by Product</sys:String>
+    <sys:String x:Key="Rpt.Report.SalesByProduct.Subtitle">Sales Reports</sys:String>
+    <sys:String x:Key="Rpt.Report.SalesByOrderType.Title">Sales by Order Type</sys:String>
+    <sys:String x:Key="Rpt.Report.SalesByOrderType.Subtitle">Sales Reports</sys:String>
     <sys:String x:Key="Rpt.Report.Voids.Title">Voids Report</sys:String>
     <sys:String x:Key="Rpt.Report.Voids.Subtitle">Attention Needed</sys:String>
     <sys:String x:Key="Rpt.Report.HighValueVoids.Title">Voids Report</sys:String>
@@ -253,6 +263,17 @@
     <sys:String x:Key="Rpt.Report.Column.NetAmount">Net Amount</sys:String>
     <sys:String x:Key="Rpt.Report.Column.VatAmount">VAT Amount</sys:String>
     <sys:String x:Key="Rpt.Report.Column.GrossAmount">Gross Amount</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Category">Category</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Items">Items</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Product">Product</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.OrderType">Order Type</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Orders">Orders</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Quantity">Quantity</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Revenue">Revenue</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Percentage">Percentage</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.AvgOrder">Avg Order</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.AvgPrice">Avg Price</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Margin">Margin</sys:String>
     <sys:String x:Key="Rpt.Report.Column.Time">Time</sys:String>
     <sys:String x:Key="Rpt.Report.Column.Transaction">Transaction</sys:String>
     <sys:String x:Key="Rpt.Report.Column.Amount">Amount</sys:String>
@@ -281,6 +302,24 @@
     <sys:String x:Key="Rpt.Report.StubPrintBody">Printing is not available in this build.</sys:String>
     <sys:String x:Key="Rpt.Report.StubExportTitle">Export</sys:String>
     <sys:String x:Key="Rpt.Report.StubExportBody">Export is not available in this build.</sys:String>
+
+    <sys:String x:Key="Rpt.BrowseSales.AvailableCountFormat">{0} available reports</sys:String>
+    <sys:String x:Key="Rpt.BrowseSales.Subtitle.rpt.daily_sales">Complete daily sales breakdown</sys:String>
+    <sys:String x:Key="Rpt.BrowseSales.Subtitle.rpt.sales_by_product">Product-level sales analysis</sys:String>
+    <sys:String x:Key="Rpt.BrowseSales.Subtitle.rpt.sales_by_category">Category performance overview</sys:String>
+    <sys:String x:Key="Rpt.BrowseSales.Subtitle.rpt.sales_by_order_type">Breakdown by order type</sys:String>
+    <sys:String x:Key="Rpt.BrowseSales.Subtitle.rpt.vat_summary">SARS-ready VAT report</sys:String>
+
+    <SolidColorBrush x:Key="Brush.RptBrowseSalesStar" Color="#FFC107"/>
+    <SolidColorBrush x:Key="Brush.RptBrowseSalesCardBorder" Color="#E0E0E0"/>
+
+    <!-- Lucide chart-column (Sales browse header + bar_chart reports). -->
+    <GeometryGroup x:Key="Geom.RptDashboardBarChart">
+        <PathGeometry Figures="M3 3 v16 a2 2 0 0 0 2 2 h16"/>
+        <PathGeometry Figures="M18 17 V9"/>
+        <PathGeometry Figures="M13 17 V5"/>
+        <PathGeometry Figures="M8 17 v-3"/>
+    </GeometryGroup>
 
     <Geometry x:Key="Geom.RptDashboardChevronRight">
         M11,9 L17,17 L11,25

@@ -145,6 +145,15 @@ public sealed partial class RptDashboardMain : UserControl
     /// <summary>Matches <c>public.rpt_reports.report_code</c> for Wastage Report.</summary>
     public const string WastageReportCode = "rpt.wastage";
 
+    /// <summary>Browse category code for Sales Reports tile.</summary>
+    public const string SalesBrowseGroupId = "grp.sales";
+
+    public const string SalesByCategoryReportCode = "rpt.sales_by_category";
+
+    public const string SalesByProductReportCode = "rpt.sales_by_product";
+
+    public const string SalesByOrderTypeReportCode = "rpt.sales_by_order_type";
+
     public RptDashboardMain()
         : this(null, null, null, null)
     {
@@ -462,6 +471,119 @@ public sealed partial class RptDashboardMain : UserControl
         var snapshot = BuildFilterSnapshot();
         RptOverlayContentHost.Content = new RptWastageReportOverlay(snapshot, CloseReportOverlay);
         RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenSalesByCategoryOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptSalesByCategoryOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenSalesByProductOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptSalesByProductOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenSalesByOrderTypeOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptSalesByOrderTypeOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenSalesBrowsePicker(BrowseGroupTile group)
+    {
+        ArgumentNullException.ThrowIfNull(group);
+        var recentIds = RecentReports.Select(r => r.Report.Id).ToList();
+        RptOverlayContentHost.Content = new RptBrowseSalesReportsOverlay(
+                group,
+                recentIds,
+                CloseReportOverlay,
+                report =>
+                {
+                    CloseReportOverlay();
+                    TryRecordReportAccess(report.Id);
+                    if (!TryOpenKnownReportOverlay(report.Id))
+                    {
+                        // Sales picker only lists catalog reports; unknown codes are ignored.
+                    }
+                });
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Opens a built-in report overlay when <paramref name="reportId"/> is known; otherwise returns false.</summary>
+    private bool TryOpenKnownReportOverlay(string reportId)
+    {
+        if (string.Equals(reportId, DailySalesReportCode, StringComparison.Ordinal))
+        {
+            OpenDailySalesOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, VatSummaryReportCode, StringComparison.Ordinal))
+        {
+            OpenVatSummaryOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, VoidsReportCode, StringComparison.Ordinal))
+        {
+            OpenVoidsReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, HighValueVoidsReportCode, StringComparison.Ordinal))
+        {
+            OpenHighValueVoidsReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, LowStockItemsReportCode, StringComparison.Ordinal))
+        {
+            OpenLowStockItemsReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, DeliveryVarianceReportCode, StringComparison.Ordinal))
+        {
+            OpenDeliveryVarianceReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, TillBalanceReportCode, StringComparison.Ordinal))
+        {
+            OpenTillDrawerVarianceReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, WastageReportCode, StringComparison.Ordinal))
+        {
+            OpenWastageReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, SalesByCategoryReportCode, StringComparison.Ordinal))
+        {
+            OpenSalesByCategoryOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, SalesByProductReportCode, StringComparison.Ordinal))
+        {
+            OpenSalesByProductOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, SalesByOrderTypeReportCode, StringComparison.Ordinal))
+        {
+            OpenSalesByOrderTypeOverlay();
+            return true;
+        }
+
+        return false;
     }
 
     public ObservableCollection<RecentUsedRow> RecentReports { get; } = new();
@@ -1535,55 +1657,8 @@ public sealed partial class RptDashboardMain : UserControl
             return;
 
         TryRecordReportAccess(m.Report.Id);
-        if (string.Equals(m.Report.Id, DailySalesReportCode, StringComparison.Ordinal))
-        {
-            OpenDailySalesOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, VatSummaryReportCode, StringComparison.Ordinal))
-        {
-            OpenVatSummaryOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, VoidsReportCode, StringComparison.Ordinal))
-        {
-            OpenVoidsReportOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, HighValueVoidsReportCode, StringComparison.Ordinal))
-        {
-            OpenHighValueVoidsReportOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, LowStockItemsReportCode, StringComparison.Ordinal))
-        {
-            OpenLowStockItemsReportOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, DeliveryVarianceReportCode, StringComparison.Ordinal))
-        {
-            OpenDeliveryVarianceReportOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, TillBalanceReportCode, StringComparison.Ordinal))
-        {
-            OpenTillDrawerVarianceReportOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, WastageReportCode, StringComparison.Ordinal))
-        {
-            OpenWastageReportOverlay();
-            return;
-        }
-
-        InvokeIfNotNull(_onRecentReport, m);
+        if (!TryOpenKnownReportOverlay(m.Report.Id))
+            InvokeIfNotNull(_onRecentReport, m);
     }
 
     private void AttentionItem_Click(object sender, RoutedEventArgs e)
@@ -1592,55 +1667,19 @@ public sealed partial class RptDashboardMain : UserControl
             return;
 
         TryRecordReportAccess(m.Report.Id);
-        if (string.Equals(m.Report.Id, DailySalesReportCode, StringComparison.Ordinal))
+        if (!TryOpenKnownReportOverlay(m.Report.Id))
+            InvokeIfNotNull(_onAttentionItem, m);
+    }
+
+    private void HandleBrowseGroupActivation(BrowseGroupTile g)
+    {
+        if (string.Equals(g.GroupId, SalesBrowseGroupId, StringComparison.Ordinal))
         {
-            OpenDailySalesOverlay();
+            OpenSalesBrowsePicker(g);
             return;
         }
 
-        if (string.Equals(m.Report.Id, VatSummaryReportCode, StringComparison.Ordinal))
-        {
-            OpenVatSummaryOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, VoidsReportCode, StringComparison.Ordinal))
-        {
-            OpenVoidsReportOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, HighValueVoidsReportCode, StringComparison.Ordinal))
-        {
-            OpenHighValueVoidsReportOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, LowStockItemsReportCode, StringComparison.Ordinal))
-        {
-            OpenLowStockItemsReportOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, DeliveryVarianceReportCode, StringComparison.Ordinal))
-        {
-            OpenDeliveryVarianceReportOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, TillBalanceReportCode, StringComparison.Ordinal))
-        {
-            OpenTillDrawerVarianceReportOverlay();
-            return;
-        }
-
-        if (string.Equals(m.Report.Id, WastageReportCode, StringComparison.Ordinal))
-        {
-            OpenWastageReportOverlay();
-            return;
-        }
-
-        InvokeIfNotNull(_onAttentionItem, m);
+        InvokeIfNotNull(_onBrowseGroupOrViewReports, g);
     }
 
     private void ReportGroupChrome_Click(object sender, RoutedEventArgs e)
@@ -1648,7 +1687,7 @@ public sealed partial class RptDashboardMain : UserControl
         if (sender is not Button btn || btn.DataContext is not BrowseGroupTile g)
             return;
 
-        InvokeIfNotNull(_onBrowseGroupOrViewReports, g);
+        HandleBrowseGroupActivation(g);
     }
 
     private void BrowseViewReports_MouseDown(object sender, MouseButtonEventArgs e)
@@ -1656,7 +1695,7 @@ public sealed partial class RptDashboardMain : UserControl
         if (sender is not FrameworkElement host || host.DataContext is not BrowseGroupTile group)
             return;
 
-        InvokeIfNotNull(_onBrowseGroupOrViewReports, group);
+        HandleBrowseGroupActivation(group);
         e.Handled = true;
     }
 }

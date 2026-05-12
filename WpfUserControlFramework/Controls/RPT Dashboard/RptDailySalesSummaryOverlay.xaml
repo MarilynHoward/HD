@@ -4,9 +4,7 @@
              Focusable="True">
 
     <UserControl.Resources>
-        <!-- Match ProcurementControl operational cards (APPROVED + SENT / ACCRUED LIABILITY trend icons). -->
-        <SolidColorBrush x:Key="RptDailySalesGrowthPositiveBrush" Color="#22C55E"/>
-        <SolidColorBrush x:Key="RptDailySalesGrowthNegativeBrush" Color="#852622"/>
+        <!-- Growth / trend colors: Brush.RptReportPositiveForeground / Brush.RptReportNegativeForeground (PeoplePosTheme.xaml). -->
 
         <Style x:Key="RptDailySalesHeaderCellStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#111827"/>
@@ -338,9 +336,9 @@
                                                     </Viewbox.Style>
                                                     <Canvas Width="24" Height="24">
                                                         <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
-                                                                  Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                                  Stroke="{StaticResource Brush.RptReportPositiveForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                                         <Polyline Points="16,7 22,7 22,13"
-                                                                  Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                                  Stroke="{StaticResource Brush.RptReportPositiveForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                                     </Canvas>
                                                 </Viewbox>
                                                 <Viewbox Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
@@ -363,9 +361,9 @@
                                                     </Viewbox.Style>
                                                     <Canvas Width="24" Height="24">
                                                         <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
-                                                                  Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                                  Stroke="{StaticResource Brush.RptReportNegativeForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                                         <Polyline Points="16,7 22,7 22,13"
-                                                                  Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                                  Stroke="{StaticResource Brush.RptReportNegativeForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                                     </Canvas>
                                                 </Viewbox>
                                                 <TextBlock Text="{Binding AvgTicket}" HorizontalAlignment="Left" TextAlignment="Left" TextTrimming="CharacterEllipsis">
@@ -373,10 +371,10 @@
                                                         <Style TargetType="TextBlock" BasedOn="{StaticResource RptDailySalesCellStyle}">
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding AvgTicketVariant}" Value="Positive">
-                                                                    <Setter Property="Foreground" Value="{StaticResource RptDailySalesGrowthPositiveBrush}"/>
+                                                                    <Setter Property="Foreground" Value="{StaticResource Brush.RptReportPositiveForeground}"/>
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding AvgTicketVariant}" Value="Negative">
-                                                                    <Setter Property="Foreground" Value="{StaticResource RptDailySalesGrowthNegativeBrush}"/>
+                                                                    <Setter Property="Foreground" Value="{StaticResource Brush.RptReportNegativeForeground}"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -400,9 +398,9 @@
                                                     </Viewbox.Style>
                                                     <Canvas Width="24" Height="24">
                                                         <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
-                                                                  Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                                  Stroke="{StaticResource Brush.RptReportPositiveForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                                         <Polyline Points="16,7 22,7 22,13"
-                                                                  Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                                  Stroke="{StaticResource Brush.RptReportPositiveForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                                     </Canvas>
                                                 </Viewbox>
                                                 <Viewbox Width="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=14}"
@@ -425,9 +423,9 @@
                                                     </Viewbox.Style>
                                                     <Canvas Width="24" Height="24">
                                                         <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
-                                                                  Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                                  Stroke="{StaticResource Brush.RptReportNegativeForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                                         <Polyline Points="16,7 22,7 22,13"
-                                                                  Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                                                  Stroke="{StaticResource Brush.RptReportNegativeForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                                     </Canvas>
                                                 </Viewbox>
                                                 <TextBlock Text="{Binding Growth}" HorizontalAlignment="Right" TextAlignment="Right" TextTrimming="CharacterEllipsis">
@@ -435,10 +433,10 @@
                                                         <Style TargetType="TextBlock" BasedOn="{StaticResource RptDailySalesCellStyle}">
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding GrowthVariant}" Value="Positive">
-                                                                    <Setter Property="Foreground" Value="{StaticResource RptDailySalesGrowthPositiveBrush}"/>
+                                                                    <Setter Property="Foreground" Value="{StaticResource Brush.RptReportPositiveForeground}"/>
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding GrowthVariant}" Value="Negative">
-                                                                    <Setter Property="Foreground" Value="{StaticResource RptDailySalesGrowthNegativeBrush}"/>
+                                                                    <Setter Property="Foreground" Value="{StaticResource Brush.RptReportNegativeForeground}"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -501,9 +499,9 @@
                                  Visibility="Collapsed">
                             <Canvas Width="24" Height="24">
                                 <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
-                                          Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                          Stroke="{StaticResource Brush.RptReportPositiveForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                 <Polyline Points="16,7 22,7 22,13"
-                                          Stroke="#22C55E" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                          Stroke="{StaticResource Brush.RptReportPositiveForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                             </Canvas>
                         </Viewbox>
                         <Viewbox x:Name="TotalGrowthDownIcon"
@@ -518,9 +516,9 @@
                             </Viewbox.RenderTransform>
                             <Canvas Width="24" Height="24">
                                 <Polyline Points="22,7 13.5,15.5 8.5,10.5 2,17"
-                                          Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                          Stroke="{StaticResource Brush.RptReportNegativeForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                                 <Polyline Points="16,7 22,7 22,13"
-                                          Stroke="#852622" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
+                                          Stroke="{StaticResource Brush.RptReportNegativeForeground}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Fill="Transparent"/>
                             </Canvas>
                         </Viewbox>
                             <TextBlock x:Name="TxtTotalGrowth"

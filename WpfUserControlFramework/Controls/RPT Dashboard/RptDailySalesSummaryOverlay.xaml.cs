@@ -237,8 +237,8 @@ public partial class RptDailySalesSummaryOverlay : UserControl
         TotalGrowthDownIcon.Visibility = variant == "Negative" ? Visibility.Visible : Visibility.Collapsed;
         TxtTotalGrowth.Foreground = variant switch
         {
-            "Positive" => (Brush)FindResource("RptDailySalesGrowthPositiveBrush"),
-            "Negative" => (Brush)FindResource("RptDailySalesGrowthNegativeBrush"),
+            "Positive" => (Brush)FindResource("Brush.RptReportPositiveForeground"),
+            "Negative" => (Brush)FindResource("Brush.RptReportNegativeForeground"),
             _ => (Brush)FindResource("MainForeground"),
         };
     }

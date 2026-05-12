@@ -6,7 +6,7 @@
              HorizontalAlignment="Stretch">
 
     <UserControl.Resources>
-        <Style x:Key="RptHighValueVoidsHeaderCellStyle" TargetType="TextBlock">
+        <Style x:Key="RptVoidsHeaderCellStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#111827"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
@@ -15,7 +15,7 @@
             <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"/>
         </Style>
 
-        <Style x:Key="RptHighValueVoidsCellStyle" TargetType="TextBlock">
+        <Style x:Key="RptVoidsCellStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource MainForeground}"/>
             <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -23,13 +23,13 @@
             <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"/>
         </Style>
 
-        <Style x:Key="RptHighValueVoidsMetaLabelStyle" TargetType="TextBlock">
+        <Style x:Key="RptVoidsMetaLabelStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource DimmedForeground}"/>
             <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"/>
             <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
         </Style>
 
-        <Style x:Key="RptHighValueVoidsMetaValueStyle" TargetType="TextBlock">
+        <Style x:Key="RptVoidsMetaValueStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource MainForeground}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='1,0,0,10'}"/>
@@ -68,14 +68,13 @@
                 <StackPanel Grid.Column="0"
                             Orientation="Vertical"
                             VerticalAlignment="Top">
-                    <!-- Same title/subtitle resources as RptVoidsReportOverlay so wording stays in sync. -->
-                    <TextBlock Text="{DynamicResource Rpt.Report.Voids.Title}"
+                    <TextBlock Text="{DynamicResource Rpt.Report.HighVoids.Title}"
                                FontWeight="Bold"
                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}"
                                Foreground="{StaticResource MainForeground}"
                                TextWrapping="Wrap"/>
 
-                    <TextBlock Text="{DynamicResource Rpt.Report.Voids.Subtitle}"
+                    <TextBlock Text="Action Needed"
                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,6'}"
                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"
                                Foreground="{StaticResource DimmedForeground}"
@@ -224,18 +223,18 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0">
-                        <TextBlock Style="{StaticResource RptHighValueVoidsMetaLabelStyle}" Text="{DynamicResource Rpt.Report.TotalRecords}"/>
-                        <TextBlock x:Name="TxtTotalRecords" Style="{StaticResource RptHighValueVoidsMetaValueStyle}" Text="0"/>
+                        <TextBlock Style="{StaticResource RptVoidsMetaLabelStyle}" Text="{DynamicResource Rpt.Report.TotalRecords}"/>
+                        <TextBlock x:Name="TxtTotalRecords" Style="{StaticResource RptVoidsMetaValueStyle}" Text="0"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1">
-                        <TextBlock Style="{StaticResource RptHighValueVoidsMetaLabelStyle}" Text="{DynamicResource Rpt.Report.Generated}"/>
-                        <TextBlock x:Name="TxtGenerated" Style="{StaticResource RptHighValueVoidsMetaValueStyle}" Text=""/>
+                        <TextBlock Style="{StaticResource RptVoidsMetaLabelStyle}" Text="{DynamicResource Rpt.Report.Generated}"/>
+                        <TextBlock x:Name="TxtGenerated" Style="{StaticResource RptVoidsMetaValueStyle}" Text=""/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
-                        <TextBlock Style="{StaticResource RptHighValueVoidsMetaLabelStyle}" Text="{DynamicResource Rpt.Report.Period}"/>
-                        <TextBlock x:Name="TxtPeriod" Style="{StaticResource RptHighValueVoidsMetaValueStyle}" Text=""/>
+                        <TextBlock Style="{StaticResource RptVoidsMetaLabelStyle}" Text="{DynamicResource Rpt.Report.Period}"/>
+                        <TextBlock x:Name="TxtPeriod" Style="{StaticResource RptVoidsMetaValueStyle}" Text=""/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -269,27 +268,36 @@
                     <Border Grid.Row="0" Grid.Column="0" Background="{StaticResource Brush.White}">
                         <Grid Margin="0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="0.7*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=56}"/>
-                                <ColumnDefinition Width="1.1*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
-                                <ColumnDefinition Width="*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
-                                <ColumnDefinition Width="2.35*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=128}"/>
-                                <ColumnDefinition Width="0.9*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=72}"/>
-                                <ColumnDefinition Width="Auto" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}"/>
+                                <ColumnDefinition Width="0.65*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=56}"/>
+                                <ColumnDefinition Width="1.15*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
+                                <ColumnDefinition Width="1.00*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
+                                <ColumnDefinition Width="1.45*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=128}"/>
+                                <ColumnDefinition Width="1.05*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=72}"/>
+                                <ColumnDefinition Width="0.85*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" Text="{DynamicResource Rpt.Report.Column.Time}" Style="{StaticResource RptHighValueVoidsHeaderCellStyle}"/>
-                            <TextBlock Grid.Column="1" Text="{DynamicResource Rpt.Report.Column.Transaction}" Style="{StaticResource RptHighValueVoidsHeaderCellStyle}"/>
-                            <TextBlock Grid.Column="2" Text="{DynamicResource Rpt.Report.Column.Amount}" Style="{StaticResource RptHighValueVoidsHeaderCellStyle}" HorizontalAlignment="Right" TextAlignment="Right" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,32,0'}"/>
-                            <TextBlock Grid.Column="3" Text="{DynamicResource Rpt.Report.Column.Reason}" Style="{StaticResource RptHighValueVoidsHeaderCellStyle}" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='28,0,10,0'}"/>
-                            <TextBlock Grid.Column="4" Text="{DynamicResource Rpt.Report.Column.User}" Style="{StaticResource RptHighValueVoidsHeaderCellStyle}"/>
-                            <TextBlock Grid.Column="5" Text="{DynamicResource Rpt.Report.Column.Status}" Style="{StaticResource RptHighValueVoidsHeaderCellStyle}" HorizontalAlignment="Left" TextAlignment="Left" Margin="0"/>
+                            <TextBlock Grid.Column="0" Text="{DynamicResource Rpt.Report.Column.Time}" Style="{StaticResource RptVoidsHeaderCellStyle}"/>
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Rpt.Report.Column.Transaction}" Style="{StaticResource RptVoidsHeaderCellStyle}"/>
+                            <TextBlock x:Name="TxtVoidsHeaderAmount"
+           Grid.Column="2"
+           Text="{DynamicResource Rpt.Report.Column.Amount}"
+           Style="{StaticResource RptVoidsHeaderCellStyle}"
+           HorizontalAlignment="Left"
+           TextAlignment="Left"/>
+                            <TextBlock x:Name="TxtVoidsHeaderReason"
+           Grid.Column="3"
+           Text="{DynamicResource Rpt.Report.Column.Reason}"
+           Style="{StaticResource RptVoidsHeaderCellStyle}"/>
+                            
+                            <TextBlock Grid.Column="4" Text="{DynamicResource Rpt.Report.Column.User}" Style="{StaticResource RptVoidsHeaderCellStyle}"/>
+                            <TextBlock Grid.Column="5" Text="{DynamicResource Rpt.Report.Column.Status}" Style="{StaticResource RptVoidsHeaderCellStyle}" HorizontalAlignment="Left" TextAlignment="Left" Margin="0"/>
                         </Grid>
                     </Border>
 
                     <Border Grid.Row="0" Grid.Column="1" Background="{StaticResource Brush.White}"
                             CornerRadius="0,8,0,0"/>
 
-                    <ScrollViewer x:Name="HvvListScrollViewer"
+                    <ScrollViewer x:Name="VoidsListScrollViewer"
                                   Grid.Row="1"
                                   Grid.Column="0"
                                   Grid.ColumnSpan="2"
@@ -299,7 +307,7 @@
                                   VerticalAlignment="Stretch"
                                   Padding="0"
                                   Margin="0">
-                        <ItemsControl x:Name="HvvRowsItems"
+                        <ItemsControl x:Name="VoidsRowsItems"
                                       HorizontalAlignment="Stretch"
                                       HorizontalContentAlignment="Stretch">
                             <ItemsControl.Style>
@@ -310,7 +318,7 @@
                                                             Converter={StaticResource ThicknessScaleConverter},
                                                             ConverterParameter='0,0,17,0'}"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ElementName=HvvListScrollViewer, Path=ComputedVerticalScrollBarVisibility}"
+                                        <DataTrigger Binding="{Binding ElementName=VoidsListScrollViewer, Path=ComputedVerticalScrollBarVisibility}"
                                                      Value="Visible">
                                             <Setter Property="Margin" Value="0"/>
                                         </DataTrigger>
@@ -340,51 +348,54 @@
                                             Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,8,0,8'}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="0.7*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=56}"/>
-                                                <ColumnDefinition Width="1.1*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
-                                                <ColumnDefinition Width="*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
-                                                <ColumnDefinition Width="2.35*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=128}"/>
-                                                <ColumnDefinition Width="0.9*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=72}"/>
-                                                <ColumnDefinition Width="Auto" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}"/>
+                                                <ColumnDefinition Width="0.65*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=56}"/>
+                                                <ColumnDefinition Width="1.15*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
+                                                <ColumnDefinition Width="1.00*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
+                                                <ColumnDefinition Width="1.45*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=128}"/>
+                                                <ColumnDefinition Width="1.05*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=72}"/>
+                                                <ColumnDefinition Width="0.85*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}"/>
                                             </Grid.ColumnDefinitions>
 
-                                            <TextBlock Grid.Column="0" Text="{Binding TimeDisplay}" Style="{StaticResource RptHighValueVoidsCellStyle}"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding TransactionId}" Style="{StaticResource RptHighValueVoidsCellStyle}"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding AmountDisplay}" Style="{StaticResource RptHighValueVoidsCellStyle}" HorizontalAlignment="Right" TextAlignment="Right" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,32,0'}"/>
-                                            <TextBlock Grid.Column="3" Text="{Binding Reason}" Style="{StaticResource RptHighValueVoidsCellStyle}" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='28,0,10,0'}"/>
-                                            <TextBlock Grid.Column="4" Text="{Binding UserDisplay}" Style="{StaticResource RptHighValueVoidsCellStyle}"/>
+                                            <TextBlock Grid.Column="0" Text="{Binding TimeDisplay}" Style="{StaticResource RptVoidsCellStyle}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding TransactionId}" Style="{StaticResource RptVoidsCellStyle}"/>
+                                            <TextBlock x:Name="TxtVoidsRowAmount"
+                                                       Grid.Column="2"
+                                                       Text="{Binding AmountDisplay}"
+                                                       Style="{StaticResource RptVoidsCellStyle}"
+                                                       HorizontalAlignment="Left"
+                                                       TextAlignment="Left"/>
+                                            <TextBlock x:Name="TxtVoidsRowReason"
+                                                   Grid.Column="3"
+                                                   Text="{Binding Reason}"
+                                                   Style="{StaticResource RptVoidsCellStyle}"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding UserDisplay}" Style="{StaticResource RptVoidsCellStyle}"/>
 
                                             <Border Grid.Column="5"
-                                                    VerticalAlignment="Center"
                                                     HorizontalAlignment="Left"
                                                     Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}"
                                                     CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
+                                                    BorderThickness="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter=1}"
                                                     SnapsToDevicePixels="True">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#F3F4F6"/>
+                                                        <Setter Property="Background" Value="#FFFBEB"/>
+                                                        <Setter Property="BorderBrush" Value="#FFFBEB"/>
+
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding StatusVariant}" Value="Approved">
-                                                                <Setter Property="Background" Value="#E0E7FF"/>
+                                                            <DataTrigger Binding="{Binding StatusVariant}"
+                             Value="Approved">
+                                                                <Setter Property="Background" Value="#ECEEF2"/>
+                                                                <Setter Property="BorderBrush" Value="#ECEEF2"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock Text="{Binding StatusLabel}"
-                                                           FontWeight="Bold"
-                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
-                                                           VerticalAlignment="Center">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#6B7280"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding StatusVariant}" Value="Approved">
-                                                                    <Setter Property="Foreground" Value="#1E40AF"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
+
+                                                <TextBlock x:Name="TxtVoidsRowStatus"
+               Text="{Binding StatusLabel}"
+               FontWeight="Normal"
+               Foreground="#111827"
+               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
                                             </Border>
                                         </Grid>
                                     </Border>
@@ -395,6 +406,7 @@
                 </Grid>
             </Border>
 
+            <!-- Totals row (aligned with Daily Sales Summary overlay). -->
             <Border Grid.Row="6"
                     Background="#F8FAFC"
                     BorderBrush="#E5E7EB"
@@ -410,12 +422,12 @@
                     <Grid Grid.Column="0"
                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,12,0'}">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="0.7*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=56}"/>
-                            <ColumnDefinition Width="1.1*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
-                            <ColumnDefinition Width="*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
-                            <ColumnDefinition Width="2.35*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=128}"/>
-                            <ColumnDefinition Width="0.9*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=72}"/>
-                            <ColumnDefinition Width="Auto" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}"/>
+                            <ColumnDefinition Width="0.65*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=56}"/>
+                            <ColumnDefinition Width="1.15*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
+                            <ColumnDefinition Width="1.00*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
+                            <ColumnDefinition Width="1.45*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=128}"/>
+                            <ColumnDefinition Width="1.05*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=72}"/>
+                            <ColumnDefinition Width="0.85*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}"/>
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Grid.Column="0"
@@ -427,14 +439,15 @@
                                    VerticalAlignment="Center"/>
 
                         <TextBlock x:Name="TxtSummaryAmountTotal"
-                                   Grid.Column="2"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource MainForeground}"
-                                   HorizontalAlignment="Right"
-                                   TextAlignment="Right"
-                                   FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
-                                   VerticalAlignment="Center"
-                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,32,0'}"/>
+                               Grid.Column="2"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource MainForeground}"
+                               HorizontalAlignment="Left"
+                               TextAlignment="Left"
+                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
+                               VerticalAlignment="Center"
+                               Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"/>
+                        
                     </Grid>
                     <Border Grid.Column="1" Background="Transparent"/>
                 </Grid>

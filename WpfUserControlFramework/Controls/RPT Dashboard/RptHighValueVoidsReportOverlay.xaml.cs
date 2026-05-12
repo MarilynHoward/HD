@@ -7,14 +7,38 @@ using System.Windows.Input;
 
 namespace RestaurantPosWpf;
 
+/// <summary>Demo-only status for void rows until DB-backed data exists.</summary>
+public enum HighVoidReportEntryStatus
+{
+    Approved,
+    Pending,
+}
+
 /// <summary>
-/// High-Value Voids overlay — same shell and grid as <see cref="RptVoidsReportOverlay"/>; demo rows until void facts are wired.
+/// One void line item for the Voids Report grid (display strings for binding).
+/// </summary>
+public sealed class HighVoidReportEntryRow
+{
+    public string TimeDisplay { get; set; } = "";
+    public string TransactionId { get; set; } = "";
+    /// <summary>Raw amount for footer totals (not bound in row template).</summary>
+    public decimal AmountValue { get; set; }
+    public string AmountDisplay { get; set; } = "";
+    public string Reason { get; set; } = "";
+    public string UserDisplay { get; set; } = "";
+    public string StatusLabel { get; set; } = "";
+    /// <summary>Binding key for badge styling: <c>Approved</c> or <c>Pending</c>.</summary>
+    public string StatusVariant { get; set; } = "";
+}
+
+/// <summary>
+/// Voids Report overlay — same shell as <see cref="RptDailySalesSummaryOverlay"/>; demo data only until fact sync is wired.
 /// </summary>
 public partial class RptHighValueVoidsReportOverlay : UserControl
 {
     private readonly RptDashboardFilterSnapshot _filters;
     private readonly Action _onClose;
-    private readonly ObservableCollection<VoidReportEntryRow> _rows = new();
+    private readonly ObservableCollection<HighVoidReportEntryRow> _rows = new();
     private DateTime _generatedAt;
 
     public RptHighValueVoidsReportOverlay(RptDashboardFilterSnapshot filters, Action onClose)
@@ -52,17 +76,17 @@ public partial class RptHighValueVoidsReportOverlay : UserControl
     private void ReloadData()
     {
         _generatedAt = DateTime.Now;
-        TxtGenerated.Text = FormatGeneratedCaption(_generatedAt);
+        TxtGenerated.Text = _generatedAt.ToString("yyyy/MM/dd HH:mm", CultureInfo.CurrentCulture);
 
         var nfi = CloneReportNumberFormat();
         var approved = Application.Current.TryFindResource("Rpt.Report.Status.Approved") as string ?? "Approved";
         var pending = Application.Current.TryFindResource("Rpt.Report.Status.Pending") as string ?? "Pending";
 
         _rows.Clear();
-        foreach (var demo in BuildHighValueDemoSeed(nfi, approved, pending))
+        foreach (var demo in BuildDemoSeed(nfi, approved, pending))
             _rows.Add(demo);
 
-        HvvRowsItems.ItemsSource = _rows;
+        VoidsRowsItems.ItemsSource = _rows;
         TxtTotalRecords.Text = _rows.Count.ToString(nfi);
 
         var sumAmount = 0m;
@@ -92,11 +116,44 @@ public partial class RptHighValueVoidsReportOverlay : UserControl
 
     private static string FormatCurrency(decimal value, NumberFormatInfo nfi) => value.ToString("C2", nfi);
 
-    /// <summary>Demo rows for attention-count alignment (replace with SQL threshold filter when available).</summary>
-    private static VoidReportEntryRow[] BuildHighValueDemoSeed(NumberFormatInfo nfi, string approvedLabel, string pendingLabel) =>
+    /// <summary>Static demo rows matching the design mock (replace with SQL when void facts are available).</summary>
+    private static HighVoidReportEntryRow[] BuildDemoSeed(NumberFormatInfo nfi, string approvedLabel, string pendingLabel) =>
             new[]
             {
-                new VoidReportEntryRow
+                new HighVoidReportEntryRow
+                {
+                    TimeDisplay = "14:32",
+                    TransactionId = "TXN-8234",
+                    AmountValue = 845.00m,
+                    AmountDisplay = FormatCurrency(845.00m, nfi),
+                    Reason = "Customer Request",
+                    UserDisplay = "Sarah M.",
+                    StatusLabel = approvedLabel,
+                    StatusVariant = nameof(HighVoidReportEntryStatus.Approved),
+                },
+                new HighVoidReportEntryRow
+                {
+                    TimeDisplay = "15:18",
+                    TransactionId = "TXN-8267",
+                    AmountValue = 1234.50m,
+                    AmountDisplay = FormatCurrency(1234.50m, nfi),
+                    Reason = "Wrong Order",
+                    UserDisplay = "John K.",
+                    StatusLabel = approvedLabel,
+                    StatusVariant = nameof(HighVoidReportEntryStatus.Approved),
+                },
+                new HighVoidReportEntryRow
+                {
+                    TimeDisplay = "16:45",
+                    TransactionId = "TXN-8301",
+                    AmountValue = 567.00m,
+                    AmountDisplay = FormatCurrency(567.00m, nfi),
+                    Reason = "Kitchen Error",
+                    UserDisplay = "Mike R.",
+                    StatusLabel = pendingLabel,
+                    StatusVariant = nameof(HighVoidReportEntryStatus.Pending),
+                },
+                new HighVoidReportEntryRow
                 {
                     TimeDisplay = "17:22",
                     TransactionId = "TXN-8339",
@@ -107,27 +164,16 @@ public partial class RptHighValueVoidsReportOverlay : UserControl
                     StatusLabel = approvedLabel,
                     StatusVariant = nameof(VoidReportEntryStatus.Approved),
                 },
-                new VoidReportEntryRow
+                new HighVoidReportEntryRow
                 {
-                    TimeDisplay = "15:18",
-                    TransactionId = "TXN-8267",
-                    AmountValue = 1234.50m,
-                    AmountDisplay = FormatCurrency(1234.50m, nfi),
-                    Reason = "Wrong Order",
-                    UserDisplay = "John K.",
-                    StatusLabel = approvedLabel,
-                    StatusVariant = nameof(VoidReportEntryStatus.Approved),
-                },
-                new VoidReportEntryRow
-                {
-                    TimeDisplay = "14:32",
-                    TransactionId = "TXN-8234",
-                    AmountValue = 845.00m,
-                    AmountDisplay = FormatCurrency(845.00m, nfi),
-                    Reason = "Customer Request",
-                    UserDisplay = "Sarah M.",
+                    TimeDisplay = "18:05",
+                    TransactionId = "TXN-8356",
+                    AmountValue = 678.50m,
+                    AmountDisplay = FormatCurrency(678.50m, nfi),
+                    Reason = "Customer Complaint",
+                    UserDisplay = "Lisa P.",
                     StatusLabel = pendingLabel,
-                    StatusVariant = nameof(VoidReportEntryStatus.Pending),
+                    StatusVariant = nameof(HighVoidReportEntryStatus.Pending),
                 },
             };
 

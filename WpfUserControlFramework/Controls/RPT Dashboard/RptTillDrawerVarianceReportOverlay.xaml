@@ -42,10 +42,10 @@
             <Setter Property="TextAlignment" Value="Right"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding VarianceSign}" Value="Neg">
-                    <Setter Property="Foreground" Value="#DC2626"/>
+                    <Setter Property="Foreground" Value="{StaticResource Brush.RptReportNegativeForeground}"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding VarianceSign}" Value="Pos">
-                    <Setter Property="Foreground" Value="#16A34A"/>
+                    <Setter Property="Foreground" Value="{StaticResource Brush.RptReportPositiveForeground}"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -287,10 +287,10 @@
                             <TextBlock Grid.Column="1" Text="{DynamicResource Rpt.Report.Column.TillDrawer}" Style="{StaticResource RptTillHeaderCellStyle}"/>
                             <TextBlock Grid.Column="2" Text="{DynamicResource Rpt.Report.Column.Branch}" Style="{StaticResource RptTillHeaderCellStyle}"/>
                             <TextBlock Grid.Column="3" Text="{DynamicResource Rpt.Report.Column.Cashier}" Style="{StaticResource RptTillHeaderCellStyle}"/>
-                            <TextBlock Grid.Column="4" Text="{DynamicResource Rpt.Report.Column.ExpectedCash}" Style="{StaticResource RptTillHeaderRightStyle}"/>
-                            <TextBlock Grid.Column="5" Text="{DynamicResource Rpt.Report.Column.ActualCash}" Style="{StaticResource RptTillHeaderRightStyle}"/>
-                            <TextBlock Grid.Column="6" Text="{DynamicResource Rpt.Report.Column.Variance}" Style="{StaticResource RptTillHeaderRightStyle}"/>
-                            <TextBlock Grid.Column="7"
+                            <TextBlock Grid.Column="4" HorizontalAlignment="Left"  Text="{DynamicResource Rpt.Report.Column.ExpectedCash}" Style="{StaticResource RptTillHeaderRightStyle}"/>
+                            <TextBlock Grid.Column="5" HorizontalAlignment="Left" Text="{DynamicResource Rpt.Report.Column.ActualCash}" Style="{StaticResource RptTillHeaderRightStyle}"/>
+                            <TextBlock Grid.Column="6" HorizontalAlignment="Left"  Text="{DynamicResource Rpt.Report.Column.Variance}" Style="{StaticResource RptTillHeaderRightStyle}"/>
+                            <TextBlock Grid.Column="7" HorizontalAlignment="Left" 
                                        Text="{DynamicResource Rpt.Report.Column.Status}"
                                        Style="{StaticResource RptTillHeaderCellStyle}"
                                        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='20,0,12,0'}"/>
@@ -356,40 +356,40 @@
                                                 <TextBlock Grid.Column="1" Text="{Binding TillDrawer}" Style="{StaticResource RptTillCellStyle}"/>
                                                 <TextBlock Grid.Column="2" Text="{Binding Branch}" Style="{StaticResource RptTillCellStyle}"/>
                                                 <TextBlock Grid.Column="3" Text="{Binding Cashier}" Style="{StaticResource RptTillCellStyle}"/>
-                                                <TextBlock Grid.Column="4" Text="{Binding ExpectedDisplay}" Style="{StaticResource RptTillMoneyCellStyle}"/>
-                                                <TextBlock Grid.Column="5" Text="{Binding ActualDisplay}" Style="{StaticResource RptTillMoneyCellStyle}"/>
-                                                <TextBlock Grid.Column="6" Text="{Binding VarianceDisplay}" Style="{StaticResource RptTillVarianceCellStyle}"/>
+                                                <TextBlock Grid.Column="4" HorizontalAlignment="Left" Text="{Binding ExpectedDisplay}" Style="{StaticResource RptTillMoneyCellStyle}"/>
+                                                <TextBlock Grid.Column="5" HorizontalAlignment="Left" Text="{Binding ActualDisplay}" Style="{StaticResource RptTillMoneyCellStyle}"/>
+                                                <TextBlock Grid.Column="6" HorizontalAlignment="Left" Text="{Binding VarianceDisplay}" Style="{StaticResource RptTillVarianceCellStyle}"/>
                                                 <Border Grid.Column="7"
-                                                        VerticalAlignment="Center"
+                                                        VerticalAlignment="Top"
                                                         HorizontalAlignment="Left"
                                                         Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='20,0,12,0'}"
-                                                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,2,8,2'}"
-                                                        CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource PillCornerRadiusConverter}}"
+                                                        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='8,1,8,3'}"
+                                                        CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
                                                         SnapsToDevicePixels="True"
                                                         UseLayoutRounding="True">
                                                     <Border.Style>
                                                         <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="{StaticResource Brush.White}"/>
-                                                            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+                                                            <Setter Property="Background" Value="#2BBC5E"/>
+                                                            <Setter Property="BorderBrush" Value="#2BBC5E"/>
                                                             <Setter Property="BorderThickness" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter=1}"/>
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding StatusVariant}" Value="Short">
-                                                                    <Setter Property="Background" Value="#DC2626"/>
-                                                                    <Setter Property="BorderBrush" Value="#DC2626"/>
+                                                                    <Setter Property="Background" Value="#CC0000"/>
+                                                                    <Setter Property="BorderBrush" Value="#CC0000"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Border.Style>
                                                     <TextBlock Text="{Binding StatusLabel}"
                                                                FontWeight="SemiBold"
-                                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=10}"
+                                                               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
                                                                TextTrimming="CharacterEllipsis"
                                                                TextWrapping="NoWrap"
                                                                HorizontalAlignment="Left"
-                                                               VerticalAlignment="Center">
+                                                               VerticalAlignment="Top">
                                                         <TextBlock.Style>
                                                             <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="#111827"/>
+                                                                <Setter Property="Foreground" Value="#FFFFFF"/>
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding StatusVariant}" Value="Short">
                                                                         <Setter Property="Foreground" Value="#FFFFFF"/>
@@ -451,7 +451,7 @@
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                    VerticalAlignment="Center"
                                    HorizontalAlignment="Stretch"
-                                   TextAlignment="Right"
+                                   TextAlignment="Left"
                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,0'}"/>
                         <TextBlock x:Name="TxtTotalActual"
                                    Grid.Column="5"
@@ -460,7 +460,7 @@
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                    VerticalAlignment="Center"
                                    HorizontalAlignment="Stretch"
-                                   TextAlignment="Right"
+                                   TextAlignment="Left"
                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,0'}"/>
                         <TextBlock x:Name="TxtTotalVariance"
                                    Grid.Column="6"
@@ -468,7 +468,7 @@
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                    VerticalAlignment="Center"
                                    HorizontalAlignment="Stretch"
-                                   TextAlignment="Right"
+                                   TextAlignment="Left"
                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,0'}"/>
                     </Grid>
                     <Border Grid.Column="1" Background="Transparent"/>

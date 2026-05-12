@@ -32,18 +32,12 @@ public sealed class TillDrawerVarianceReportRow
 /// </summary>
 public partial class RptTillDrawerVarianceReportOverlay : UserControl
 {
-    private static readonly Brush s_negFg = new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26));
-    private static readonly Brush s_posFg = new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A));
+    private static readonly Brush FallbackReportNegFg = CreateFrozenSolid(0xDC, 0x26, 0x26);
+    private static readonly Brush FallbackReportPosFg = CreateFrozenSolid(0x22, 0xC5, 0x5E);
     private readonly RptDashboardFilterSnapshot _filters;
     private readonly Action _onClose;
     private readonly ObservableCollection<TillDrawerVarianceReportRow> _rows = new();
     private DateTime _generatedAt;
-
-    static RptTillDrawerVarianceReportOverlay()
-    {
-        s_negFg.Freeze();
-        s_posFg.Freeze();
-    }
 
     public RptTillDrawerVarianceReportOverlay(RptDashboardFilterSnapshot filters, Action onClose)
     {
@@ -82,7 +76,7 @@ public partial class RptTillDrawerVarianceReportOverlay : UserControl
     private void ReloadData()
     {
         _generatedAt = DateTime.Now;
-        TxtGenerated.Text = FormatGeneratedCaption(_generatedAt);
+        TxtGenerated.Text = _generatedAt.ToString("yyyy/MM/dd HH:mm", CultureInfo.CurrentCulture);
 
         var nfi = CloneReportNumberFormat();
         var shortLabel = Application.Current.TryFindResource("Rpt.Report.TillStatus.Short") as string ?? "Short";
@@ -117,11 +111,24 @@ public partial class RptTillDrawerVarianceReportOverlay : UserControl
     {
         tb.Foreground = v switch
         {
-            < 0 => s_negFg,
-            > 0 => s_posFg,
+            < 0 => ReportSignBrushNeg(),
+            > 0 => ReportSignBrushPos(),
             _ => Application.Current.TryFindResource("MainForeground") as Brush ?? Brushes.Black,
         };
     }
+
+    private static SolidColorBrush CreateFrozenSolid(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Brush ReportSignBrushNeg() =>
+            Application.Current?.TryFindResource("Brush.RptReportNegativeForeground") as Brush ?? FallbackReportNegFg;
+
+    private static Brush ReportSignBrushPos() =>
+            Application.Current?.TryFindResource("Brush.RptReportPositiveForeground") as Brush ?? FallbackReportPosFg;
 
     private void TillVarianceListScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e) =>
             Dispatcher.BeginInvoke(new Action(ApplyTableColumnWidth), DispatcherPriority.Render);

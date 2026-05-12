@@ -1,0 +1,28 @@
+---
+description: RPT dashboard report overlays — standard green/red for signed or semantic text Foreground (and matching trend strokes in those reports).
+globs: WpfUserControlFramework/Controls/RPT Dashboard/**/*
+alwaysApply: false
+---
+
+# RPT report signed colors (text)
+
+When a **report overlay** under `WpfUserControlFramework/Controls/RPT Dashboard/` uses **green or red for text** (e.g. positive/negative growth, signed variance, value above/below zero), use the shared theme brushes only — do not invent new hex values in local `UserControl.Resources` or code-behind.
+
+| Role | Hex | Theme key |
+|------|-----|-----------|
+| Positive / favorable | `#22C55E` | `Brush.RptReportPositiveForeground` |
+| Negative / unfavorable | `#DC2626` | `Brush.RptReportNegativeForeground` |
+
+Defined in `WpfUserControlFramework/PeoplePosTheme.xaml` next to other `Brush.Rpt*` resources.
+
+## XAML
+
+- Bind `Foreground` (or `Stroke` on trend icons that pair with that text) with `{StaticResource Brush.RptReportPositiveForeground}` / `{StaticResource Brush.RptReportNegativeForeground}`.
+
+## Code-behind
+
+- Prefer `Application.Current.TryFindResource("Brush.RptReportPositiveForeground")` (and negative) with a **frozen fallback** `SolidColorBrush` using the same hex values if the app dictionary is not merged yet (see `RptDeliveryVarianceReportOverlay` / `RptTillDrawerVarianceReportOverlay`).
+
+## Out of scope
+
+- Non-report UI (Staff, Procurement, Operations) may keep its own palette; this rule targets **RPT Dashboard report overlays** only unless a task explicitly extends it.

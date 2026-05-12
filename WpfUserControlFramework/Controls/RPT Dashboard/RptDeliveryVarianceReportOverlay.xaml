@@ -37,10 +37,10 @@
             <Setter Property="TextAlignment" Value="Right"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding VarianceSign}" Value="Neg">
-                    <Setter Property="Foreground" Value="#DC2626"/>
+                    <Setter Property="Foreground" Value="{StaticResource Brush.RptReportNegativeForeground}"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding VarianceSign}" Value="Pos">
-                    <Setter Property="Foreground" Value="#16A34A"/>
+                    <Setter Property="Foreground" Value="{StaticResource Brush.RptReportPositiveForeground}"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -50,10 +50,10 @@
             <Setter Property="TextAlignment" Value="Right"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding ValueSign}" Value="Neg">
-                    <Setter Property="Foreground" Value="#DC2626"/>
+                    <Setter Property="Foreground" Value="{StaticResource Brush.RptReportNegativeForeground}"/>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding ValueSign}" Value="Pos">
-                    <Setter Property="Foreground" Value="#16A34A"/>
+                    <Setter Property="Foreground" Value="{StaticResource Brush.RptReportPositiveForeground}"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
