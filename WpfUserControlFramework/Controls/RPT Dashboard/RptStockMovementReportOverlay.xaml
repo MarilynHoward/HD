@@ -339,8 +339,8 @@
                                                     Margin="0"
                                                     Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,5'}"
                                                     BorderThickness="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter=1}"
-                                                    Background="#ECEEF2"
-                                                    BorderBrush="#ECEEF2"
+                                                    Background="{StaticResource Brush.RptReportStatusApprovedBackground}"
+                                                    BorderBrush="{StaticResource Brush.RptReportStatusApprovedBackground}"
                                                     CornerRadius="{Binding ActualHeight,
                                                                            RelativeSource={RelativeSource Self},
                                                                            Converter={StaticResource CornerRadiusFromHeightConverter},
@@ -350,7 +350,7 @@
                                                 <TextBlock Text="{Binding MovementLabel}"
                                                            FontWeight="Bold"
                                                            FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
-                                                           Foreground="#111827"
+                                                           Foreground="{StaticResource Brush.RptReportStatusApprovedForeground}"
                                                            TextTrimming="CharacterEllipsis"
                                                            TextWrapping="NoWrap"
                                                            HorizontalAlignment="Center"

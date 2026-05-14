@@ -355,12 +355,12 @@
         UseLayoutRounding="True">
                                                     <Border.Style>
                                                         <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="#FFFBEB"/>
-                                                            <Setter Property="BorderBrush" Value="#FFFBEB"/>
+                                                            <Setter Property="Background" Value="{StaticResource Brush.RptReportStatusPendingBackground}"/>
+                                                            <Setter Property="BorderBrush" Value="{StaticResource Brush.RptReportStatusPendingBackground}"/>
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding StatusVariant}" Value="Ok">
-                                                                    <Setter Property="Background" Value="#ECEEF2"/>
-                                                                    <Setter Property="BorderBrush" Value="#ECEEF2"/>
+                                                                    <Setter Property="Background" Value="{StaticResource Brush.RptReportStatusApprovedBackground}"/>
+                                                                    <Setter Property="BorderBrush" Value="{StaticResource Brush.RptReportStatusApprovedBackground}"/>
                                                                 </DataTrigger>
 
                                                                 <DataTrigger Binding="{Binding StatusVariant}" Value="Critical">
@@ -380,7 +380,7 @@
                VerticalAlignment="Top">
                                                         <TextBlock.Style>
                                                             <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="#111827"/>
+                                                                <Setter Property="Foreground" Value="{StaticResource Brush.RptReportStatusApprovedForeground}"/>
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding StatusVariant}" Value="Critical">
                                                                         <Setter Property="Foreground" Value="#FFFFFF"/>

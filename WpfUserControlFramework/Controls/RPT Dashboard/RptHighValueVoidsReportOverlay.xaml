@@ -371,31 +371,14 @@
                                             <TextBlock Grid.Column="4" Text="{Binding UserDisplay}" Style="{StaticResource RptVoidsCellStyle}"/>
 
                                             <Border Grid.Column="5"
+                                                    Style="{StaticResource RptReportApprovedPendingBadgeBorderStyle}"
                                                     HorizontalAlignment="Left"
                                                     Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}"
                                                     CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
-                                                    BorderThickness="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter=1}"
                                                     SnapsToDevicePixels="True">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#FFFBEB"/>
-                                                        <Setter Property="BorderBrush" Value="#FFFBEB"/>
-
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding StatusVariant}"
-                             Value="Approved">
-                                                                <Setter Property="Background" Value="#ECEEF2"/>
-                                                                <Setter Property="BorderBrush" Value="#ECEEF2"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-
-                                                <TextBlock x:Name="TxtVoidsRowStatus"
-               Text="{Binding StatusLabel}"
-               FontWeight="Normal"
-               Foreground="#111827"
-               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
+                                                <TextBlock Text="{Binding StatusLabel}"
+                                                           Style="{StaticResource RptReportApprovedPendingBadgeTextStyle}"
+                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
                                             </Border>
                                         </Grid>
                                     </Border>

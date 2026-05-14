@@ -1,28 +1,48 @@
 ---
-description: RPT dashboard report overlays — standard green/red for signed or semantic text Foreground (and matching trend strokes in those reports).
+description: RPT dashboard report overlays — shared green/red for signed semantic text and grey/orange Approved/Pending status pills.
 globs: WpfUserControlFramework/Controls/RPT Dashboard/**/*
 alwaysApply: false
 ---
 
-# RPT report signed colors (text)
+# RPT report colors (RPT Dashboard overlays)
 
-When a **report overlay** under `WpfUserControlFramework/Controls/RPT Dashboard/` uses **green or red for text** (e.g. positive/negative growth, signed variance, value above/below zero), use the shared theme brushes only — do not invent new hex values in local `UserControl.Resources` or code-behind.
+Use shared theme brushes and styles in `WpfUserControlFramework/PeoplePosTheme.xaml` next to other `Brush.Rpt*` resources. Do not invent new hex values in local `UserControl.Resources` or code-behind for these roles.
+
+## Signed positive / negative text
+
+When a **report overlay** uses **green or red for text** (e.g. positive/negative growth, signed variance, value above/below zero):
 
 | Role | Hex | Theme key |
 |------|-----|-----------|
 | Positive / favorable | `#22C55E` | `Brush.RptReportPositiveForeground` |
 | Negative / unfavorable | `#DC2626` | `Brush.RptReportNegativeForeground` |
 
-Defined in `WpfUserControlFramework/PeoplePosTheme.xaml` next to other `Brush.Rpt*` resources.
-
-## XAML
+### XAML (signed)
 
 - Bind `Foreground` (or `Stroke` on trend icons that pair with that text) with `{StaticResource Brush.RptReportPositiveForeground}` / `{StaticResource Brush.RptReportNegativeForeground}`.
 
-## Code-behind
+### Code-behind (signed)
 
 - Prefer `Application.Current.TryFindResource("Brush.RptReportPositiveForeground")` (and negative) with a **frozen fallback** `SolidColorBrush` using the same hex values if the app dictionary is not merged yet (see `RptDeliveryVarianceReportOverlay` / `RptTillDrawerVarianceReportOverlay`).
 
+## Approved / Pending status pills
+
+**Client standard:** grey **Approved**, orange/amber **Pending**, label text `#111827` on both. This is the same pair already used on **High-Value Voids** and the non-Critical path on **Low Stock** (`#ECEEF2` for Approved / OK, `#FFFBEB` for Pending / default warning). Do not use the older blue/grey Refunds/Voids inline pair (`#E0E7FF` / `#1E40AF` approved, `#F3F4F6` / `#6B7280` pending).
+
+For operational report rows that bind `StatusVariant` (`Approved` / `Pending`):
+
+| Role | Hex | Theme key |
+|------|-----|-----------|
+| Approved pill | background `#ECEEF2` (grey), text `#111827` | `Brush.RptReportStatusApprovedBackground` / `Brush.RptReportStatusApprovedForeground` |
+| Pending pill | background `#FFFBEB` (orange / amber), text `#111827` | `Brush.RptReportStatusPendingBackground` / `Brush.RptReportStatusPendingForeground` |
+
+Reuse `RptReportApprovedPendingBadgeBorderStyle` and `RptReportApprovedPendingBadgeTextStyle` on the pill `Border` and status `TextBlock` (see `RptHighValueVoidsReportOverlay.xaml`, `RptRefundsReportOverlay.xaml`, `RptVoidsReportOverlay.xaml`).
+
+### XAML (status pills)
+
+- Set the pill `Border` `Style` to `{StaticResource RptReportApprovedPendingBadgeBorderStyle}` and the status `TextBlock` `Style` to `{StaticResource RptReportApprovedPendingBadgeTextStyle}`.
+
 ## Out of scope
 
+- Other status semantics (e.g. Low Stock **Critical**) may keep report-local colors until promoted to shared theme keys.
 - Non-report UI (Staff, Procurement, Operations) may keep its own palette; this rule targets **RPT Dashboard report overlays** only unless a task explicitly extends it.

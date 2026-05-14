@@ -154,11 +154,32 @@ public sealed partial class RptDashboardMain : UserControl
     /// <summary>Matches <c>public.rpt_reports.report_code</c> for Stock Variance Report.</summary>
     public const string StockVarianceReportCode = "rpt.stock_variance";
 
+    /// <summary>Matches <c>public.rpt_reports.report_code</c> for Refunds Report.</summary>
+    public const string RefundsReportCode = "rpt.refunds";
+
+    /// <summary>Matches <c>public.rpt_reports.report_code</c> for Discounts Audit.</summary>
+    public const string DiscountAuditReportCode = "rpt.discount_audit";
+
+    /// <summary>Matches <c>public.rpt_reports.report_code</c> for Order Edit Audit.</summary>
+    public const string OrderEditAuditReportCode = "rpt.order_edit_audit";
+
+    /// <summary>Interim Attention Needed strip membership and badge counts until attention rules exist.</summary>
+    private static readonly (string ReportCode, int AttentionCount)[] HardcodedDashboardAttentionReports =
+    {
+        (HighValueVoidsReportCode, 3),
+        (LowStockItemsReportCode, 8),
+        (DeliveryVarianceReportCode, 2),
+        (TillBalanceReportCode, 1),
+    };
+
     /// <summary>Browse category code for Sales Reports tile.</summary>
     public const string SalesBrowseGroupId = "grp.sales";
 
     /// <summary>Browse category code for Stock Reports tile.</summary>
     public const string StockBrowseGroupId = "grp.stock";
+
+    /// <summary>Browse category code for Operational Control tile.</summary>
+    public const string OperationalControlBrowseGroupId = "grp.ops";
 
     public const string SalesByCategoryReportCode = "rpt.sales_by_category";
 
@@ -485,6 +506,27 @@ public sealed partial class RptDashboardMain : UserControl
         RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
+    private void OpenRefundsReportOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptRefundsReportOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenDiscountsAuditReportOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptDiscountsAuditReportOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenOrderEditAuditReportOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptOrderEditAuditReportOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
     private void OpenWastageReportOverlay()
     {
         var snapshot = BuildFilterSnapshot();
@@ -567,6 +609,26 @@ public sealed partial class RptDashboardMain : UserControl
         RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
+    private void OpenOperationalControlBrowsePicker(BrowseGroupTile group)
+    {
+        ArgumentNullException.ThrowIfNull(group);
+        var recentIds = RecentReports.Select(r => r.Report.Id).ToList();
+        RptOverlayContentHost.Content = new RptBrowseOperationalControlReportsOverlay(
+                group,
+                recentIds,
+                CloseReportOverlay,
+                report =>
+                {
+                    CloseReportOverlay();
+                    TryRecordReportAccess(report.Id);
+                    if (!TryOpenKnownReportOverlay(report.Id))
+                    {
+                        // Operational Control picker only lists catalog reports; unknown codes are ignored.
+                    }
+                });
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
     /// <summary>Opens a built-in report overlay when <paramref name="reportId"/> is known; otherwise returns false.</summary>
     private bool TryOpenKnownReportOverlay(string reportId)
     {
@@ -585,6 +647,24 @@ public sealed partial class RptDashboardMain : UserControl
         if (string.Equals(reportId, VoidsReportCode, StringComparison.Ordinal))
         {
             OpenVoidsReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, RefundsReportCode, StringComparison.Ordinal))
+        {
+            OpenRefundsReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, DiscountAuditReportCode, StringComparison.Ordinal))
+        {
+            OpenDiscountsAuditReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, OrderEditAuditReportCode, StringComparison.Ordinal))
+        {
+            OpenOrderEditAuditReportOverlay();
             return true;
         }
 
@@ -1314,25 +1394,7 @@ public sealed partial class RptDashboardMain : UserControl
                 LoadRecentUsedRowsFromDb(cn, timeoutSeconds, recent);
             }
 
-            var dtAttention = App.aps.pda.GetDataTable(cn, App.aps.sql.SelectLocalRptReportsForDashboardAttention(), timeoutSeconds);
-            foreach (DataRow row in dtAttention.Rows)
-            {
-                var code = DbCellString(row, "report_code").Trim();
-                if (code.Length == 0)
-                    continue;
-                var title = DbCellString(row, "descr").Trim();
-                if (title.Length == 0)
-                    title = code;
-                var cnt = DbCellNullableInt(row, "dashboard_attention_count");
-                if (!cnt.HasValue || cnt.Value < 1)
-                    continue;
-                var glyph = RptDashboardIconCatalog.ResolveGlyph(DbCellString(row, "icon_glyph_id"));
-                attention.Add(new AttentionNeededRow(
-                    new ExecutableReportRef(code, title, glyph),
-                    cnt.Value,
-                    AccentFromReportPrimaryHexRow(row),
-                    AccentFromReportBadgeHexRow(row)));
-            }
+            LoadAttentionNeededRowsFromHardcodedStrip(cn, timeoutSeconds, attention);
 
             browse1.AddRange(LoadBrowseRowFromDb(cn, browseRow: 1, timeoutSeconds));
             browse2.AddRange(LoadBrowseRowFromDb(cn, browseRow: 2, timeoutSeconds));
@@ -1347,6 +1409,53 @@ public sealed partial class RptDashboardMain : UserControl
         ReloadCore(browse1, _seedBrowse1);
         ReloadCore(browse2, _seedBrowse2);
         ApplyFilters();
+    }
+
+    private static void LoadAttentionNeededRowsFromHardcodedStrip(string cn, int timeoutSeconds, List<AttentionNeededRow> attention)
+    {
+        var reportCodes = HardcodedDashboardAttentionReports
+                .Select(e => e.ReportCode)
+                .ToArray();
+        var dt = App.aps.pda.GetDataTable(
+            cn,
+            App.aps.sql.SelectLocalRptReportDashboardCardsByCodes(reportCodes),
+            timeoutSeconds);
+        var byCode = new Dictionary<string, DataRow>(StringComparer.Ordinal);
+        foreach (DataRow row in dt.Rows)
+        {
+            var code = DbCellString(row, "report_code").Trim();
+            if (code.Length > 0)
+                byCode[code] = row;
+        }
+
+        foreach (var (reportCode, attentionCount) in HardcodedDashboardAttentionReports)
+        {
+            if (!byCode.TryGetValue(reportCode, out var row))
+                continue;
+
+            var title = DbCellString(row, "descr").Trim();
+            if (title.Length == 0)
+                title = reportCode;
+            title = ResolveAttentionNeededDisplayTitle(reportCode, title);
+            var glyph = RptDashboardIconCatalog.ResolveGlyph(DbCellString(row, "icon_glyph_id"));
+            attention.Add(new AttentionNeededRow(
+                new ExecutableReportRef(reportCode, title, glyph),
+                attentionCount,
+                AccentFromReportPrimaryHexRow(row),
+                AccentFromReportBadgeHexRow(row)));
+        }
+    }
+
+    private static string ResolveAttentionNeededDisplayTitle(string reportCode, string catalogTitle)
+    {
+        if (string.Equals(reportCode, TillBalanceReportCode, StringComparison.Ordinal))
+        {
+            var attentionTitle = Application.Current?.TryFindResource("Rpt.Report.TillDrawerVariance.AttentionTitle") as string;
+            if (!string.IsNullOrWhiteSpace(attentionTitle))
+                return attentionTitle;
+        }
+
+        return catalogTitle;
     }
 
     private static void LoadRecentUsedRowsFromDb(string cn, int timeoutSeconds, List<RecentUsedRow> recent)
@@ -1755,6 +1864,12 @@ public sealed partial class RptDashboardMain : UserControl
         if (string.Equals(g.GroupId, StockBrowseGroupId, StringComparison.Ordinal))
         {
             OpenStockBrowsePicker(g);
+            return;
+        }
+
+        if (string.Equals(g.GroupId, OperationalControlBrowseGroupId, StringComparison.Ordinal))
+        {
+            OpenOperationalControlBrowsePicker(g);
             return;
         }
 

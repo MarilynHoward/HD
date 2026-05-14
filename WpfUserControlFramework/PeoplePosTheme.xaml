@@ -201,6 +201,10 @@
     <!-- RPT report overlays: signed / semantic positive & negative text (and matching trend strokes where used) -->
     <SolidColorBrush x:Key="Brush.RptReportPositiveForeground" Color="#22C55E"/>
     <SolidColorBrush x:Key="Brush.RptReportNegativeForeground" Color="#DC2626"/>
+    <SolidColorBrush x:Key="Brush.RptReportStatusPendingBackground" Color="#FFFBEB"/>
+    <SolidColorBrush x:Key="Brush.RptReportStatusPendingForeground" Color="#111827"/>
+    <SolidColorBrush x:Key="Brush.RptReportStatusApprovedBackground" Color="#ECEEF2"/>
+    <SolidColorBrush x:Key="Brush.RptReportStatusApprovedForeground" Color="#111827"/>
 
     <!-- RptDashboardMain: filter sentinel labels + empty last-run text (not hard-coded in code-behind) -->
     <sys:String x:Key="Rpt.Filter.AllBranchesCaption">All branches</sys:String>
@@ -235,6 +239,13 @@
     <sys:String x:Key="Rpt.Report.DeliveryVariance.Subtitle">Supplier &amp; Procurement</sys:String>
     <sys:String x:Key="Rpt.Report.TillDrawerVariance.Title">Till / Drawer Variance</sys:String>
     <sys:String x:Key="Rpt.Report.TillDrawerVariance.Subtitle">Attention Needed</sys:String>
+    <sys:String x:Key="Rpt.Report.TillDrawerVariance.AttentionTitle">Till Not Balanced</sys:String>
+    <sys:String x:Key="Rpt.Report.Refunds.Title">Refunds Report</sys:String>
+    <sys:String x:Key="Rpt.Report.Refunds.Subtitle">Operational Control</sys:String>
+    <sys:String x:Key="Rpt.Report.DiscountsAudit.Title">Discounts Audit</sys:String>
+    <sys:String x:Key="Rpt.Report.DiscountsAudit.Subtitle">Operational Control</sys:String>
+    <sys:String x:Key="Rpt.Report.OrderEditAudit.Title">Order Edit Audit</sys:String>
+    <sys:String x:Key="Rpt.Report.OrderEditAudit.Subtitle">Operational Control</sys:String>
     <sys:String x:Key="Rpt.Report.TillStatus.Short">Short</sys:String>
     <sys:String x:Key="Rpt.Report.TillStatus.Over">Over</sys:String>
     <sys:String x:Key="Rpt.Report.Wastage.Title">Stock &amp; Waste Impact</sys:String>
@@ -280,6 +291,9 @@
     <sys:String x:Key="Rpt.Report.Column.Reason">Reason</sys:String>
     <sys:String x:Key="Rpt.Report.Column.User">User</sys:String>
     <sys:String x:Key="Rpt.Report.Column.Status">Status</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Discount">Discount</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.ApprovedBy">Approved By</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Change">Change</sys:String>
     <sys:String x:Key="Rpt.Report.Column.Item">Item</sys:String>
     <sys:String x:Key="Rpt.Report.Column.Wastage">Wastage</sys:String>
     <sys:String x:Key="Rpt.Report.Column.Cost">Cost</sys:String>
@@ -315,6 +329,12 @@
     <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.wastage">Stock wastage and write-offs</sys:String>
     <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.stock_variance">Expected vs actual stock</sys:String>
     <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.reorder">Items below minimum levels</sys:String>
+    <sys:String x:Key="Rpt.BrowseOperationalControl.AvailableCountFormat">{0} available reports</sys:String>
+    <sys:String x:Key="Rpt.BrowseOperationalControl.Subtitle.rpt.voids">Voided transactions review</sys:String>
+    <sys:String x:Key="Rpt.BrowseOperationalControl.Subtitle.rpt.refunds">Refund transaction history</sys:String>
+    <sys:String x:Key="Rpt.BrowseOperationalControl.Subtitle.rpt.discount_audit">Discount authorization trail</sys:String>
+    <sys:String x:Key="Rpt.BrowseOperationalControl.Subtitle.rpt.till_balance">Cash reconciliation variance</sys:String>
+    <sys:String x:Key="Rpt.BrowseOperationalControl.Subtitle.rpt.order_edit_audit">Order modification tracking</sys:String>
     <sys:String x:Key="Rpt.Report.StockVariance.Title">Variance Report</sys:String>
     <sys:String x:Key="Rpt.Report.StockVariance.Subtitle">Stock Reports</sys:String>
     <sys:String x:Key="Rpt.Report.Column.Expected">Expected</sys:String>
@@ -5782,6 +5802,31 @@ ConverterParameter="32" />
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="FontSize"
                 Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=16}"/>
+    </Style>
+
+    <!-- Operational report status pills (Approved / Pending): bind StatusVariant on row. -->
+    <Style x:Key="RptReportApprovedPendingBadgeBorderStyle"
+           TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Brush.RptReportStatusPendingBackground}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.RptReportStatusPendingBackground}"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding StatusVariant}" Value="Approved">
+                <Setter Property="Background" Value="{StaticResource Brush.RptReportStatusApprovedBackground}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Brush.RptReportStatusApprovedBackground}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="RptReportApprovedPendingBadgeTextStyle"
+           TargetType="TextBlock">
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.RptReportStatusPendingForeground}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding StatusVariant}" Value="Approved">
+                <Setter Property="Foreground" Value="{StaticResource Brush.RptReportStatusApprovedForeground}"/>
+            </DataTrigger>
+        </Style.Triggers>
     </Style>
 
     <!-- Attention badge count: badge tier (13 Bold). Foreground from theme binding on control. -->

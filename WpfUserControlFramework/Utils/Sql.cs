@@ -1081,14 +1081,37 @@ public sealed class Sql
             "(" + u + ", " + Quote("rpt.voids") + ", " + tVoids + ", " + a + "); ";
     }
 
-    /// <summary>Local branch: Attention Needed strip rows (ordered).</summary>
-    public string SelectLocalRptReportsForDashboardAttention() =>
-        "SELECT report_code, descr, icon_glyph_id, " +
-        "ui_icon_backdrop_hex, ui_icon_foreground_hex, ui_hover_border_hex, ui_hover_surface_hex, ui_chevron_hot_hex, " +
-        "ui_badge_icon_backdrop_hex, ui_badge_icon_foreground_hex, ui_badge_hover_border_hex, ui_badge_hover_surface_hex, ui_badge_chevron_hot_hex, " +
-        "dashboard_attention_count " +
-        "FROM public.rpt_reports WHERE active = TRUE AND dashboard_attention_sort_order IS NOT NULL " +
-        "ORDER BY dashboard_attention_sort_order";
+    /// <summary>Local branch: catalog chrome for dashboard strip cards (title, icon, UI hex) for the given report codes.</summary>
+    public string SelectLocalRptReportDashboardCardsByCodes(IEnumerable<string> reportCodes)
+    {
+        var codes = (reportCodes ?? Array.Empty<string>())
+                .Select(c => (c ?? string.Empty).Trim())
+                .Where(c => c.Length > 0)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+        var b = new StringBuilder();
+        b.Append(
+                "SELECT report_code, descr, icon_glyph_id, " +
+                "ui_icon_backdrop_hex, ui_icon_foreground_hex, ui_hover_border_hex, ui_hover_surface_hex, ui_chevron_hot_hex, " +
+                "ui_badge_icon_backdrop_hex, ui_badge_icon_foreground_hex, ui_badge_hover_border_hex, ui_badge_hover_surface_hex, ui_badge_chevron_hot_hex " +
+                "FROM public.rpt_reports WHERE active = TRUE");
+        if (codes.Count == 0)
+        {
+            b.Append(" AND 1 = 0");
+            return b.ToString();
+        }
+
+        b.Append(" AND report_code IN (");
+        for (var i = 0; i < codes.Count; i++)
+        {
+            if (i > 0)
+                b.Append(", ");
+            b.Append(Quote(codes[i]));
+        }
+
+        b.Append(')');
+        return b.ToString();
+    }
 
     /// <summary>Local branch: Browse grouping tiles for one horizontal row (<paramref name="browseRow"/> is 1 or 2).</summary>
     public string SelectLocalRptCategoriesForDashboardBrowseRow(int browseRow) =>
