@@ -309,6 +309,28 @@
     <sys:String x:Key="Rpt.BrowseSales.Subtitle.rpt.sales_by_category">Category performance overview</sys:String>
     <sys:String x:Key="Rpt.BrowseSales.Subtitle.rpt.sales_by_order_type">Breakdown by order type</sys:String>
     <sys:String x:Key="Rpt.BrowseSales.Subtitle.rpt.vat_summary">SARS-ready VAT report</sys:String>
+    <sys:String x:Key="Rpt.BrowseStock.AvailableCountFormat">{0} available reports</sys:String>
+    <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.low_stock">Current inventory levels</sys:String>
+    <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.stock_movement">Detailed stock transactions</sys:String>
+    <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.wastage">Stock wastage and write-offs</sys:String>
+    <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.stock_variance">Expected vs actual stock</sys:String>
+    <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.reorder">Items below minimum levels</sys:String>
+    <sys:String x:Key="Rpt.Report.StockVariance.Title">Variance Report</sys:String>
+    <sys:String x:Key="Rpt.Report.StockVariance.Subtitle">Stock Reports</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Expected">Expected</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Actual">Actual</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.VarPercent">Var %</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Value">Value</sys:String>
+    <sys:String x:Key="Rpt.Report.StockMovement.Title">Stock Movement Report</sys:String>
+    <sys:String x:Key="Rpt.Report.StockMovement.Subtitle">Stock Reports</sys:String>
+    <sys:String x:Key="Rpt.Report.Reorder.Title">Reorder Report</sys:String>
+    <sys:String x:Key="Rpt.Report.Reorder.Subtitle">Stock Reports</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Movement">Movement</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.SupplierOrReason">Supplier / Reason</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.ToOrder">To Order</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.EstCost">Est. Cost</sys:String>
+    <sys:String x:Key="Rpt.Report.Movement.In">In</sys:String>
+    <sys:String x:Key="Rpt.Report.Movement.Out">Out</sys:String>
 
     <SolidColorBrush x:Key="Brush.RptBrowseSalesStar" Color="#FFC107"/>
     <SolidColorBrush x:Key="Brush.RptBrowseSalesCardBorder" Color="#E0E0E0"/>

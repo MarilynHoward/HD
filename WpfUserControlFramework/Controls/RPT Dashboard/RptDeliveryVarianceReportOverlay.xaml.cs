@@ -77,7 +77,7 @@ public partial class RptDeliveryVarianceReportOverlay : UserControl
     private void ReloadData()
     {
         _generatedAt = DateTime.Now;
-        TxtGenerated.Text = FormatGeneratedCaption(_generatedAt);
+        TxtGenerated.Text = RptReportGeneratedCaption.Format(_generatedAt);
 
         var nfi = CloneReportNumberFormat();
         _rows.Clear();
@@ -166,15 +166,6 @@ public partial class RptDeliveryVarianceReportOverlay : UserControl
             DeliveryVarianceHeaderColumnsGrid.Width = w;
         if (double.IsNaN(DeliveryVarianceTotalsColumnsGrid.Width) || Math.Abs(DeliveryVarianceTotalsColumnsGrid.Width - w) > 0.25)
             DeliveryVarianceTotalsColumnsGrid.Width = w;
-    }
-
-    private string FormatGeneratedCaption(DateTime generatedLocal)
-    {
-        var justNow = Application.Current.TryFindResource("Rpt.Report.Generated.JustNow") as string ?? "Just now";
-        if ((DateTime.Now - generatedLocal).TotalMinutes < 2.0)
-            return justNow;
-
-        return generatedLocal.ToString("g", CultureInfo.CurrentCulture);
     }
 
     private static NumberFormatInfo CloneReportNumberFormat()

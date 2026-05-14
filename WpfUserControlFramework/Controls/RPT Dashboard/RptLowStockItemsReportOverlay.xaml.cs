@@ -77,7 +77,7 @@ public partial class RptLowStockItemsReportOverlay : UserControl
     private void ReloadData()
     {
         _generatedAt = DateTime.Now;
-        TxtGenerated.Text = _generatedAt.ToString("yyyy/MM/dd HH:mm", CultureInfo.CurrentCulture);
+        TxtGenerated.Text = RptReportGeneratedCaption.Format(_generatedAt);
 
         var nfi = CloneReportNumberFormat();
         var ok = Application.Current.TryFindResource("Rpt.Report.StockStatus.Ok") as string ?? "OK";
@@ -132,15 +132,6 @@ public partial class RptLowStockItemsReportOverlay : UserControl
             LowStockHeaderColumnsGrid.Width = w;
         if (double.IsNaN(LowStockFooterColumnsGrid.Width) || Math.Abs(LowStockFooterColumnsGrid.Width - w) > 0.25)
             LowStockFooterColumnsGrid.Width = w;
-    }
-
-    private string FormatGeneratedCaption(DateTime generatedLocal)
-    {
-        var justNow = Application.Current.TryFindResource("Rpt.Report.Generated.JustNow") as string ?? "Just now";
-        if ((DateTime.Now - generatedLocal).TotalMinutes < 2.0)
-            return justNow;
-
-        return generatedLocal.ToString("g", CultureInfo.CurrentCulture);
     }
 
     private static NumberFormatInfo CloneReportNumberFormat()

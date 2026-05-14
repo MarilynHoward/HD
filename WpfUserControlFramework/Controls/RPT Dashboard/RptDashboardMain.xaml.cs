@@ -145,8 +145,20 @@ public sealed partial class RptDashboardMain : UserControl
     /// <summary>Matches <c>public.rpt_reports.report_code</c> for Wastage Report.</summary>
     public const string WastageReportCode = "rpt.wastage";
 
+    /// <summary>Matches <c>public.rpt_reports.report_code</c> for Stock Movement Report.</summary>
+    public const string StockMovementReportCode = "rpt.stock_movement";
+
+    /// <summary>Matches <c>public.rpt_reports.report_code</c> for Reorder Report.</summary>
+    public const string ReorderReportCode = "rpt.reorder";
+
+    /// <summary>Matches <c>public.rpt_reports.report_code</c> for Stock Variance Report.</summary>
+    public const string StockVarianceReportCode = "rpt.stock_variance";
+
     /// <summary>Browse category code for Sales Reports tile.</summary>
     public const string SalesBrowseGroupId = "grp.sales";
+
+    /// <summary>Browse category code for Stock Reports tile.</summary>
+    public const string StockBrowseGroupId = "grp.stock";
 
     public const string SalesByCategoryReportCode = "rpt.sales_by_category";
 
@@ -459,6 +471,13 @@ public sealed partial class RptDashboardMain : UserControl
         RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
+    private void OpenStockVarianceReportOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptStockVarianceReportOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
     private void OpenTillDrawerVarianceReportOverlay()
     {
         var snapshot = BuildFilterSnapshot();
@@ -470,6 +489,20 @@ public sealed partial class RptDashboardMain : UserControl
     {
         var snapshot = BuildFilterSnapshot();
         RptOverlayContentHost.Content = new RptWastageReportOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenStockMovementReportOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptStockMovementReportOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenReorderReportOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptReorderReportOverlay(snapshot, CloseReportOverlay);
         RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
@@ -514,6 +547,26 @@ public sealed partial class RptDashboardMain : UserControl
         RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
+    private void OpenStockBrowsePicker(BrowseGroupTile group)
+    {
+        ArgumentNullException.ThrowIfNull(group);
+        var recentIds = RecentReports.Select(r => r.Report.Id).ToList();
+        RptOverlayContentHost.Content = new RptBrowseStockReportsOverlay(
+                group,
+                recentIds,
+                CloseReportOverlay,
+                report =>
+                {
+                    CloseReportOverlay();
+                    TryRecordReportAccess(report.Id);
+                    if (!TryOpenKnownReportOverlay(report.Id))
+                    {
+                        // Stock picker only lists catalog reports; unknown codes are ignored.
+                    }
+                });
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
     /// <summary>Opens a built-in report overlay when <paramref name="reportId"/> is known; otherwise returns false.</summary>
     private bool TryOpenKnownReportOverlay(string reportId)
     {
@@ -553,6 +606,12 @@ public sealed partial class RptDashboardMain : UserControl
             return true;
         }
 
+        if (string.Equals(reportId, StockVarianceReportCode, StringComparison.Ordinal))
+        {
+            OpenStockVarianceReportOverlay();
+            return true;
+        }
+
         if (string.Equals(reportId, TillBalanceReportCode, StringComparison.Ordinal))
         {
             OpenTillDrawerVarianceReportOverlay();
@@ -562,6 +621,18 @@ public sealed partial class RptDashboardMain : UserControl
         if (string.Equals(reportId, WastageReportCode, StringComparison.Ordinal))
         {
             OpenWastageReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, StockMovementReportCode, StringComparison.Ordinal))
+        {
+            OpenStockMovementReportOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, ReorderReportCode, StringComparison.Ordinal))
+        {
+            OpenReorderReportOverlay();
             return true;
         }
 
@@ -1138,6 +1209,8 @@ public sealed partial class RptDashboardMain : UserControl
 
     public sealed class BrowseGroupTile
     {
+        private readonly int _catalogReportCount;
+
         public BrowseGroupTile(
                 string groupId,
                 string title,
@@ -1150,7 +1223,7 @@ public sealed partial class RptDashboardMain : UserControl
             GroupId = groupId ?? throw new ArgumentNullException(nameof(groupId));
             Title = title ?? throw new ArgumentNullException(nameof(title));
             Description = description ?? throw new ArgumentNullException(nameof(description));
-            ReportCount = reportCount;
+            _catalogReportCount = reportCount;
             Theme = theme ?? throw new ArgumentNullException(nameof(theme));
             IconKind = iconKind;
             ShowChevronNextToTitle = showChevronNextToTitle;
@@ -1160,7 +1233,7 @@ public sealed partial class RptDashboardMain : UserControl
         public string GroupId { get; }
         public string Title { get; }
         public string Description { get; }
-        public int ReportCount { get; }
+        public int ReportCount => ReportsInGroup?.Count ?? _catalogReportCount;
         public CardAccent Theme { get; }
         public DashboardIconGlyph IconKind { get; }
         public bool ShowChevronNextToTitle { get; }
@@ -1676,6 +1749,12 @@ public sealed partial class RptDashboardMain : UserControl
         if (string.Equals(g.GroupId, SalesBrowseGroupId, StringComparison.Ordinal))
         {
             OpenSalesBrowsePicker(g);
+            return;
+        }
+
+        if (string.Equals(g.GroupId, StockBrowseGroupId, StringComparison.Ordinal))
+        {
+            OpenStockBrowsePicker(g);
             return;
         }
 

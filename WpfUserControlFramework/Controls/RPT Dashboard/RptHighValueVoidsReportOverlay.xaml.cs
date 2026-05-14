@@ -76,7 +76,7 @@ public partial class RptHighValueVoidsReportOverlay : UserControl
     private void ReloadData()
     {
         _generatedAt = DateTime.Now;
-        TxtGenerated.Text = _generatedAt.ToString("yyyy/MM/dd HH:mm", CultureInfo.CurrentCulture);
+        TxtGenerated.Text = RptReportGeneratedCaption.Format(_generatedAt);
 
         var nfi = CloneReportNumberFormat();
         var approved = Application.Current.TryFindResource("Rpt.Report.Status.Approved") as string ?? "Approved";
@@ -94,15 +94,6 @@ public partial class RptHighValueVoidsReportOverlay : UserControl
             sumAmount += r.AmountValue;
 
         TxtSummaryAmountTotal.Text = FormatCurrency(sumAmount, nfi);
-    }
-
-    private string FormatGeneratedCaption(DateTime generatedLocal)
-    {
-        var justNow = Application.Current.TryFindResource("Rpt.Report.Generated.JustNow") as string ?? "Just now";
-        if ((DateTime.Now - generatedLocal).TotalMinutes < 2.0)
-            return justNow;
-
-        return generatedLocal.ToString("g", CultureInfo.CurrentCulture);
     }
 
     private static NumberFormatInfo CloneReportNumberFormat()

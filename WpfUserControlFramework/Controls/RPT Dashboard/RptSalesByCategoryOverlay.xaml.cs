@@ -62,7 +62,7 @@ public partial class RptSalesByCategoryOverlay : UserControl
 
     private void ReloadData()
     {
-        TxtGenerated.Text = Application.Current.TryFindResource("Rpt.Report.Generated.JustNow") as string ?? "Just now";
+        TxtGenerated.Text = RptReportGeneratedCaption.Format(DateTime.Now);
         var reportNfi = CloneReportNumberFormat();
 
         _rows.Clear();

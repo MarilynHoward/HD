@@ -65,7 +65,7 @@ public partial class RptVatSummaryOverlay : UserControl
 
     private void ReloadData()
     {
-        TxtGenerated.Text = DateTime.Now.ToString("g", CultureInfo.CurrentCulture);
+        TxtGenerated.Text = RptReportGeneratedCaption.Format(DateTime.Now);
         var reportNfi = CloneReportNumberFormat();
 
         var cn = App.aps.LocalConnectionstring(App.aps.propertyBranchCode);

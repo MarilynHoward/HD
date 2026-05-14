@@ -67,7 +67,7 @@ public partial class RptWastageReportOverlay : UserControl
 
     private void ReloadData()
     {
-        TxtGenerated.Text = FormatGeneratedCaption(DateTime.Now);
+        TxtGenerated.Text = RptReportGeneratedCaption.Format(DateTime.Now);
 
         var nfi = CloneReportNumberFormat();
 
@@ -89,15 +89,6 @@ public partial class RptWastageReportOverlay : UserControl
         TxtSummaryCostTotal.Text = FormatCurrency(sumCost, nfi);
         TxtSummaryLostRevenueTotal.Text = FormatCurrency(sumLost, nfi);
         TxtSummaryImpactTotal.Text = FormatCurrency(sumImpact, nfi);
-    }
-
-    private string FormatGeneratedCaption(DateTime generatedLocal)
-    {
-        var justNow = Application.Current.TryFindResource("Rpt.Report.Generated.JustNow") as string ?? "Just now";
-        if ((DateTime.Now - generatedLocal).TotalMinutes < 2.0)
-            return justNow;
-
-        return generatedLocal.ToString("g", CultureInfo.CurrentCulture);
     }
 
     private static NumberFormatInfo CloneReportNumberFormat()

@@ -73,7 +73,7 @@ public partial class RptDailySalesSummaryOverlay : UserControl
 
     private void ReloadData()
     {
-        TxtGenerated.Text = DateTime.Now.ToString("g", CultureInfo.CurrentCulture);
+        TxtGenerated.Text = RptReportGeneratedCaption.Format(DateTime.Now);
         var reportNfi = CloneReportNumberFormat();
 
         var prev = ComputePreviousWindow(_filters.RangeStart, _filters.RangeEnd);
