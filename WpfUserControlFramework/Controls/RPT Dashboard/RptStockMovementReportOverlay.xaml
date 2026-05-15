@@ -334,27 +334,19 @@
                                             <TextBlock Grid.Column="1" Text="{Binding ItemDisplay}" Style="{StaticResource RptSmCellStyle}"/>
 
                                             <Border Grid.Column="2"
+                                                    Style="{StaticResource RptReportApprovedPendingBadgeBorderStyle}"
                                                     VerticalAlignment="Center"
                                                     HorizontalAlignment="Left"
                                                     Margin="0"
-                                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,5'}"
-                                                    BorderThickness="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter=1}"
-                                                    Background="{StaticResource Brush.RptReportStatusApprovedBackground}"
-                                                    BorderBrush="{StaticResource Brush.RptReportStatusApprovedBackground}"
+                                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}"
                                                     CornerRadius="{Binding ActualHeight,
                                                                            RelativeSource={RelativeSource Self},
                                                                            Converter={StaticResource CornerRadiusFromHeightConverter},
                                                                            ConverterParameter=8}"
-                                                    SnapsToDevicePixels="True"
-                                                    UseLayoutRounding="True">
+                                                    SnapsToDevicePixels="True">
                                                 <TextBlock Text="{Binding MovementLabel}"
-                                                           FontWeight="Bold"
-                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
-                                                           Foreground="{StaticResource Brush.RptReportStatusApprovedForeground}"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           TextWrapping="NoWrap"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"/>
+                                                           Style="{StaticResource RptReportApprovedPendingBadgeTextStyle}"
+                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
                                             </Border>
 
                                             <TextBlock Grid.Column="3" Text="{Binding QuantityDisplay}" Style="{StaticResource RptSmCellStyle}" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,14,0'}"/>

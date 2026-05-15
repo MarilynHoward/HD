@@ -31,17 +31,22 @@ public partial class RptWastageReportOverlay : UserControl
 {
     private readonly RptDashboardFilterSnapshot _filters;
     private readonly Action _onClose;
+    private readonly string _subtitleResourceKey;
     private readonly ObservableCollection<WastageReportEntryRow> _rows = new();
 
-    public RptWastageReportOverlay(RptDashboardFilterSnapshot filters, Action onClose)
+    public RptWastageReportOverlay(RptDashboardFilterSnapshot filters, Action onClose, string subtitleResourceKey)
     {
         _filters = filters ?? throw new ArgumentNullException(nameof(filters));
         _onClose = onClose ?? throw new ArgumentNullException(nameof(onClose));
+        _subtitleResourceKey = string.IsNullOrWhiteSpace(subtitleResourceKey)
+                ? "Rpt.Report.Wastage.Subtitle"
+                : subtitleResourceKey.Trim();
 
         InitializeComponent();
 
         Loaded += (_, _) =>
         {
+            ApplySubtitle();
             ApplyStaticChrome();
             ReloadData();
             Keyboard.Focus(this);
@@ -55,6 +60,16 @@ public partial class RptWastageReportOverlay : UserControl
                 e.Handled = true;
             }
         };
+    }
+
+    private void ApplySubtitle()
+    {
+        if (Application.Current.TryFindResource(_subtitleResourceKey) is string s && !string.IsNullOrWhiteSpace(s))
+            TxtWastageSubtitle.Text = s;
+        else if (Application.Current.TryFindResource("Rpt.Report.Wastage.Subtitle") is string fb)
+            TxtWastageSubtitle.Text = fb;
+        else
+            TxtWastageSubtitle.Text = string.Empty;
     }
 
     private void ApplyStaticChrome()

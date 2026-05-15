@@ -12,6 +12,8 @@ public sealed class StockMovementReportEntryRow
     public string DateDisplay { get; set; } = "";
     public string ItemDisplay { get; set; } = "";
     public string MovementLabel { get; set; } = "";
+    /// <summary>In → <c>Approved</c> pill, Out → <c>Pending</c> pill (shared report pill styles).</summary>
+    public string StatusVariant { get; set; } = "";
     public string QuantityDisplay { get; set; } = "";
     public string CostDisplay { get; set; } = "";
     public string SupplierOrReason { get; set; } = "";
@@ -90,11 +92,11 @@ public partial class RptStockMovementReportOverlay : UserControl
     private static StockMovementReportEntryRow[] BuildDemoSeed(NumberFormatInfo nfi, string inLabel, string outLabel) =>
             new[]
             {
-                Row(new DateTime(2026, 4, 21), "Chicken Breast (kg)", inLabel, 25.0m, 2250.00m, "Fresh Foods Ltd", nfi),
-                Row(new DateTime(2026, 4, 21), "Potatoes (kg)", outLabel, 18.5m, 277.50m, "Kitchen Usage", nfi),
-                Row(new DateTime(2026, 4, 20), "Cooking Oil (liters)", inLabel, 40.0m, 3200.00m, "Metro Oil Co", nfi),
-                Row(new DateTime(2026, 4, 20), "Onions (kg)", outLabel, 12.0m, 180.00m, "Kitchen Usage", nfi),
-                Row(new DateTime(2026, 4, 19), "Tomatoes (kg)", inLabel, 30.0m, 600.00m, "SA Produce Co", nfi),
+                Row(new DateTime(2026, 4, 21), "Chicken Breast (kg)", inLabel, 25.0m, 2250.00m, "Fresh Foods Ltd", inLabel, outLabel, nfi),
+                Row(new DateTime(2026, 4, 21), "Potatoes (kg)", outLabel, 18.5m, 277.50m, "Kitchen Usage", inLabel, outLabel, nfi),
+                Row(new DateTime(2026, 4, 20), "Cooking Oil (liters)", inLabel, 40.0m, 3200.00m, "Metro Oil Co", inLabel, outLabel, nfi),
+                Row(new DateTime(2026, 4, 20), "Onions (kg)", outLabel, 12.0m, 180.00m, "Kitchen Usage", inLabel, outLabel, nfi),
+                Row(new DateTime(2026, 4, 19), "Tomatoes (kg)", inLabel, 30.0m, 600.00m, "SA Produce Co", inLabel, outLabel, nfi),
             };
 
     private static StockMovementReportEntryRow Row(
@@ -104,12 +106,15 @@ public partial class RptStockMovementReportOverlay : UserControl
             decimal quantity,
             decimal cost,
             string supplierOrReason,
+            string inLabel,
+            string outLabel,
             NumberFormatInfo nfi) =>
             new()
             {
                 DateDisplay = FormatDate(date),
                 ItemDisplay = item,
                 MovementLabel = movement,
+                StatusVariant = string.Equals(movement, outLabel, StringComparison.Ordinal) ? "Pending" : "Approved",
                 QuantityDisplay = FormatQty(quantity, nfi),
                 CostDisplay = FormatRand(cost, nfi),
                 SupplierOrReason = supplierOrReason,

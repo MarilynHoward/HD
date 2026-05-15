@@ -8,14 +8,6 @@ using System.Windows.Threading;
 
 namespace RestaurantPosWpf;
 
-/// <summary>Demo status for low-stock rows until DB-backed data exists.</summary>
-public enum LowStockReportEntryStatus
-{
-    Ok,
-    Low,
-    Critical,
-}
-
 /// <summary>One stock line for the Low Stock / Stock on Hand grid (display strings for binding).</summary>
 public sealed class LowStockReportEntryRow
 {
@@ -25,7 +17,7 @@ public sealed class LowStockReportEntryRow
     public decimal MinimumValue { get; set; }
     public string MinimumDisplay { get; set; } = "";
     public string StatusLabel { get; set; } = "";
-    /// <summary>Binding key for badge styling: <c>Ok</c>, <c>Low</c>, or <c>Critical</c>.</summary>
+    /// <summary>Pill style key: <c>Approved</c> (ok stock), <c>Pending</c> (low), or <c>Critical</c> (local red override).</summary>
     public string StatusVariant { get; set; } = "";
     public string LastOrderDisplay { get; set; } = "";
 }
@@ -158,14 +150,14 @@ public partial class RptLowStockItemsReportOverlay : UserControl
             string criticalLabel) =>
             new[]
             {
-                Row("Chicken Breast (kg)", 45.5m, 50m, lowLabel, nameof(LowStockReportEntryStatus.Low), "2 days ago", nfi),
-                Row("Cooking Oil (liters)", 85m, 40m, okLabel, nameof(LowStockReportEntryStatus.Ok), "5 days ago", nfi),
-                Row("Potatoes (kg)", 120m, 80m, okLabel, nameof(LowStockReportEntryStatus.Ok), "1 day ago", nfi),
-                Row("Onions (kg)", 15m, 30m, criticalLabel, nameof(LowStockReportEntryStatus.Critical), "7 days ago", nfi),
-                Row("Flour (kg)", 65m, 50m, okLabel, nameof(LowStockReportEntryStatus.Ok), "3 days ago", nfi),
-                Row("Rice (kg)", 8m, 25m, criticalLabel, nameof(LowStockReportEntryStatus.Critical), "14 days ago", nfi),
-                Row("Sugar (kg)", 22m, 30m, lowLabel, nameof(LowStockReportEntryStatus.Low), "4 days ago", nfi),
-                Row("Milk (liters)", 12m, 20m, lowLabel, nameof(LowStockReportEntryStatus.Low), "1 day ago", nfi),
+                Row("Chicken Breast (kg)", 45.5m, 50m, lowLabel, "Pending", "2 days ago", nfi),
+                Row("Cooking Oil (liters)", 85m, 40m, okLabel, "Approved", "5 days ago", nfi),
+                Row("Potatoes (kg)", 120m, 80m, okLabel, "Approved", "1 day ago", nfi),
+                Row("Onions (kg)", 15m, 30m, criticalLabel, "Critical", "7 days ago", nfi),
+                Row("Flour (kg)", 65m, 50m, okLabel, "Approved", "3 days ago", nfi),
+                Row("Rice (kg)", 8m, 25m, criticalLabel, "Critical", "14 days ago", nfi),
+                Row("Sugar (kg)", 22m, 30m, lowLabel, "Pending", "4 days ago", nfi),
+                Row("Milk (liters)", 12m, 20m, lowLabel, "Pending", "1 day ago", nfi),
             };
 
     private static LowStockReportEntryRow Row(

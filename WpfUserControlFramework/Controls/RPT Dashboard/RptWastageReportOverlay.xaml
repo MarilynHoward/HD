@@ -70,7 +70,7 @@
                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=18}"
                                Foreground="{StaticResource MainForeground}"
                                TextWrapping="Wrap"/>
-                    <TextBlock Text="{DynamicResource Rpt.Report.Wastage.Subtitle}"
+                    <TextBlock x:Name="TxtWastageSubtitle"
                                Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,2,0,6'}"
                                FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=15}"
                                Foreground="{StaticResource DimmedForeground}"
@@ -258,7 +258,7 @@
                         <Grid HorizontalAlignment="Stretch">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="1.12*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}"/>
-                                <ColumnDefinition Width="0.62*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=58}"/>
+                                <ColumnDefinition Width="0.992*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=93}"/>
                                 <ColumnDefinition Width="1.08*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
                                 <ColumnDefinition Width="1.08*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
                                 <ColumnDefinition Width="1.08*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=168}"/>
@@ -267,17 +267,14 @@
 
                             <TextBlock Grid.Column="0" Text="{DynamicResource Rpt.Report.Column.Item}" Style="{StaticResource RptWastageHeaderCellStyle}"/>
                             <TextBlock Grid.Column="1" Text="{DynamicResource Rpt.Report.Column.Wastage}" Style="{StaticResource RptWastageHeaderCellStyle}"/>
-                            <TextBlock Grid.Column="2" Text="{DynamicResource Rpt.Report.Column.Cost}" Style="{StaticResource RptWastageHeaderCellStyle}" HorizontalAlignment="Right" TextAlignment="Right" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,16,0'}"/>
-                            <TextBlock Grid.Column="3" Text="{DynamicResource Rpt.Report.Column.LostRevenue}" Style="{StaticResource RptWastageHeaderCellStyle}" HorizontalAlignment="Right" TextAlignment="Right" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,0,16,0'}"/>
+                            <TextBlock Grid.Column="2" Text="{DynamicResource Rpt.Report.Column.Cost}" Style="{StaticResource RptWastageHeaderCellStyle}"/>
+                            <TextBlock Grid.Column="3" Text="{DynamicResource Rpt.Report.Column.LostRevenue}" Style="{StaticResource RptWastageHeaderCellStyle}"/>
                             <TextBlock Grid.Column="4"
                                        Text="{DynamicResource Rpt.Report.Column.ImpactOnProfit}"
                                        Style="{StaticResource RptWastageHeaderCellStyle}"
-                                       HorizontalAlignment="Right"
-                                       TextAlignment="Right"
                                        TextWrapping="Wrap"
-                                       TextTrimming="None"
-                                       Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,0,18,0'}"/>
-                            <TextBlock Grid.Column="5" Text="{DynamicResource Rpt.Report.Column.Reason}" Style="{StaticResource RptWastageHeaderCellStyle}" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='48,0,10,0'}"/>
+                                       TextTrimming="None"/>
+                            <TextBlock Grid.Column="5" Text="{DynamicResource Rpt.Report.Column.Reason}" Style="{StaticResource RptWastageHeaderCellStyle}"/>
                         </Grid>
                     </Border>
 
@@ -330,7 +327,7 @@
                                         <Grid HorizontalAlignment="Stretch">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="1.12*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}"/>
-                                                <ColumnDefinition Width="0.62*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=58}"/>
+                                                <ColumnDefinition Width="0.992*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=93}"/>
                                                 <ColumnDefinition Width="1.08*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
                                                 <ColumnDefinition Width="1.08*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
                                                 <ColumnDefinition Width="1.08*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=168}"/>
@@ -339,10 +336,10 @@
 
                                             <TextBlock Grid.Column="0" Text="{Binding ItemName}" Style="{StaticResource RptWastageCellStyle}"/>
                                             <TextBlock Grid.Column="1" Text="{Binding WastageDisplay}" Style="{StaticResource RptWastageCellStyle}"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding CostDisplay}" Style="{StaticResource RptWastageCellStyle}" HorizontalAlignment="Right" TextAlignment="Right" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,16,0'}"/>
-                                            <TextBlock Grid.Column="3" Text="{Binding LostRevenueDisplay}" Style="{StaticResource RptWastageCellStyle}" HorizontalAlignment="Right" TextAlignment="Right" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,0,16,0'}"/>
-                                            <TextBlock Grid.Column="4" Text="{Binding ImpactOnProfitDisplay}" Style="{StaticResource RptWastageCellStyle}" HorizontalAlignment="Right" TextAlignment="Right" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,0,18,0'}"/>
-                                            <TextBlock Grid.Column="5" Text="{Binding Reason}" Style="{StaticResource RptWastageCellStyle}" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='48,0,10,0'}"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding CostDisplay}" Style="{StaticResource RptWastageCellStyle}"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding LostRevenueDisplay}" Style="{StaticResource RptWastageCellStyle}"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding ImpactOnProfitDisplay}" Style="{StaticResource RptWastageCellStyle}"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding Reason}" Style="{StaticResource RptWastageCellStyle}"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -370,7 +367,7 @@
                           Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='12,0,12,0'}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="1.12*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=96}"/>
-                            <ColumnDefinition Width="0.62*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=58}"/>
+                            <ColumnDefinition Width="0.992*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=93}"/>
                             <ColumnDefinition Width="1.08*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
                             <ColumnDefinition Width="1.08*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=88}"/>
                             <ColumnDefinition Width="1.08*" MinWidth="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource LayoutScaleConverter}, ConverterParameter=168}"/>
@@ -389,31 +386,28 @@
                                    Grid.Column="2"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource MainForeground}"
-                                   HorizontalAlignment="Right"
-                                   TextAlignment="Right"
+                                   TextAlignment="Left"
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                    VerticalAlignment="Center"
-                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='4,0,16,0'}"/>
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"/>
 
                         <TextBlock x:Name="TxtSummaryLostRevenueTotal"
                                    Grid.Column="3"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource MainForeground}"
-                                   HorizontalAlignment="Right"
-                                   TextAlignment="Right"
+                                   TextAlignment="Left"
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                    VerticalAlignment="Center"
-                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,0,16,0'}"/>
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"/>
 
                         <TextBlock x:Name="TxtSummaryImpactTotal"
                                    Grid.Column="4"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource MainForeground}"
-                                   HorizontalAlignment="Right"
-                                   TextAlignment="Right"
+                                   TextAlignment="Left"
                                    FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"
                                    VerticalAlignment="Center"
-                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='16,0,18,0'}"/>
+                                   Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"/>
                     </Grid>
                     <Border Grid.Column="1" Background="Transparent"/>
                 </Grid>

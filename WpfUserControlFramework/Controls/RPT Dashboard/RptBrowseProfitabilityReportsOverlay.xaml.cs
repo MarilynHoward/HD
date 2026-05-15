@@ -10,18 +10,16 @@ using System.Windows.Media;
 
 namespace RestaurantPosWpf;
 
-/// <summary>
-/// Stock Reports picker — client list layout (header + stacked cards); not a report surface.
-/// </summary>
-public partial class RptBrowseStockReportsOverlay : UserControl
+/// <summary>Profitability Reports picker — same layout as <see cref="RptBrowseStockReportsOverlay"/>.</summary>
+public partial class RptBrowseProfitabilityReportsOverlay : UserControl
 {
-    private static readonly string[] StockBrowseDisplayOrder =
+    private static readonly string[] ProfitabilityBrowseDisplayOrder =
     {
-        RptDashboardMain.LowStockItemsReportCode,
-        RptDashboardMain.StockMovementReportCode,
-        RptDashboardMain.StockVarianceReportCode,
-        RptDashboardMain.ReorderReportCode,
-        RptDashboardMain.StockWasteImpactReportCode,
+        RptDashboardMain.GrossProfitByProductReportCode,
+        RptDashboardMain.GrossProfitByCategoryReportCode,
+        RptDashboardMain.MenuItemMarginAnalysisReportCode,
+        RptDashboardMain.WastageReportCode,
+        RptDashboardMain.DeliveryChannelProfitabilityReportCode,
     };
 
     private readonly Action _onClose;
@@ -30,7 +28,7 @@ public partial class RptBrowseStockReportsOverlay : UserControl
     private FrameworkElement? _widthHost;
     private SizeChangedEventHandler? _widthOnHostSized;
 
-    public RptBrowseStockReportsOverlay(
+    public RptBrowseProfitabilityReportsOverlay(
             RptDashboardMain.BrowseGroupTile group,
             IReadOnlyCollection<string> recentlyUsedReportIds,
             Action onClose,
@@ -44,9 +42,9 @@ public partial class RptBrowseStockReportsOverlay : UserControl
 
         RootGrid.DataContext = group;
 
-        var fmt = Application.Current?.TryFindResource("Rpt.BrowseStock.AvailableCountFormat") as string ?? "{0} available reports";
+        var fmt = Application.Current?.TryFindResource("Rpt.BrowseProfitability.AvailableCountFormat") as string ?? "{0} available reports";
         var list = (group.ReportsInGroup ?? Array.Empty<RptDashboardMain.ExecutableReportRef>()).ToList();
-        var orderIndex = StockBrowseDisplayOrder
+        var orderIndex = ProfitabilityBrowseDisplayOrder
                 .Select((id, i) => (id, i))
                 .ToDictionary(x => x.id, x => x.i, StringComparer.Ordinal);
         list.Sort((a, b) =>
@@ -70,8 +68,20 @@ public partial class RptBrowseStockReportsOverlay : UserControl
         ReportsList.ItemsSource = rows;
         TxtAvailableCount.Text = string.Format(CultureInfo.CurrentCulture, fmt, rows.Count);
 
-        Loaded += RptBrowseStockReportsOverlay_Loaded;
-        Unloaded += RptBrowseStockReportsOverlay_Unloaded;
+        Loaded += (_, _) =>
+        {
+            Keyboard.Focus(this);
+            HookWidthToParentControl();
+            ApplyWidthFromHost();
+        };
+        Unloaded += (_, _) =>
+        {
+            if (_widthHost != null && _widthOnHostSized != null)
+                _widthHost.SizeChanged -= _widthOnHostSized;
+            _widthHost = null;
+            _widthOnHostSized = null;
+            RootChrome.ClearValue(WidthProperty);
+        };
 
         PreviewKeyDown += (_, e) =>
         {
@@ -81,22 +91,6 @@ public partial class RptBrowseStockReportsOverlay : UserControl
                 e.Handled = true;
             }
         };
-    }
-
-    private void RptBrowseStockReportsOverlay_Loaded(object sender, RoutedEventArgs e)
-    {
-        Keyboard.Focus(this);
-        HookWidthToParentControl();
-        ApplyWidthFromHost();
-    }
-
-    private void RptBrowseStockReportsOverlay_Unloaded(object sender, RoutedEventArgs e)
-    {
-        if (_widthHost != null && _widthOnHostSized != null)
-            _widthHost.SizeChanged -= _widthOnHostSized;
-        _widthHost = null;
-        _widthOnHostSized = null;
-        RootChrome.ClearValue(WidthProperty);
     }
 
     private void HookWidthToParentControl()
@@ -141,7 +135,7 @@ public partial class RptBrowseStockReportsOverlay : UserControl
 
     private static string ResolveSubtitle(string reportCode)
     {
-        var key = "Rpt.BrowseStock.Subtitle." + reportCode;
+        var key = "Rpt.BrowseProfitability.Subtitle." + reportCode;
         if (Application.Current?.TryFindResource(key) is string s && !string.IsNullOrWhiteSpace(s))
             return s;
         return string.Empty;

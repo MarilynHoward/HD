@@ -145,6 +145,9 @@ public sealed partial class RptDashboardMain : UserControl
     /// <summary>Matches <c>public.rpt_reports.report_code</c> for Wastage Report.</summary>
     public const string WastageReportCode = "rpt.wastage";
 
+    /// <summary>Stock browse clone of <see cref="WastageReportCode"/> — same overlay, <c>grp.stock</c> category.</summary>
+    public const string StockWasteImpactReportCode = "rpt.stock_waste_impact";
+
     /// <summary>Matches <c>public.rpt_reports.report_code</c> for Stock Movement Report.</summary>
     public const string StockMovementReportCode = "rpt.stock_movement";
 
@@ -180,6 +183,26 @@ public sealed partial class RptDashboardMain : UserControl
 
     /// <summary>Browse category code for Operational Control tile.</summary>
     public const string OperationalControlBrowseGroupId = "grp.ops";
+
+    public const string ProcurementBrowseGroupId = "grp.procurement";
+
+    public const string ProfitabilityBrowseGroupId = "grp.profitability";
+
+    public const string PurchasesBySupplierReportCode = "rpt.purchases_by_supplier";
+
+    public const string PurchaseOrderSummaryReportCode = "rpt.purchase_order_summary";
+
+    public const string OutstandingOrdersReportCode = "rpt.outstanding_orders";
+
+    public const string SupplierSpendAnalysisReportCode = "rpt.supplier_spend_analysis";
+
+    public const string GrossProfitByProductReportCode = "rpt.gross_profit_by_product";
+
+    public const string GrossProfitByCategoryReportCode = "rpt.gross_profit_by_category";
+
+    public const string MenuItemMarginAnalysisReportCode = "rpt.menu_item_margin_analysis";
+
+    public const string DeliveryChannelProfitabilityReportCode = "rpt.delivery_channel_profitability";
 
     public const string SalesByCategoryReportCode = "rpt.sales_by_category";
 
@@ -527,10 +550,13 @@ public sealed partial class RptDashboardMain : UserControl
         RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
-    private void OpenWastageReportOverlay()
+    private void OpenWastageReportOverlay(string reportId)
     {
         var snapshot = BuildFilterSnapshot();
-        RptOverlayContentHost.Content = new RptWastageReportOverlay(snapshot, CloseReportOverlay);
+        var subtitleKey = string.Equals(reportId, StockWasteImpactReportCode, StringComparison.Ordinal)
+                ? "Rpt.Report.Wastage.SubtitleStockBrowse"
+                : "Rpt.Report.Wastage.Subtitle";
+        RptOverlayContentHost.Content = new RptWastageReportOverlay(snapshot, CloseReportOverlay, subtitleKey);
         RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
@@ -566,6 +592,62 @@ public sealed partial class RptDashboardMain : UserControl
     {
         var snapshot = BuildFilterSnapshot();
         RptOverlayContentHost.Content = new RptSalesByOrderTypeOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenPurchasesBySupplierOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptPurchasesBySupplierOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenPurchaseOrderSummaryOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptPurchaseOrderSummaryOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenOutstandingOrdersOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptOutstandingOrdersOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenSupplierSpendAnalysisOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptSupplierSpendAnalysisOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenGrossProfitByProductOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptGrossProfitByProductOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenGrossProfitByCategoryOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptGrossProfitByCategoryOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenMenuItemMarginAnalysisOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptMenuItemMarginAnalysisOverlay(snapshot, CloseReportOverlay);
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenDeliveryChannelProfitabilityOverlay()
+    {
+        var snapshot = BuildFilterSnapshot();
+        RptOverlayContentHost.Content = new RptDeliveryChannelProfitabilityOverlay(snapshot, CloseReportOverlay);
         RptOverlayLayer.Visibility = Visibility.Visible;
     }
 
@@ -624,6 +706,44 @@ public sealed partial class RptDashboardMain : UserControl
                     if (!TryOpenKnownReportOverlay(report.Id))
                     {
                         // Operational Control picker only lists catalog reports; unknown codes are ignored.
+                    }
+                });
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenProcurementBrowsePicker(BrowseGroupTile group)
+    {
+        ArgumentNullException.ThrowIfNull(group);
+        var recentIds = RecentReports.Select(r => r.Report.Id).ToList();
+        RptOverlayContentHost.Content = new RptBrowseProcurementReportsOverlay(
+                group,
+                recentIds,
+                CloseReportOverlay,
+                report =>
+                {
+                    CloseReportOverlay();
+                    TryRecordReportAccess(report.Id);
+                    if (!TryOpenKnownReportOverlay(report.Id))
+                    {
+                    }
+                });
+        RptOverlayLayer.Visibility = Visibility.Visible;
+    }
+
+    private void OpenProfitabilityBrowsePicker(BrowseGroupTile group)
+    {
+        ArgumentNullException.ThrowIfNull(group);
+        var recentIds = RecentReports.Select(r => r.Report.Id).ToList();
+        RptOverlayContentHost.Content = new RptBrowseProfitabilityReportsOverlay(
+                group,
+                recentIds,
+                CloseReportOverlay,
+                report =>
+                {
+                    CloseReportOverlay();
+                    TryRecordReportAccess(report.Id);
+                    if (!TryOpenKnownReportOverlay(report.Id))
+                    {
                     }
                 });
         RptOverlayLayer.Visibility = Visibility.Visible;
@@ -698,9 +818,10 @@ public sealed partial class RptDashboardMain : UserControl
             return true;
         }
 
-        if (string.Equals(reportId, WastageReportCode, StringComparison.Ordinal))
+        if (string.Equals(reportId, WastageReportCode, StringComparison.Ordinal)
+                || string.Equals(reportId, StockWasteImpactReportCode, StringComparison.Ordinal))
         {
-            OpenWastageReportOverlay();
+            OpenWastageReportOverlay(reportId);
             return true;
         }
 
@@ -731,6 +852,54 @@ public sealed partial class RptDashboardMain : UserControl
         if (string.Equals(reportId, SalesByOrderTypeReportCode, StringComparison.Ordinal))
         {
             OpenSalesByOrderTypeOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, PurchasesBySupplierReportCode, StringComparison.Ordinal))
+        {
+            OpenPurchasesBySupplierOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, PurchaseOrderSummaryReportCode, StringComparison.Ordinal))
+        {
+            OpenPurchaseOrderSummaryOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, OutstandingOrdersReportCode, StringComparison.Ordinal))
+        {
+            OpenOutstandingOrdersOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, SupplierSpendAnalysisReportCode, StringComparison.Ordinal))
+        {
+            OpenSupplierSpendAnalysisOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, GrossProfitByProductReportCode, StringComparison.Ordinal))
+        {
+            OpenGrossProfitByProductOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, GrossProfitByCategoryReportCode, StringComparison.Ordinal))
+        {
+            OpenGrossProfitByCategoryOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, MenuItemMarginAnalysisReportCode, StringComparison.Ordinal))
+        {
+            OpenMenuItemMarginAnalysisOverlay();
+            return true;
+        }
+
+        if (string.Equals(reportId, DeliveryChannelProfitabilityReportCode, StringComparison.Ordinal))
+        {
+            OpenDeliveryChannelProfitabilityOverlay();
             return true;
         }
 
@@ -1870,6 +2039,18 @@ public sealed partial class RptDashboardMain : UserControl
         if (string.Equals(g.GroupId, OperationalControlBrowseGroupId, StringComparison.Ordinal))
         {
             OpenOperationalControlBrowsePicker(g);
+            return;
+        }
+
+        if (string.Equals(g.GroupId, ProcurementBrowseGroupId, StringComparison.Ordinal))
+        {
+            OpenProcurementBrowsePicker(g);
+            return;
+        }
+
+        if (string.Equals(g.GroupId, ProfitabilityBrowseGroupId, StringComparison.Ordinal))
+        {
+            OpenProfitabilityBrowsePicker(g);
             return;
         }
 

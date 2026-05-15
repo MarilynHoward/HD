@@ -35,6 +35,23 @@
             <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='1,0,0,10'}"/>
             <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
         </Style>
+
+        <!-- Ok → Approved pill, Low → Pending pill; Critical overrides per wpf-rpt-report-signed-foreground-colors.mdc. -->
+        <Style x:Key="RptLowStockStatusBadgeBorderStyle" TargetType="Border" BasedOn="{StaticResource RptReportApprovedPendingBadgeBorderStyle}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding StatusVariant}" Value="Critical">
+                    <Setter Property="Background" Value="#CC0000"/>
+                    <Setter Property="BorderBrush" Value="#CC0000"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="RptLowStockStatusBadgeTextStyle" TargetType="TextBlock" BasedOn="{StaticResource RptReportApprovedPendingBadgeTextStyle}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding StatusVariant}" Value="Critical">
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
 
     <Border Background="{StaticResource Brush.White}"
@@ -341,57 +358,20 @@
                                             <TextBlock Grid.Column="1" Text="{Binding CurrentDisplay}" Style="{StaticResource RptLowStockCellStyle}" HorizontalAlignment="Left" TextAlignment="Left" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,0'}"/>
                                             <TextBlock Grid.Column="2" Text="{Binding MinimumDisplay}" Style="{StaticResource RptLowStockCellStyle}" HorizontalAlignment="Left" TextAlignment="Left" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,0'}"/>
 
-                                                <Border Grid.Column="3"
-        VerticalAlignment="Top"
-        HorizontalAlignment="Left"
-        Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,0'}"
-        Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,5'}"
-        BorderThickness="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter=1}"
-        CornerRadius="{Binding ActualHeight,
-                               RelativeSource={RelativeSource Self},
-                               Converter={StaticResource CornerRadiusFromHeightConverter},
-                               ConverterParameter=8}"
-        SnapsToDevicePixels="True"
-        UseLayoutRounding="True">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="{StaticResource Brush.RptReportStatusPendingBackground}"/>
-                                                            <Setter Property="BorderBrush" Value="{StaticResource Brush.RptReportStatusPendingBackground}"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding StatusVariant}" Value="Ok">
-                                                                    <Setter Property="Background" Value="{StaticResource Brush.RptReportStatusApprovedBackground}"/>
-                                                                    <Setter Property="BorderBrush" Value="{StaticResource Brush.RptReportStatusApprovedBackground}"/>
-                                                                </DataTrigger>
+                                            <Border Grid.Column="3"
+                                                    Style="{StaticResource RptLowStockStatusBadgeBorderStyle}"
+                                                    VerticalAlignment="Top"
+                                                    HorizontalAlignment="Left"
+                                                    Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,0'}"
+                                                    Padding="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='10,4,10,4'}"
+                                                    CornerRadius="{Binding ActualHeight, RelativeSource={RelativeSource Self}, Converter={StaticResource CornerRadiusFromHeightConverter}, ConverterParameter=8}"
+                                                    SnapsToDevicePixels="True">
+                                                <TextBlock Text="{Binding StatusLabel}"
+                                                           Style="{StaticResource RptLowStockStatusBadgeTextStyle}"
+                                                           FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"/>
+                                            </Border>
 
-                                                                <DataTrigger Binding="{Binding StatusVariant}" Value="Critical">
-                                                                    <Setter Property="Background" Value="#CC0000"/>
-                                                                    <Setter Property="BorderBrush" Value="#CC0000"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-
-                                                    <TextBlock Text="{Binding StatusLabel}"
-               FontWeight="Bold"
-               FontSize="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=13}"
-               TextTrimming="CharacterEllipsis"
-               TextWrapping="NoWrap"
-               HorizontalAlignment="Center"
-               VerticalAlignment="Top">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="{StaticResource Brush.RptReportStatusApprovedForeground}"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding StatusVariant}" Value="Critical">
-                                                                        <Setter Property="Foreground" Value="#FFFFFF"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </Border>
-
-                                                <TextBlock Grid.Column="4" Text="{Binding LastOrderDisplay}" Style="{StaticResource RptLowStockCellStyle}" HorizontalAlignment="Left" TextAlignment="Left" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,0'}"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding LastOrderDisplay}" Style="{StaticResource RptLowStockCellStyle}" HorizontalAlignment="Left" TextAlignment="Left" Margin="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,12,0'}"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

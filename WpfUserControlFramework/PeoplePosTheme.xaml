@@ -250,6 +250,7 @@
     <sys:String x:Key="Rpt.Report.TillStatus.Over">Over</sys:String>
     <sys:String x:Key="Rpt.Report.Wastage.Title">Stock &amp; Waste Impact</sys:String>
     <sys:String x:Key="Rpt.Report.Wastage.Subtitle">Profitability Reports</sys:String>
+    <sys:String x:Key="Rpt.Report.Wastage.SubtitleStockBrowse">Stock Reports</sys:String>
     <sys:String x:Key="Rpt.Report.Generated.JustNow">Just now</sys:String>
     <sys:String x:Key="Rpt.Report.Status.Approved">Approved</sys:String>
     <sys:String x:Key="Rpt.Report.Status.Pending">Pending</sys:String>
@@ -326,9 +327,56 @@
     <sys:String x:Key="Rpt.BrowseStock.AvailableCountFormat">{0} available reports</sys:String>
     <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.low_stock">Current inventory levels</sys:String>
     <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.stock_movement">Detailed stock transactions</sys:String>
-    <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.wastage">Stock wastage and write-offs</sys:String>
     <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.stock_variance">Expected vs actual stock</sys:String>
     <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.reorder">Items below minimum levels</sys:String>
+    <sys:String x:Key="Rpt.BrowseStock.Subtitle.rpt.stock_waste_impact">Waste impact on stock holding</sys:String>
+    <sys:String x:Key="Rpt.BrowseProcurement.AvailableCountFormat">{0} available reports</sys:String>
+    <sys:String x:Key="Rpt.BrowseProcurement.Subtitle.rpt.purchases_by_supplier">Supplier purchase history</sys:String>
+    <sys:String x:Key="Rpt.BrowseProcurement.Subtitle.rpt.purchase_order_summary">PO status and tracking</sys:String>
+    <sys:String x:Key="Rpt.BrowseProcurement.Subtitle.rpt.outstanding_orders">Pending purchase orders</sys:String>
+    <sys:String x:Key="Rpt.BrowseProcurement.Subtitle.rpt.delivery_variances">Ordered vs received variance</sys:String>
+    <sys:String x:Key="Rpt.BrowseProcurement.Subtitle.rpt.supplier_spend_analysis">Cost analysis by supplier</sys:String>
+    <sys:String x:Key="Rpt.BrowseProfitability.AvailableCountFormat">{0} available reports</sys:String>
+    <sys:String x:Key="Rpt.BrowseProfitability.Subtitle.rpt.gross_profit_by_product">Product-level margin analysis</sys:String>
+    <sys:String x:Key="Rpt.BrowseProfitability.Subtitle.rpt.gross_profit_by_category">Category margin overview</sys:String>
+    <sys:String x:Key="Rpt.BrowseProfitability.Subtitle.rpt.menu_item_margin_analysis">Individual item profitability</sys:String>
+    <sys:String x:Key="Rpt.BrowseProfitability.Subtitle.rpt.wastage">Waste impact on profitability</sys:String>
+    <sys:String x:Key="Rpt.BrowseProfitability.Subtitle.rpt.delivery_channel_profitability">Channel-specific margins</sys:String>
+    <sys:String x:Key="Rpt.Report.PurchasesBySupplier.Title">Purchases by Supplier</sys:String>
+    <sys:String x:Key="Rpt.Report.PurchasesBySupplier.Subtitle">Supplier &amp; Procurement</sys:String>
+    <sys:String x:Key="Rpt.Report.PurchaseOrderSummary.Title">Purchase Order Summary</sys:String>
+    <sys:String x:Key="Rpt.Report.PurchaseOrderSummary.Subtitle">Supplier &amp; Procurement</sys:String>
+    <sys:String x:Key="Rpt.Report.OutstandingOrders.Title">Outstanding Orders</sys:String>
+    <sys:String x:Key="Rpt.Report.OutstandingOrders.Subtitle">Supplier &amp; Procurement</sys:String>
+    <sys:String x:Key="Rpt.Report.SupplierSpendAnalysis.Title">Supplier Spend Analysis</sys:String>
+    <sys:String x:Key="Rpt.Report.SupplierSpendAnalysis.Subtitle">Supplier &amp; Procurement</sys:String>
+    <sys:String x:Key="Rpt.Report.GrossProfitByProduct.Title">Gross Profit by Product</sys:String>
+    <sys:String x:Key="Rpt.Report.GrossProfitByProduct.Subtitle">Profitability Reports</sys:String>
+    <sys:String x:Key="Rpt.Report.GrossProfitByCategory.Title">Gross Profit by Category</sys:String>
+    <sys:String x:Key="Rpt.Report.GrossProfitByCategory.Subtitle">Profitability Reports</sys:String>
+    <sys:String x:Key="Rpt.Report.MenuItemMarginAnalysis.Title">Menu Item Margin Analysis</sys:String>
+    <sys:String x:Key="Rpt.Report.MenuItemMarginAnalysis.Subtitle">Profitability Reports</sys:String>
+    <sys:String x:Key="Rpt.Report.DeliveryChannelProfitability.Title">Delivery Channel Profitability</sys:String>
+    <sys:String x:Key="Rpt.Report.DeliveryChannelProfitability.Subtitle">Profitability Reports</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.TotalSpend">Total Spend</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.PoDate">Date</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.OrderDate">Order Date</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.DueDate">Due Date</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.TotalAmount">Total</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.DaysOverdue">Days Overdue</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.MonthJan">Jan</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.MonthFeb">Feb</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.MonthMar">Mar</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.AvgMonthly">Avg Monthly</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.GrossProfit">Gross Profit</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.MarginPercent">Margin %</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.SellPrice">Sell Price</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.MarginAmount">Margin</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Channel">Channel</sys:String>
+    <sys:String x:Key="Rpt.Report.Column.Commission">Commission</sys:String>
+    <sys:String x:Key="Rpt.Report.PoStatus.Delivered">Delivered</sys:String>
+    <sys:String x:Key="Rpt.Report.PoStatus.InTransit">In Transit</sys:String>
+    <sys:String x:Key="Rpt.Report.PoStatus.Pending">Pending</sys:String>
     <sys:String x:Key="Rpt.BrowseOperationalControl.AvailableCountFormat">{0} available reports</sys:String>
     <sys:String x:Key="Rpt.BrowseOperationalControl.Subtitle.rpt.voids">Voided transactions review</sys:String>
     <sys:String x:Key="Rpt.BrowseOperationalControl.Subtitle.rpt.refunds">Refund transaction history</sys:String>
@@ -351,6 +399,46 @@
     <sys:String x:Key="Rpt.Report.Column.EstCost">Est. Cost</sys:String>
     <sys:String x:Key="Rpt.Report.Movement.In">In</sys:String>
     <sys:String x:Key="Rpt.Report.Movement.Out">Out</sys:String>
+
+    <!-- RPT band table (shared by report overlays — left / numeric columns). -->
+    <Style x:Key="RptReportBandHeaderLeftStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="#111827"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="TextAlignment" Value="Left"/>
+        <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"/>
+    </Style>
+    <Style x:Key="RptReportBandHeaderNumStyle" TargetType="TextBlock" BasedOn="{StaticResource RptReportBandHeaderLeftStyle}">
+        <Setter Property="HorizontalAlignment" Value="Right"/>
+        <Setter Property="TextAlignment" Value="Right"/>
+    </Style>
+    <Style x:Key="RptReportBandCellLeftStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource MainForeground}"/>
+        <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="TextAlignment" Value="Left"/>
+        <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,10,0'}"/>
+    </Style>
+    <Style x:Key="RptReportBandCellNumStyle" TargetType="TextBlock" BasedOn="{StaticResource RptReportBandCellLeftStyle}">
+        <Setter Property="HorizontalAlignment" Value="Right"/>
+        <Setter Property="TextAlignment" Value="Right"/>
+    </Style>
+    <Style x:Key="RptReportBandMetaLabelStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource DimmedForeground}"/>
+        <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=12}"/>
+        <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='0,0,0,4'}"/>
+    </Style>
+    <Style x:Key="RptReportBandMetaValueStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource MainForeground}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Margin" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource ThicknessScaleConverter}, ConverterParameter='1,0,0,10'}"/>
+        <Setter Property="FontSize" Value="{Binding Source={StaticResource UiScaleState}, Path=FontScale, Converter={StaticResource FontScaleConverter}, ConverterParameter=14}"/>
+    </Style>
 
     <SolidColorBrush x:Key="Brush.RptBrowseSalesStar" Color="#FFC107"/>
     <SolidColorBrush x:Key="Brush.RptBrowseSalesCardBorder" Color="#E0E0E0"/>
